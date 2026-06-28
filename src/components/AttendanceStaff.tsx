@@ -251,7 +251,7 @@ export const AttendanceStaff: React.FC<AttendanceStaffProps> = ({
                     <button
                       onClick={() => {
                         const entered = prompt(language === 'en' ? 'Security authentication: Enter Admin PIN passcode to edit employee profile:' : 'ආරක්ෂක සත්‍යාපනය: සේවක පැතිකඩ වෙනස් කිරීමට කළමනාකරු PIN අංකය ඇතුළත් කරන්න:');
-                        if (entered !== (settings.adminPin || '1234')) {
+                        if (entered !== (settings.adminPin || '8892')) {
                           alert(language === 'en' ? 'Unauthorized! Incorrect Admin PIN.' : 'අනවසරයි! වැරදි කළමනාකරු PIN අංකයකි.');
                           return;
                         }
@@ -273,7 +273,7 @@ export const AttendanceStaff: React.FC<AttendanceStaffProps> = ({
                     <button
                       onClick={() => {
                         const entered = prompt(language === 'en' ? 'Security authentication: Enter Admin PIN passcode to delete employee:' : 'ආරක්ෂක සත්‍යාපනය: සේවකයා ඉවත් කිරීමට කළමනාකරු PIN අංකය ඇතුළත් කරන්න:');
-                        if (entered !== (settings.adminPin || '1234')) {
+                        if (entered !== (settings.adminPin || '8892')) {
                           alert(language === 'en' ? 'Unauthorized! Incorrect Admin PIN.' : 'අනවසරයි! වැරදි කළමනාකරු PIN අංකයකි.');
                           return;
                         }

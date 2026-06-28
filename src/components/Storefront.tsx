@@ -7,6 +7,13 @@ import {
   Store, Smartphone, Cpu, Lightbulb, ShoppingBag, Gift, Tag, Truck, RotateCcw, ShieldCheck, Coffee, UtensilsCrossed, SmartphoneCharging
 } from 'lucide-react';
 
+const isOutOfStock = (stock: number | 'Unlimited' | string | undefined | null) => {
+  if (stock === 'Unlimited') return false;
+  if (stock === undefined || stock === null) return false;
+  const num = typeof stock === 'string' ? parseFloat(stock) : Number(stock);
+  return isNaN(num) || num <= 0;
+};
+
 interface StorefrontProps {
   language: 'en' | 'si';
   products: Product[];
@@ -360,10 +367,10 @@ export const Storefront: React.FC<StorefrontProps> = ({
       return matchesCategory && matchesSearch;
     });
 
-    // In Stock (Unlimited or stock > 0) first, Out of Stock (stock !== 'Unlimited' && stock <= 0) last
+    // In Stock (Unlimited or stock > 0) first, Out of Stock last
     return [...list].sort((a, b) => {
-      const aOut = a.stock !== 'Unlimited' && a.stock <= 0;
-      const bOut = b.stock !== 'Unlimited' && b.stock <= 0;
+      const aOut = isOutOfStock(a.stock);
+      const bOut = isOutOfStock(b.stock);
       if (aOut && !bOut) return 1;
       if (!aOut && bOut) return -1;
       return 0;
@@ -569,16 +576,22 @@ export const Storefront: React.FC<StorefrontProps> = ({
   [products]);
 
   const hotDeals = useMemo(() =>
-    visibleProducts.filter((p, idx) => p.stock !== 'Unlimited' && p.stock > 0 && idx % 2 === 0).slice(0, 6),
+    visibleProducts.filter((p, idx) => p.stock !== 'Unlimited' && !isOutOfStock(p.stock) && idx % 2 === 0).slice(0, 6),
   [visibleProducts]);
 
   const featuredProducts = useMemo(() =>
-    visibleProducts.filter((p, idx) => p.stock !== 'Unlimited' && p.stock > 0 && idx % 2 !== 0).slice(0, 6),
+    visibleProducts.filter((p, idx) => p.stock !== 'Unlimited' && !isOutOfStock(p.stock) && idx % 2 !== 0).slice(0, 6),
   [visibleProducts]);
 
-  const newArrivals = useMemo(() =>
-    [...visibleProducts].sort((a, b) => b.id.localeCompare(a.id)).slice(0, 6),
-  [visibleProducts]);
+  const newArrivals = useMemo(() => {
+    return [...visibleProducts].sort((a, b) => {
+      const aOut = isOutOfStock(a.stock);
+      const bOut = isOutOfStock(b.stock);
+      if (aOut && !bOut) return 1;
+      if (!aOut && bOut) return -1;
+      return b.id.localeCompare(a.id);
+    }).slice(0, 6);
+  }, [visibleProducts]);
 
   const getCategoryIcon = (categoryName: string, className = "h-5 w-5") => {
     switch (categoryName) {
@@ -620,7 +633,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
   const ProductCard = ({ product, badge }: { product: Product; badge?: string }) => {
     const fakeOriginal = Math.round(product.retailPrice * 1.18);
     const discount = Math.round(((fakeOriginal - product.retailPrice) / fakeOriginal) * 100);
-    const outOfStock = product.stock !== 'Unlimited' && product.stock <= 0;
+    const outOfStock = isOutOfStock(product.stock);
     const productReviews = reviews.filter(r => r.productId === product.id);
     const reviewCount = productReviews.length;
     const ratingVal = reviewCount > 0 

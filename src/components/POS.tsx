@@ -31,6 +31,13 @@ interface POSProps {
   onToggleFullScreen?: () => void;
 }
 
+const isOutOfStock = (stock: number | 'Unlimited' | string | undefined | null) => {
+  if (stock === 'Unlimited') return false;
+  if (stock === undefined || stock === null) return false;
+  const num = typeof stock === 'string' ? parseFloat(stock) : Number(stock);
+  return isNaN(num) || num <= 0;
+};
+
 export const POS: React.FC<POSProps> = ({
   language,
   products,
@@ -308,8 +315,8 @@ export const POS: React.FC<POSProps> = ({
     });
 
     return list.sort((a, b) => {
-      const aOut = a.stock !== 'Unlimited' && a.stock <= 0;
-      const bOut = b.stock !== 'Unlimited' && b.stock <= 0;
+      const aOut = isOutOfStock(a.stock);
+      const bOut = isOutOfStock(b.stock);
 
       // If one is sold out and the other is not, put sold out at the end
       if (aOut && !bOut) return 1;

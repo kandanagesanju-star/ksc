@@ -438,7 +438,7 @@ export const initialSettings: ShopSettings = {
   onlineAnnouncementMessage: '',
   onlineAnnouncementBgColor: 'bg-blue-500/15 text-blue-300 border-blue-500/30',
   uiTheme: 'slate',
-  adminPin: '1234',
+  adminPin: '8892',
   enableSms: true,
   enableRepairs: true,
   enableSpecialOrders: true,

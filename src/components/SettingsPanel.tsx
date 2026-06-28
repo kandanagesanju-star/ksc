@@ -158,7 +158,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
   // Advanced settings (Theme & PIN)
   const [uiTheme, setUiTheme] = useState(settings.uiTheme || 'slate');
-  const [adminPin, setAdminPin] = useState(settings.adminPin || '1234');
+  const [adminPin, setAdminPin] = useState(settings.adminPin || '8892');
 
   // Role permissions states
   const [cashierAllowPOS, setCashierAllowPOS] = useState(settings.rolePermissions?.cashier?.allowPOS ?? true);
@@ -225,7 +225,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     setOnlineAnnouncementMessage(settings.onlineAnnouncementMessage || '');
     setOnlineAnnouncementBgColor(settings.onlineAnnouncementBgColor || 'bg-blue-500/15 text-blue-300 border-blue-500/30');
     setUiTheme(settings.uiTheme || 'slate');
-    setAdminPin(settings.adminPin || '1234');
+    setAdminPin(settings.adminPin || '8892');
     setCashierAllowPOS(settings.rolePermissions?.cashier?.allowPOS ?? true);
     setCashierAllowRepairs(settings.rolePermissions?.cashier?.allowRepairs ?? false);
     setCashierAllowCustomers(settings.rolePermissions?.cashier?.allowCustomers ?? true);
@@ -362,7 +362,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     setPinError('');
     setPinSuccess('');
 
-    const requiredPin = settings.adminPin || '1234';
+    const requiredPin = settings.adminPin || '8892';
     if (currentPin !== requiredPin) {
       setPinError(language === 'en' ? 'Incorrect current passcode PIN!' : 'වත්මන් පින් අංකය (PIN) වැරදියි!');
       return;
@@ -1027,7 +1027,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                   maxLength={4}
                   value={adminPin}
                   onChange={(e) => setAdminPin(e.target.value.replace(/\D/g, ''))}
-                  placeholder="1234"
+                  placeholder="8892"
                   className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-center font-extrabold tracking-widest bg-white"
                 />
               </div>

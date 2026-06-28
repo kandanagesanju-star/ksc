@@ -25,6 +25,7 @@ interface NavbarProps {
   activeUser?: any;
   onLoginUser?: (user: any) => void;
   onLogoutUser?: () => void;
+  onUpdateEmployee?: (emp: Employee) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -48,7 +49,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   employees = [],
   activeUser = null,
   onLoginUser,
-  onLogoutUser
+  onLogoutUser,
+  onUpdateEmployee
 }) => {
   const t = translations[language];
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -63,6 +65,86 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [customerName, setCustomerName] = useState('');
   const [customerPass, setCustomerPass] = useState('');
   const [isRegistered, setIsRegistered] = useState(false);
+
+  // States for Active User Change PIN Modal
+  const [showChangePinModal, setShowChangePinModal] = useState(false);
+  const [changePinCurrent, setChangePinCurrent] = useState('');
+  const [changePinNew, setChangePinNew] = useState('');
+  const [changePinConfirm, setChangePinConfirm] = useState('');
+  const [changePinError, setChangePinError] = useState('');
+  const [changePinSuccess, setChangePinSuccess] = useState('');
+
+  const handleChangePinSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setChangePinError('');
+    setChangePinSuccess('');
+
+    if (changePinNew.length !== 4) {
+      setChangePinError(language === 'en' ? 'New PIN passcode must be exactly 4 digits.' : 'නව පින් අංකය (PIN) ඉලක්කම් 4ක් විය යුතුය.');
+      return;
+    }
+
+    if (changePinNew !== changePinConfirm) {
+      setChangePinError(language === 'en' ? 'New PIN passcodes do not match.' : 'නව පින් අංක එකිනෙකට නොගැලපේ.');
+      return;
+    }
+
+    if (!activeUser) {
+      setChangePinError(language === 'en' ? 'No active logged-in user.' : 'සක්‍රිය පරිශීලකයෙකු නොමැත.');
+      return;
+    }
+
+    const isAdmin = activeUser.id === 'admin' || activeUser.role === 'Admin';
+
+    if (isAdmin) {
+      const currentRequired = settings.adminPin || '8892';
+      if (changePinCurrent !== currentRequired) {
+        setChangePinError(language === 'en' ? 'Incorrect current PIN passcode.' : 'වත්මන් පින් අංකය වැරදියි.');
+        return;
+      }
+
+      if (onUpdateSettings) {
+        onUpdateSettings({
+          ...settings,
+          adminPin: changePinNew
+        });
+      }
+      
+      // Also update local storage settings
+      const savedSettings = localStorage.getItem('shop_settings');
+      if (savedSettings) {
+        const parsed = JSON.parse(savedSettings);
+        localStorage.setItem('shop_settings', JSON.stringify({ ...parsed, adminPin: changePinNew }));
+      }
+
+      setChangePinSuccess(language === 'en' ? 'Admin PIN changed successfully!' : 'කළමනාකරු පින් අංකය සාර්ථකව වෙනස් කරන ලදී!');
+      setTimeout(() => setShowChangePinModal(false), 1500);
+    } else {
+      // Find employee
+      const emp = employees.find(empItem => empItem.id === activeUser.id);
+      if (!emp) {
+        setChangePinError(language === 'en' ? 'Employee profile not found.' : 'සේවක ගිණුම සොයාගත නොහැකි විය.');
+        return;
+      }
+
+      // Check current passcode
+      const currentRequired = emp.passcode || '';
+      if (changePinCurrent !== currentRequired) {
+        setChangePinError(language === 'en' ? 'Incorrect current PIN passcode.' : 'වත්මන් පින් අංකය වැරදියි.');
+        return;
+      }
+
+      if (onUpdateEmployee) {
+        onUpdateEmployee({
+          ...emp,
+          passcode: changePinNew
+        });
+      }
+
+      setChangePinSuccess(language === 'en' ? 'Your passcode PIN changed successfully!' : 'ඔබගේ පින් අංකය සාර්ථකව වෙනස් කරන ලදී!');
+      setTimeout(() => setShowChangePinModal(false), 1500);
+    }
+  };
 
   const getGreeting = () => {
     const hr = new Date().getHours();
@@ -97,7 +179,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   // Secure passcode check to protect admin panels from normal customers
   const handleAdminAccess = () => {
     if (lockoutTime > 0) return;
-    const requiredPin = settings.adminPin || '1234';
+    const requiredPin = settings.adminPin || '8892';
     
     const matchedEmployee = employees.find(e => e.passcode === passcode);
 
@@ -135,15 +217,15 @@ export const Navbar: React.FC<NavbarProps> = ({
   const handleEmergencyReset = (e: React.FormEvent) => {
     e.preventDefault();
     if (recoveryCode.trim() === '880882015V') {
-      const updatedSettings = { ...settings, adminPin: '1234' };
+      const updatedSettings = { ...settings, adminPin: '8892' };
       if (onUpdateSettings) {
         onUpdateSettings(updatedSettings);
       }
       localStorage.setItem('shop_settings', JSON.stringify(updatedSettings));
       
       alert(language === 'en' 
-        ? 'Passcode PIN reset successful! The admin PIN has been set back to default: 1234' 
-        : 'පින් අංකය සාර්ථකව යථා තත්ත්වයට පත් කරන ලදී! පද්ධතියේ පින් අංකය පෙරනිමි PIN අංකය (1234) ලෙස සකසා ඇත.');
+        ? 'Passcode PIN reset successful! The admin PIN has been set back to default: 8892' 
+        : 'පින් අංකය සාර්ථකව යථා තත්ත්වයට පත් කරන ලදී! පද්ධතියේ පින් අංකය පෙරනිමි PIN අංකය (8892) ලෙස සකසා ඇත.');
       
       setShowRecovery(false);
       setRecoveryCode('');
@@ -237,6 +319,20 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <p className="font-extrabold text-slate-200 leading-tight">{activeUser.name}</p>
                       <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">{activeUser.role}</p>
                     </div>
+                    <button
+                      onClick={() => {
+                        setChangePinCurrent('');
+                        setChangePinNew('');
+                        setChangePinConfirm('');
+                        setChangePinError('');
+                        setChangePinSuccess('');
+                        setShowChangePinModal(true);
+                      }}
+                      className="ml-1.5 p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-yellow-400 transition cursor-pointer"
+                      title={language === 'en' ? 'Change My PIN/Passcode' : 'මාගේ PIN අංකය වෙනස් කරන්න'}
+                    >
+                      <Key className="h-3.5 w-3.5" />
+                    </button>
                     {onLogoutUser && (
                       <button
                         onClick={onLogoutUser}
@@ -363,8 +459,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                   </h3>
                   <p className="text-[10px] text-slate-400 leading-normal">
                     {language === 'en' 
-                      ? 'Enter the Master Recovery PIN to reset the admin passcode back to default: 1234'
-                      : 'පින් අංකය 1234 ලෙස නැවත පිහිටුවීමට ප්‍රධාන පින් අංකය (Master PIN) ඇතුළත් කරන්න.'}
+                      ? 'Enter the Master Recovery PIN to reset the admin passcode back to default: 8892'
+                      : 'පින් අංකය 8892 ලෙස නැවත පිහිටුවීමට ප්‍රධාන පින් අංකය (Master PIN) ඇතුළත් කරන්න.'}
                   </p>
                 </div>
 
@@ -419,7 +515,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <p className="text-[11px] text-slate-400">
                     {lockoutTime > 0 
                       ? (language === 'en' ? `Please wait ${lockoutTime}s before trying again.` : `නැවත උත්සාහ කිරීමට පෙර තත්පර ${lockoutTime}ක් රැඳී සිටින්න.`)
-                      : (language === 'en' ? 'Enter Admin or Employee Passcode PIN (Default Admin: 1234)' : 'කළමනාකරු හෝ සේවකයාගේ පින් (PIN) අංකය ඇතුළත් කරන්න (Default Admin: 1234)')}
+                      : (language === 'en' ? 'Enter Admin or Employee Passcode PIN (Default Admin: 8892)' : 'කළමනාකරු හෝ සේවකයාගේ පින් (PIN) අංකය ඇතුළත් කරන්න (Default Admin: 8892)')}
                   </p>
                 </div>
 
@@ -676,6 +772,99 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {/* EMPLOYEE & ADMIN CHANGE PASSCODE PIN MODAL */}
+      {showChangePinModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden border border-slate-100 animate-in fade-in zoom-in duration-200">
+            <div className="bg-slate-950 text-white p-4 flex justify-between items-center">
+              <h3 className="text-xs font-bold flex items-center">
+                <Key className="h-4 w-4 mr-1.5 text-blue-400" />
+                {language === 'en' ? 'Change Passcode PIN' : 'පින් අංකය වෙනස් කරන්න'}
+              </h3>
+              <button 
+                onClick={() => setShowChangePinModal(false)} 
+                className="text-slate-400 hover:text-white text-sm cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleChangePinSubmit} className="p-5 space-y-4 text-xs font-semibold text-slate-800">
+              {changePinError && (
+                <div className="bg-rose-50 text-rose-600 p-2.5 rounded-xl border border-rose-200 text-center font-bold">
+                  {changePinError}
+                </div>
+              )}
+              {changePinSuccess && (
+                <div className="bg-emerald-50 text-emerald-600 p-2.5 rounded-xl border border-emerald-250 text-center font-bold">
+                  {changePinSuccess}
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-500">
+                  {language === 'en' ? 'Current Passcode PIN' : 'වත්මන් පින් අංකය'} *
+                </label>
+                <input
+                  type="password"
+                  required
+                  maxLength={6}
+                  value={changePinCurrent}
+                  onChange={(e) => setChangePinCurrent(e.target.value.replace(/\D/g, ''))}
+                  placeholder="••••"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-center font-extrabold tracking-widest text-slate-850 bg-white focus:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-500">
+                  {language === 'en' ? 'New Passcode PIN (4 digits)' : 'නව පින් අංකය (ඉලක්කම් 4)'} *
+                </label>
+                <input
+                  type="password"
+                  required
+                  maxLength={4}
+                  value={changePinNew}
+                  onChange={(e) => setChangePinNew(e.target.value.replace(/\D/g, ''))}
+                  placeholder="••••"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-center font-extrabold tracking-widest text-slate-850 bg-white focus:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-slate-500">
+                  {language === 'en' ? 'Confirm New Passcode PIN' : 'නව පින් අංකය තහවුරු කරන්න'} *
+                </label>
+                <input
+                  type="password"
+                  required
+                  maxLength={4}
+                  value={changePinConfirm}
+                  onChange={(e) => setChangePinConfirm(e.target.value.replace(/\D/g, ''))}
+                  placeholder="••••"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-center font-extrabold tracking-widest text-slate-850 bg-white focus:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex space-x-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowChangePinModal(false)}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-650 py-2.5 rounded-xl font-bold transition cursor-pointer"
+                >
+                  {language === 'en' ? 'Cancel' : 'අවලංගු කරන්න'}
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-blue-600 hover:bg-blue-750 text-white py-2.5 rounded-xl font-bold shadow-md transition cursor-pointer"
+                >
+                  {language === 'en' ? 'Update PIN' : 'පින් එක වෙනස් කරන්න'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

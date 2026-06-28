@@ -124,7 +124,11 @@ function App() {
     const saved = localStorage.getItem('shop_settings');
     // Merge initialSettings with saved data so any NEW fields always have defaults
     // (prevents missing-field issues when old localStorage data lacks new settings keys)
-    return saved ? { ...initialSettings, ...JSON.parse(saved) } : initialSettings;
+    const loaded = saved ? { ...initialSettings, ...JSON.parse(saved) } : initialSettings;
+    if (loaded.adminPin === '1234') {
+      loaded.adminPin = '8892';
+    }
+    return loaded;
   });
 
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>(() => {
@@ -1110,6 +1114,7 @@ function App() {
         setLoggedInCustomer={setLoggedInCustomer}
         employees={employees}
         activeUser={activeUser}
+        onUpdateEmployee={handleUpdateEmployee}
         onLoginUser={(user) => {
           setActiveUser(user);
           if (user.role === 'Cashier') {
