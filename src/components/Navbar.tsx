@@ -414,12 +414,12 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <h3 className="text-sm font-extrabold text-slate-100">
                     {lockoutTime > 0 
                       ? (language === 'en' ? 'System Locked' : 'පද්ධතිය අගුළු දමා ඇත')
-                      : (language === 'en' ? 'Admin Passcode Required' : 'ඇතුළත් වීමේ මුද්‍රාව අවශ්‍යයි')}
+                      : (language === 'en' ? 'Access Control PIN' : 'පාලන පද්ධති පිවිසුම් PIN')}
                   </h3>
                   <p className="text-[11px] text-slate-400">
                     {lockoutTime > 0 
                       ? (language === 'en' ? `Please wait ${lockoutTime}s before trying again.` : `නැවත උත්සාහ කිරීමට පෙර තත්පර ${lockoutTime}ක් රැඳී සිටින්න.`)
-                      : (language === 'en' ? 'Enter passcode to access Admin & POS (Default: 1234)' : 'කළමනාකරණ අංශයට පිවිසීමට මුද්‍රාව ඇතුළත් කරන්න (Default: 1234)')}
+                      : (language === 'en' ? 'Enter Admin or Employee Passcode PIN (Default Admin: 1234)' : 'කළමනාකරු හෝ සේවකයාගේ පින් (PIN) අංකය ඇතුළත් කරන්න (Default Admin: 1234)')}
                   </p>
                 </div>
 
