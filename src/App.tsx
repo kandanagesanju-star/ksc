@@ -122,7 +122,9 @@ function App() {
 
   const [settings, setSettings] = useState<ShopSettings>(() => {
     const saved = localStorage.getItem('shop_settings');
-    return saved ? JSON.parse(saved) : initialSettings;
+    // Merge initialSettings with saved data so any NEW fields always have defaults
+    // (prevents missing-field issues when old localStorage data lacks new settings keys)
+    return saved ? { ...initialSettings, ...JSON.parse(saved) } : initialSettings;
   });
 
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>(() => {
