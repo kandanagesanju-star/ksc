@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { Product, Category, ProductSource, ShopSettings } from '../types';
 import { translations } from '../lib/translations';
-import { Plus, Search, Edit, Trash2, AlertTriangle, Check, RefreshCw, X, Laptop, ChevronLeft, ChevronRight, Upload, Download, FileText, QrCode, Image, Printer } from 'lucide-react';
+import { Plus, Search, Edit, Copy, Trash2, AlertTriangle, Check, RefreshCw, X, Laptop, ChevronLeft, ChevronRight, Upload, Download, FileText, QrCode, Image, Printer } from 'lucide-react';
 
 interface InventoryProps {
   language: 'en' | 'si';
@@ -179,6 +179,38 @@ export const Inventory: React.FC<InventoryProps> = ({
     setIsTaxable(product.isTaxable !== undefined ? product.isTaxable : true);
     setImageUrl(product.imageUrl || '');
     setQrCode((product as any).qrCode || '');
+    if (product.imageUrl && product.imageUrl.startsWith('data:image')) {
+      setImageTab('upload');
+    } else {
+      setImageTab('url');
+    }
+    setBatches(product.batches || []);
+    setIsNewModalOpen(true);
+  };
+
+  // Open modal with copied data to duplicate/clone product
+  const openDuplicateModal = (product: Product) => {
+    setEditingProduct(null); // Save as NEW product
+    setId(generateProductCode(product.category));
+    setNameEn(`${product.nameEn} (Copy)`);
+    setNameSi(`${product.nameSi} (පිටපත)`);
+    setDescriptionEn(product.descriptionEn || '');
+    setDescriptionSi(product.descriptionSi || '');
+    setCategory(product.category);
+    setSource(product.source);
+    setCostPrice(product.costPrice);
+    setRetailPrice(product.retailPrice);
+    setWholesalePrice(product.wholesalePrice);
+    setWholesaleMinQty(product.wholesaleMinQty);
+    setStockType(product.stock === 'Unlimited' ? 'Unlimited' : 'Limited');
+    setStockQty(product.stock === 'Unlimited' ? 0 : product.stock);
+    setLowStockAlert(product.lowStockAlert);
+    setBrand(product.brand || 'Generic');
+    setRackLocation(product.rackLocation || 'Counter');
+    setIsWeighted(product.isWeighted || false);
+    setIsTaxable(product.isTaxable !== undefined ? product.isTaxable : true);
+    setImageUrl(product.imageUrl || '');
+    setQrCode('');
     if (product.imageUrl && product.imageUrl.startsWith('data:image')) {
       setImageTab('upload');
     } else {
@@ -581,6 +613,13 @@ export const Inventory: React.FC<InventoryProps> = ({
                             title={t.editProduct}
                           >
                             <Edit className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => openDuplicateModal(p)}
+                            className="p-1.5 bg-slate-100 hover:bg-amber-100 text-slate-500 hover:text-amber-600 rounded-lg transition"
+                            title={language === 'en' ? 'Duplicate Product' : 'පිටපතක් සාදන්න (Duplicate)'}
+                          >
+                            <Copy className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={() => {
