@@ -653,22 +653,43 @@ export const Inventory: React.FC<InventoryProps> = ({
               {language === 'en' ? 'Previous' : 'පෙර'}
             </button>
 
-            {Array.from({ length: totalPages }).map((_, idx) => {
-              const pNum = idx + 1;
-              return (
-                <button
-                  key={pNum}
-                  onClick={() => setCurrentPage(pNum)}
-                  className={`w-8 h-8 rounded-lg text-xs font-bold border transition ${
-                    currentPage === pNum 
-                      ? 'bg-blue-600 text-white border-blue-600' 
-                      : 'bg-white hover:bg-slate-50 text-slate-700'
-                  }`}
-                >
-                  {pNum}
-                </button>
-              );
-            })}
+            {(() => {
+              const pages: (number | string)[] = [];
+              if (totalPages <= 7) {
+                for (let i = 1; i <= totalPages; i++) pages.push(i);
+              } else {
+                pages.push(1);
+                if (currentPage > 3) pages.push('...');
+                
+                const start = Math.max(2, currentPage - 1);
+                const end = Math.min(totalPages - 1, currentPage + 1);
+                for (let i = start; i <= end; i++) {
+                  pages.push(i);
+                }
+                
+                if (currentPage < totalPages - 2) pages.push('...');
+                pages.push(totalPages);
+              }
+              
+              return pages.map((pNum, idx) => {
+                if (pNum === '...') {
+                  return <span key={`dots-${idx}`} className="px-2 text-slate-400 font-bold text-xs">...</span>;
+                }
+                return (
+                  <button
+                    key={pNum}
+                    onClick={() => setCurrentPage(pNum as number)}
+                    className={`w-8 h-8 rounded-lg text-xs font-bold border transition ${
+                      currentPage === pNum 
+                        ? 'bg-blue-600 text-white border-blue-600' 
+                        : 'bg-white hover:bg-slate-50 text-slate-700'
+                    }`}
+                  >
+                    {pNum}
+                  </button>
+                );
+              });
+            })()}
 
             <button
               onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}

@@ -165,6 +165,7 @@ export interface StockReturn {
   totalRefund: number;
   reason: string;
   createdAt: string;
+  action?: 'Return to Stock' | 'Scrap';
 }
 
 export interface WarrantyReplacement {

@@ -685,17 +685,44 @@ function App() {
   const handleAddStockReturn = (ret: StockReturn) => {
     setStockReturns(prev => [ret, ...prev]);
     ret.items.forEach(item => {
+      // 1. Update Product Inventory Stock levels based on return type and action
       setProducts(prevProducts => prevProducts.map(p => {
         if (p.id === item.productId && p.stock !== 'Unlimited') {
+          let newStock = Number(p.stock);
+          if (ret.type === 'Sales Return') {
+            if (ret.action === 'Return to Stock' || !ret.action) {
+              newStock += item.qty;
+            }
+            // if action === 'Scrap', net stock change is 0 (customer returns it, but it is thrown away)
+          } else if (ret.type === 'Purchase Return') {
+            newStock = Math.max(0, newStock - item.qty);
+          }
           return {
             ...p,
-            stock: p.stock + item.qty
+            stock: newStock
           };
         }
         return p;
       }));
+
+      // 2. If it is a scrapped Sales Return, log a Damage stock adjustment to maintain full ledger traceability
+      if (ret.type === 'Sales Return' && ret.action === 'Scrap') {
+        const scrapAdj: StockAdjustment = {
+          id: `ADJ-SCR-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+          productId: item.productId,
+          productName: item.productName,
+          type: 'Damage',
+          qtyAdjusted: -item.qty,
+          reason: `Scrapped damaged item from return ${ret.id}`,
+          adjustedBy: 'System (Return Module)',
+          createdAt: new Date().toISOString()
+        };
+        setStockAdjustments(prev => [scrapAdj, ...prev]);
+        addAuditLog('STOCK_ADJUSTED', `Adjusted stock for ${scrapAdj.productName} by ${scrapAdj.qtyAdjusted} (Scrapped Return ${ret.id})`);
+      }
     });
-    addAuditLog('STOCK_RETURNED', `Recorded return ${ret.id}`);
+
+    addAuditLog('STOCK_RETURNED', `Recorded ${ret.type} ${ret.id} - Refund: Rs. ${ret.totalRefund}`);
   };
 
   const handleAddQuotation = (quote: Quotation) => {
@@ -1311,6 +1338,7 @@ function App() {
                   purchaseOrders={purchaseOrders}
                   stockAdjustments={stockAdjustments}
                   stockReturns={stockReturns}
+                  sales={sales}
                   onAddPurchaseOrder={(order) => setPurchaseOrders(prev => [order, ...prev])}
                   onReceivePurchaseOrder={(orderId) => {
                     setPurchaseOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: 'Received' } : o));

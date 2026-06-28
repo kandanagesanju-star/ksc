@@ -62,6 +62,10 @@ export const POS: React.FC<POSProps> = ({
     customPrice?: number; // Allowed to edit price on-the-fly
   }[]>([]);
 
+  // Pagination State for POS Product Grid
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 24; // 24 items is optimal for grid scaling on cash register screens
+
   const [applyVat, setApplyVat] = useState(false);
   const [applySscl, setApplySscl] = useState(false);
   
@@ -268,6 +272,19 @@ export const POS: React.FC<POSProps> = ({
       return matchesCategory && matchesSearch;
     });
   }, [products, selectedCategory, searchQuery]);
+
+  // Reset to first page on filter/search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, selectedCategory]);
+
+  // Sliced page products
+  const paginatedProducts = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredProducts.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredProducts, currentPage]);
+
+  const totalPages = Math.ceil(filteredProducts.length / itemsPerPage) || 1;
 
   // Filter existing customers for quick select
   const filteredCustomers = useMemo(() => {
@@ -875,8 +892,8 @@ export const POS: React.FC<POSProps> = ({
         </div>
 
         {/* Quick Click Products Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 max-h-[60vh] overflow-y-auto pr-1">
-          {filteredProducts.map(p => {
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 max-h-[55vh] overflow-y-auto pr-1">
+          {paginatedProducts.map(p => {
             const isLowStock = p.stock !== 'Unlimited' && p.stock <= p.lowStockAlert;
             const isOutOfStock = p.stock !== 'Unlimited' && p.stock <= 0;
 
@@ -922,6 +939,68 @@ export const POS: React.FC<POSProps> = ({
             );
           })}
         </div>
+
+        {/* POS Grid Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex justify-between items-center bg-white px-4 py-2 border border-slate-200 rounded-xl shadow-sm text-xs font-bold text-slate-600">
+            <span>
+              {language === 'en' ? `Page ${currentPage} of ${totalPages}` : `පිටුව ${currentPage} න් ${totalPages}`}
+            </span>
+            <div className="flex items-center space-x-1">
+              <button
+                type="button"
+                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                disabled={currentPage === 1}
+                className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center hover:bg-slate-100 disabled:opacity-40 transition text-sm cursor-pointer"
+              >
+                ‹
+              </button>
+              {(() => {
+                const pages: (number | string)[] = [];
+                if (totalPages <= 5) {
+                  for (let i = 1; i <= totalPages; i++) pages.push(i);
+                } else {
+                  pages.push(1);
+                  if (currentPage > 3) pages.push('...');
+                  const start = Math.max(2, currentPage - 1);
+                  const end = Math.min(totalPages - 1, currentPage + 1);
+                  for (let i = start; i <= end; i++) {
+                    pages.push(i);
+                  }
+                  if (currentPage < totalPages - 2) pages.push('...');
+                  pages.push(totalPages);
+                }
+                return pages.map((p, idx) => {
+                  if (p === '...') {
+                    return <span key={`dots-${idx}`} className="px-1 text-slate-400 text-[10px]">...</span>;
+                  }
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setCurrentPage(p as number)}
+                      className={`w-7 h-7 rounded-lg border text-[10px] font-extrabold transition ${
+                        currentPage === p 
+                          ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
+                          : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  );
+                });
+              })()}
+              <button
+                type="button"
+                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                disabled={currentPage === totalPages}
+                className="w-8 h-8 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-center hover:bg-slate-100 disabled:opacity-40 transition text-sm cursor-pointer"
+              >
+                ›
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* POS Billing Terminal (Right) */}

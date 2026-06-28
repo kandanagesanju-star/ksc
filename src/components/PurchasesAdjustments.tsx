@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Product, Supplier, PurchaseOrder, StockAdjustment, StockReturn } from '../types';
+import { Product, Supplier, PurchaseOrder, StockAdjustment, StockReturn, Sale } from '../types';
 import { translations } from '../lib/translations';
 import { 
   Plus, Search, ShoppingCart, Truck, AlertTriangle, Check, 
@@ -13,6 +13,7 @@ interface PurchasesAdjustmentsProps {
   purchaseOrders: PurchaseOrder[];
   stockAdjustments: StockAdjustment[];
   stockReturns: StockReturn[];
+  sales: Sale[];
   onAddPurchaseOrder: (order: PurchaseOrder) => void;
   onReceivePurchaseOrder: (orderId: string) => void;
   onAddStockAdjustment: (adj: StockAdjustment) => void;
@@ -33,6 +34,7 @@ export const PurchasesAdjustments: React.FC<PurchasesAdjustmentsProps> = ({
   purchaseOrders,
   stockAdjustments,
   stockReturns,
+  sales,
   onAddPurchaseOrder,
   onReceivePurchaseOrder,
   onAddStockAdjustment,
@@ -189,10 +191,27 @@ export const PurchasesAdjustments: React.FC<PurchasesAdjustmentsProps> = ({
   const [retRefund, setRetRefund] = useState<number>(0);
   const [retReason, setRetReason] = useState('');
 
+  // Return Lookup & Validation States
+  const [lookupError, setLookupError] = useState('');
+  const [lookupSuccess, setLookupSuccess] = useState('');
+  const [matchedSale, setMatchedSale] = useState<Sale | null>(null);
+  const [matchedPO, setMatchedPO] = useState<PurchaseOrder | null>(null);
+  const [returnAction, setReturnAction] = useState<'Return to Stock' | 'Scrap'>('Return to Stock');
+
   // Auto-suggest reorders list
   const reorderSuggestions = useMemo(() => {
     return products.filter(p => p.stock !== 'Unlimited' && p.stock <= p.lowStockAlert);
   }, [products]);
+
+  // Group reorder suggestions by category
+  const groupedSuggestions = useMemo(() => {
+    const groups: Record<string, Product[]> = {};
+    reorderSuggestions.forEach(p => {
+      if (!groups[p.category]) groups[p.category] = [];
+      groups[p.category].push(p);
+    });
+    return groups;
+  }, [reorderSuggestions]);
 
   // Handle Add Purchase Order
   const handleCreatePurchaseOrder = (e: React.FormEvent) => {
@@ -309,6 +328,42 @@ export const PurchasesAdjustments: React.FC<PurchasesAdjustmentsProps> = ({
     setAdjReason('');
   };
 
+  const handleLookupTransaction = () => {
+    setLookupError('');
+    setLookupSuccess('');
+    setMatchedSale(null);
+    setMatchedPO(null);
+    setRetProduct(null);
+    setRetQty(1);
+    setRetRefund(0);
+
+    const term = retRelatedId.trim().toLowerCase();
+    if (!term) {
+      setLookupError(language === 'en' ? 'Please enter a Transaction ID.' : 'කරුණාකර ගනුදෙනු අංකය ඇතුළත් කරන්න.');
+      return;
+    }
+
+    if (retType === 'Sales Return') {
+      const found = sales.find(s => s.id.toLowerCase() === term);
+      if (found) {
+        setMatchedSale(found);
+        setRetRelatedName(found.customerName || 'Walk-In Customer');
+        setLookupSuccess(language === 'en' ? `Invoice found! Customer: ${found.customerName || 'Walk-In Customer'}` : `බිල්පත හමු විය! ගැනුම්කරු: ${found.customerName || 'Walk-In Customer'}`);
+      } else {
+        setLookupError(language === 'en' ? 'Invoice ID not found.' : 'බිල්පත් අංකය හමු නොවීය.');
+      }
+    } else {
+      const found = purchaseOrders.find(po => po.id.toLowerCase() === term);
+      if (found) {
+        setMatchedPO(found);
+        setRetRelatedName(found.supplierName);
+        setLookupSuccess(language === 'en' ? `PO found! Supplier: ${found.supplierName}` : `මිලදී ගැනීමේ ඇණවුම හමු විය! සැපයුම්කරු: ${found.supplierName}`);
+      } else {
+        setLookupError(language === 'en' ? 'Purchase Order ID not found.' : 'මිලදී ගැනීමේ ඇණවුම් අංකය හමු නොවීය.');
+      }
+    }
+  };
+
   // Handle Add Stock Return
   const handleCreateReturn = (e: React.FormEvent) => {
     e.preventDefault();
@@ -327,7 +382,8 @@ export const PurchasesAdjustments: React.FC<PurchasesAdjustmentsProps> = ({
       }],
       totalRefund: retRefund,
       reason: retReason.trim(),
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      action: retType === 'Sales Return' ? returnAction : undefined
     };
 
     onAddStockReturn(newRet);
@@ -336,6 +392,12 @@ export const PurchasesAdjustments: React.FC<PurchasesAdjustmentsProps> = ({
     setRetQty(1);
     setRetRefund(0);
     setRetReason('');
+    setRetRelatedId('');
+    setRetRelatedName('');
+    setMatchedSale(null);
+    setMatchedPO(null);
+    setLookupError('');
+    setLookupSuccess('');
   };
 
   return (
@@ -390,9 +452,9 @@ export const PurchasesAdjustments: React.FC<PurchasesAdjustmentsProps> = ({
 
           {/* Re-order suggestions block */}
           {reorderSuggestions.length > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-3">
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 space-y-4">
               <h4 className="text-xs font-bold text-amber-800 flex items-center">
-                <AlertTriangle className="h-4.5 w-4.5 mr-1.5" />
+                <AlertTriangle className="h-4.5 w-4.5 mr-1.5 animate-bounce" />
                 {language === 'en' ? 'Auto Stock Re-Order Suggestions' : 'ස්වයංක්‍රීය නැවත ඇණවුම් යෝජනා'}
               </h4>
               <p className="text-[11px] text-slate-600 leading-relaxed">
@@ -400,28 +462,51 @@ export const PurchasesAdjustments: React.FC<PurchasesAdjustmentsProps> = ({
                   ? 'The following items are running low on stock. Click below to generate a reorder checklist which you can send to suppliers.'
                   : 'පහත සඳහන් භාණ්ඩවල තොග අවසන් වෙමින් පවතී. සැපයුම්කරුවන්ට යැවිය හැකි නැවත ඇණවුම් ලැයිස්තුවක් සාදා ගැනීමට පහත බොත්තම ඔබන්න.'}
               </p>
-              <div className="flex flex-wrap gap-2">
-                {reorderSuggestions.map(p => (
-                  <span key={p.id} className="bg-white border border-amber-200 px-2.5 py-1 rounded-lg text-[10px] font-bold text-slate-700">
-                    {p.nameEn} ({p.stock} left)
-                  </span>
+
+              {/* Grouped Display by Category */}
+              <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+                {Object.entries(groupedSuggestions).map(([cat, items]) => (
+                  <div key={cat} className="space-y-1 bg-white/45 p-2 rounded-xl border border-amber-100/50">
+                    <span className="text-[9px] font-black uppercase text-amber-900 bg-amber-100 px-2 py-0.5 rounded-full border border-amber-200 tracking-wider inline-block">
+                      {cat}
+                    </span>
+                    <div className="flex flex-wrap gap-1.5 pt-1 pl-1">
+                      {items.map(p => (
+                        <span key={p.id} className="bg-white border border-amber-200/50 px-2.5 py-1 rounded-lg text-[10px] font-bold text-slate-700 shadow-sm flex items-center gap-1">
+                          <span>{p.nameEn}</span>
+                          <span className="text-[9px] text-rose-600 font-black">({p.stock} left)</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
+
               <button
                 onClick={() => {
-                  const listText = reorderSuggestions.map(p => `- ${p.nameEn} (ID: ${p.id}) - Current Stock: ${p.stock}`).join('\n');
-                  const blob = new Blob([listText], { type: 'text/plain' });
+                  let listText = '*** AUTO STOCK REORDER SUGGESTIONS ***\n';
+                  listText += `Generated: ${new Date().toLocaleString()}\n\n`;
+                  
+                  Object.entries(groupedSuggestions).forEach(([cat, items]) => {
+                    listText += `\nCATEGORY: ${cat.toUpperCase()}\n`;
+                    listText += `========================================\n`;
+                    items.forEach(p => {
+                      listText += `- [ ] ${p.nameEn} (ID: ${p.id}) - Current Stock: ${p.stock} | Low Stock Alert Limit: ${p.lowStockAlert}\n`;
+                    });
+                  });
+
+                  const blob = new Blob([listText], { type: 'text/plain;charset=utf-8;' });
                   const url = URL.createObjectURL(blob);
                   const a = document.createElement('a');
                   a.href = url;
-                  a.download = `Reorder_Suggestions_${new Date().toISOString().split('T')[0]}.txt`;
+                  a.download = `Reorder_Checklist_${new Date().toISOString().split('T')[0]}.txt`;
                   document.body.appendChild(a);
                   a.click();
                   a.remove();
                 }}
-                className="bg-amber-600 hover:bg-amber-700 text-white px-3.5 py-1.5 rounded-lg text-[11px] font-bold transition shadow-sm"
+                className="bg-amber-600 hover:bg-amber-700 active:scale-95 text-white px-4 py-2 rounded-xl text-xs font-black transition shadow shadow-amber-600/10 inline-flex items-center gap-1.5 cursor-pointer"
               >
-                {language === 'en' ? 'Download Reorder List' : 'ඇණවුම් ලැයිස්තුව බාගත කරන්න'}
+                <span>{language === 'en' ? 'Download Grouped Checklist' : 'කාණ්ඩ අනුව ඇණවුම් ලැයිස්තුව බාගත කරන්න'}</span>
               </button>
             </div>
           )}
@@ -1268,7 +1353,14 @@ export const PurchasesAdjustments: React.FC<PurchasesAdjustmentsProps> = ({
                 <ArrowLeftRight className="h-4 w-4 mr-1 text-blue-400" />
                 {language === 'en' ? 'Record Stock Return' : 'භාණ්ඩ ආපසු එවීමක්'}
               </h3>
-              <button onClick={() => setIsReturnModalOpen(false)} className="text-slate-400 hover:text-white">✕</button>
+              <button onClick={() => {
+                setIsReturnModalOpen(false);
+                setLookupError('');
+                setLookupSuccess('');
+                setMatchedSale(null);
+                setMatchedPO(null);
+                setRetProduct(null);
+              }} className="text-slate-400 hover:text-white">✕</button>
             </div>
 
             <form onSubmit={handleCreateReturn} className="p-5 space-y-3 text-xs font-semibold">
@@ -1276,8 +1368,17 @@ export const PurchasesAdjustments: React.FC<PurchasesAdjustmentsProps> = ({
                 <label className="font-bold text-slate-500">Return Type</label>
                 <select
                   value={retType}
-                  onChange={(e) => setRetType(e.target.value as any)}
-                  className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-white"
+                  onChange={(e) => {
+                    setRetType(e.target.value as any);
+                    setRetRelatedId('');
+                    setRetRelatedName('');
+                    setMatchedSale(null);
+                    setMatchedPO(null);
+                    setRetProduct(null);
+                    setLookupError('');
+                    setLookupSuccess('');
+                  }}
+                  className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-white font-bold"
                 >
                   <option value="Sales Return">Sales Return (පාරිභෝගිකයාගෙන් නැවත ලැබුණු)</option>
                   <option value="Purchase Return">Purchase Return (සැපයුම්කරුට ආපසු යැවූ)</option>
@@ -1286,19 +1387,41 @@ export const PurchasesAdjustments: React.FC<PurchasesAdjustmentsProps> = ({
 
               <div className="space-y-1">
                 <label className="font-bold text-slate-500">Related ID (Invoice / PO ID)</label>
-                <input
-                  type="text"
-                  value={retRelatedId}
-                  onChange={(e) => setRetRelatedId(e.target.value)}
-                  placeholder="e.g. S-1001 or PO-1234"
-                  className="w-full px-3 py-1.5 border border-slate-200 rounded-lg"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={retRelatedId}
+                    onChange={(e) => setRetRelatedId(e.target.value)}
+                    placeholder={retType === 'Sales Return' ? 'e.g. S-POS-1234' : 'e.g. PO-5678'}
+                    className="flex-1 px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-bold"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleLookupTransaction}
+                    className="px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold transition whitespace-nowrap"
+                  >
+                    {language === 'en' ? 'Lookup' : 'සොයන්න'}
+                  </button>
+                </div>
               </div>
+
+              {/* Lookup Message Alerts */}
+              {lookupError && (
+                <div className="bg-rose-50 border border-rose-200 text-rose-700 p-2 rounded-lg text-[10px] font-bold">
+                  ⚠️ {lookupError}
+                </div>
+              )}
+              {lookupSuccess && (
+                <div className="bg-emerald-50 border border-emerald-255 text-emerald-700 p-2 rounded-lg text-[10px] font-bold">
+                  ✓ {lookupSuccess}
+                </div>
+              )}
 
               <div className="space-y-1">
                 <label className="font-bold text-slate-500">Customer / Supplier Name</label>
                 <input
                   type="text"
+                  required
                   value={retName}
                   onChange={(e) => setRetRelatedName(e.target.value)}
                   placeholder="e.g. Kasun Rathnayake"
@@ -1307,29 +1430,118 @@ export const PurchasesAdjustments: React.FC<PurchasesAdjustmentsProps> = ({
               </div>
 
               <div className="space-y-1">
-                <label className="font-bold text-slate-500">Select Returned Product *</label>
+                <label className="font-bold text-slate-500 flex justify-between">
+                  <span>Select Returned Product *</span>
+                  {matchedSale || matchedPO ? (
+                    <span className="text-[9px] text-blue-600 font-bold bg-blue-50 px-1.5 rounded border border-blue-200">Autofiltering active</span>
+                  ) : null}
+                </label>
                 <select
                   required
-                  onChange={(e) => setRetProduct(products.find(p => p.id === e.target.value) || null)}
+                  value={retProduct?.id || ''}
+                  onChange={(e) => {
+                    const prodId = e.target.value;
+                    const matched = products.find(p => p.id === prodId) || null;
+                    setRetProduct(matched);
+                    
+                    if (matched) {
+                      // Autofill refund amount based on original invoice pricing
+                      if (matchedSale) {
+                        const originalItem = matchedSale.items.find(it => it.productId === prodId);
+                        if (originalItem) {
+                          setRetQty(1);
+                          setRetRefund(originalItem.price);
+                        }
+                      } else if (matchedPO) {
+                        const originalItem = matchedPO.items.find(it => it.productId === prodId);
+                        if (originalItem) {
+                          setRetQty(1);
+                          setRetRefund(originalItem.costPrice);
+                        }
+                      } else {
+                        // Fallback to current retail price
+                        setRetQty(1);
+                        setRetRefund(matched.retailPrice);
+                      }
+                    }
+                  }}
                   className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-white font-bold"
                 >
                   <option value="">-- Choose Product --</option>
-                  {products.map(p => (
-                    <option key={p.id} value={p.id}>{p.nameEn}</option>
-                  ))}
+                  {matchedSale ? (
+                    products.filter(p => matchedSale.items.some(item => item.productId === p.id)).map(p => (
+                      <option key={p.id} value={p.id}>{p.nameEn} (Invoice Qty: {matchedSale.items.find(it => it.productId === p.id)?.quantity})</option>
+                    ))
+                  ) : matchedPO ? (
+                    products.filter(p => matchedPO.items.some(item => item.productId === p.id)).map(p => (
+                      <option key={p.id} value={p.id}>{p.nameEn} (Ordered Qty: {matchedPO.items.find(it => it.productId === p.id)?.qty})</option>
+                    ))
+                  ) : (
+                    products.map(p => (
+                      <option key={p.id} value={p.id}>{p.nameEn}</option>
+                    ))
+                  )}
                 </select>
               </div>
 
+              {/* Optional stock return action (Sales Returns only) */}
+              {retType === 'Sales Return' && (
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-500">Inventory Return Action</label>
+                  <select
+                    value={returnAction}
+                    onChange={(e) => setReturnAction(e.target.value as any)}
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-white font-bold text-slate-700"
+                  >
+                    <option value="Return to Stock">↩ Put back in saleable stock (පෙර තොගයට එක් කරන්න)</option>
+                    <option value="Scrap">🗑 Scrap / Mark Damaged (අවලංගු/හානි ලෙස සලකන්න)</option>
+                  </select>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
-                  <label className="font-bold text-slate-500">Quantity *</label>
+                  <label className="font-bold text-slate-500 flex justify-between">
+                    <span>Quantity *</span>
+                    {matchedSale || matchedPO ? (
+                      <span className="text-[9.5px] text-slate-400">
+                        Max: {
+                          matchedSale 
+                            ? (matchedSale.items.find(it => it.productId === retProduct?.id)?.quantity || 1)
+                            : (matchedPO?.items.find(it => it.productId === retProduct?.id)?.qty || 1)
+                        }
+                      </span>
+                    ) : null}
+                  </label>
                   <input
                     type="number"
                     min="1"
+                    max={
+                      matchedSale 
+                        ? (matchedSale.items.find(it => it.productId === retProduct?.id)?.quantity || undefined)
+                        : matchedPO 
+                        ? (matchedPO.items.find(it => it.productId === retProduct?.id)?.qty || undefined)
+                        : undefined
+                    }
                     required
                     value={retQty}
-                    onChange={(e) => setRetQty(Number(e.target.value))}
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg"
+                    onChange={(e) => {
+                      const val = Math.max(1, Number(e.target.value));
+                      setRetQty(val);
+                      // Auto recalculate refund
+                      if (retProduct) {
+                        if (matchedSale) {
+                          const originalItem = matchedSale.items.find(it => it.productId === retProduct.id);
+                          if (originalItem) setRetRefund(originalItem.price * val);
+                        } else if (matchedPO) {
+                          const originalItem = matchedPO.items.find(it => it.productId === retProduct.id);
+                          if (originalItem) setRetRefund(originalItem.costPrice * val);
+                        } else {
+                          setRetRefund(retProduct.retailPrice * val);
+                        }
+                      }
+                    }}
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-bold"
                   />
                 </div>
                 <div className="space-y-1">
@@ -1340,7 +1552,7 @@ export const PurchasesAdjustments: React.FC<PurchasesAdjustmentsProps> = ({
                     required
                     value={retRefund || ''}
                     onChange={(e) => setRetRefund(Number(e.target.value))}
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg"
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-bold"
                   />
                 </div>
               </div>
@@ -1358,7 +1570,14 @@ export const PurchasesAdjustments: React.FC<PurchasesAdjustmentsProps> = ({
               </div>
 
               <div className="flex space-x-2 pt-2">
-                <button type="button" onClick={() => setIsReturnModalOpen(false)} className="flex-1 bg-slate-100 py-2 rounded-lg font-bold">Cancel</button>
+                <button type="button" onClick={() => {
+                  setIsReturnModalOpen(false);
+                  setLookupError('');
+                  setLookupSuccess('');
+                  setMatchedSale(null);
+                  setMatchedPO(null);
+                  setRetProduct(null);
+                }} className="flex-1 bg-slate-100 py-2 rounded-lg font-bold">Cancel</button>
                 <button type="submit" className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold shadow">Save Return</button>
               </div>
             </form>

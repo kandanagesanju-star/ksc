@@ -63,6 +63,10 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [qrScanInput, setQrScanInput] = useState('');
 
+  // Stock Report Pagination
+  const [stockPage, setStockPage] = useState(1);
+  const stockItemsPerPage = 25;
+
   // Warranty replacement modal state
   const [showReplacementModal, setShowReplacementModal] = useState(false);
   const [replacementSaleId, setReplacementSaleId] = useState('');
@@ -445,6 +449,18 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
       return true;
     });
   }, [stockMetrics.currentLevels, globalSearchTerm]);
+
+  // Reset to page 1 on search change
+  useEffect(() => {
+    setStockPage(1);
+  }, [globalSearchTerm]);
+
+  const paginatedStockLevels = useMemo(() => {
+    const startIndex = (stockPage - 1) * stockItemsPerPage;
+    return filteredStockLevels.slice(startIndex, startIndex + stockItemsPerPage);
+  }, [filteredStockLevels, stockPage]);
+
+  const totalStockPages = Math.ceil(filteredStockLevels.length / stockItemsPerPage) || 1;
 
   const filteredCustomerDuesList = useMemo(() => {
     return customerDues.pendingSales.filter(sale => {
@@ -1496,12 +1512,12 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs font-semibold text-slate-700">
-                  {filteredStockLevels.length === 0 ? (
+                  {paginatedStockLevels.length === 0 ? (
                     <tr>
                       <td colSpan={5} className="py-8 text-center text-slate-400">No products found matching the search criteria.</td>
                     </tr>
                   ) : (
-                    filteredStockLevels.map(p => (
+                    paginatedStockLevels.map(p => (
                       <tr key={p.id}>
                         <td className="py-4 px-6 text-slate-400 font-bold">{p.id}</td>
                       <td className="py-4 px-6">
@@ -1527,6 +1543,68 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
                 </tbody>
               </table>
             </div>
+
+            {/* Stock Report Pagination Controls */}
+            {totalStockPages > 1 && (
+              <div className="flex justify-between items-center bg-slate-50 px-6 py-4 border-t border-slate-100 text-xs font-bold text-slate-600">
+                <span>
+                  {language === 'en' ? `Showing ${(stockPage - 1) * stockItemsPerPage + 1} - ${Math.min(stockPage * stockItemsPerPage, filteredStockLevels.length)} of ${filteredStockLevels.length} items` : `භාණ්ඩ ${filteredStockLevels.length} න් ${(stockPage - 1) * stockItemsPerPage + 1} - ${Math.min(stockPage * stockItemsPerPage, filteredStockLevels.length)} දක්වා පෙන්වයි`}
+                </span>
+                <div className="flex items-center space-x-1">
+                  <button
+                    type="button"
+                    onClick={() => setStockPage(prev => Math.max(1, prev - 1))}
+                    disabled={stockPage === 1}
+                    className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 transition cursor-pointer"
+                  >
+                    ‹
+                  </button>
+                  {(() => {
+                    const pages: (number | string)[] = [];
+                    if (totalStockPages <= 5) {
+                      for (let i = 1; i <= totalStockPages; i++) pages.push(i);
+                    } else {
+                      pages.push(1);
+                      if (stockPage > 3) pages.push('...');
+                      const start = Math.max(2, stockPage - 1);
+                      const end = Math.min(totalStockPages - 1, stockPage + 1);
+                      for (let i = start; i <= end; i++) {
+                        pages.push(i);
+                      }
+                      if (stockPage < totalStockPages - 2) pages.push('...');
+                      pages.push(totalStockPages);
+                    }
+                    return pages.map((p, idx) => {
+                      if (p === '...') {
+                        return <span key={`dots-${idx}`} className="px-1 text-slate-400 font-bold">...</span>;
+                      }
+                      return (
+                        <button
+                          key={p}
+                          type="button"
+                          onClick={() => setStockPage(p as number)}
+                          className={`w-8 h-8 rounded-lg border text-xs font-bold transition ${
+                            stockPage === p 
+                              ? 'bg-blue-600 border-blue-600 text-white shadow-sm' 
+                              : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      );
+                    });
+                  })()}
+                  <button
+                    type="button"
+                    onClick={() => setStockPage(prev => Math.min(totalStockPages, prev + 1))}
+                    disabled={stockPage === totalStockPages}
+                    className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 transition cursor-pointer"
+                  >
+                    ›
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
