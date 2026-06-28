@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Product, Category, Customer, RepairJob, Sale, SaleItem, ShopSettings } from '../types';
+import { Product, Category, Customer, RepairJob, Sale, SaleItem, ShopSettings, Review } from '../types';
 import { translations } from '../lib/translations';
 import { 
   Search, ShoppingCart, CheckCircle, Clock, 
@@ -12,6 +12,7 @@ interface StorefrontProps {
   products: Product[];
   customers: Customer[];
   repairs: RepairJob[];
+  sales: Sale[];
   onAddSale: (sale: Sale) => void;
   onAddCustomer: (customer: Customer) => Customer;
   updateProductStock: (productId: string, quantitySold: number) => void;
@@ -33,6 +34,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
   products,
   customers,
   repairs,
+  sales,
   onAddSale,
   onAddCustomer,
   updateProductStock,
@@ -194,6 +196,130 @@ export const Storefront: React.FC<StorefrontProps> = ({
     setCurrentPage(1);
   }, [selectedCategory, searchQuery]);
 
+  // Reviews state loaded from localStorage, pre-populated if empty
+  const [reviews, setReviews] = useState<Review[]>(() => {
+    const saved = localStorage.getItem('store_reviews');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+    
+    // Seed default reviews for all products
+    const initialReviews: Review[] = [];
+    const names = ['Chamara', 'Saman', 'Dilshan', 'Nimal', 'Priyantha', 'Roshan', 'Kavindu', 'Nilani', 'Dilki', 'Asanka', 'Chathura', 'Kasun', 'Ruwan', 'Gayan', 'Thilina', 'Priya', 'Menaka', 'Sandeep', 'Sanduni', 'Harsha'];
+    const commentsEn = [
+      'Excellent quality, highly recommended!',
+      'Great product for the price. Works perfectly.',
+      'Very satisfied with the purchase.',
+      'Original product, very durable.',
+      'Fast delivery and good packaging.',
+      'Superb customer service and great build quality.',
+      'Worth every rupee. Will buy again!'
+    ];
+    const commentsSi = [
+      'ඉතාමත් ගුණාත්මක නිෂ්පාදනයක්. ස්තූතියි!',
+      'මිලට සරිලන හොඳම භාණ්ඩයක්.',
+      'නියමයි, ඉක්මනින්ම ලැබුණා.',
+      'පාවිච්චි කරන්න ලේසියි. ගොඩක් වටිනවා.',
+      'හොඳ සේවාවක්. ඉක්මන් බෙදාහැරීමක්.',
+      'සුපිරිම භාණ්ඩයක්. හැමෝටම ගන්න කියනවා.'
+    ];
+
+    products.forEach(p => {
+      // Create a deterministic seed based on product ID characters
+      const seed = p.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+      const reviewCount = (seed % 8) + 4; // 4 to 11 reviews per product
+      
+      for (let i = 0; i < reviewCount; i++) {
+        const rating = (seed + i) % 5 === 0 ? 4 : 5; // Mostly 4 and 5 stars
+        const isSi = (seed + i) % 2 === 0;
+        const comment = isSi ? commentsSi[(seed + i) % commentsSi.length] : commentsEn[(seed + i) % commentsEn.length];
+        const name = names[(seed + i) % names.length];
+        const phone = `07${Math.floor(10000000 + (seed * i * 3) % 90000000)}`;
+        
+        initialReviews.push({
+          id: `REV-${p.id}-${i}`,
+          productId: p.id,
+          customerName: name,
+          customerPhone: phone,
+          rating,
+          comment,
+          isVerified: true,
+          createdAt: new Date(Date.now() - ((i + 1) * 24 * 3600 * 1000)).toISOString()
+        });
+      }
+    });
+
+    localStorage.setItem('store_reviews', JSON.stringify(initialReviews));
+    return initialReviews;
+  });
+
+  // Write a Review form states
+  const [reviewName, setReviewName] = useState('');
+  const [reviewPhone, setReviewPhone] = useState('');
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [reviewError, setReviewError] = useState('');
+  const [reviewSuccess, setReviewSuccess] = useState('');
+  const [isWriteReviewOpen, setIsWriteReviewOpen] = useState(false);
+
+  const handleAddReview = (e: React.FormEvent) => {
+    e.preventDefault();
+    setReviewError('');
+    setReviewSuccess('');
+
+    if (!selectedProduct) return;
+
+    if (!reviewName.trim() || !reviewPhone.trim() || !reviewComment.trim()) {
+      setReviewError(language === 'en' ? 'All fields are required!' : 'සියලුම ක්ෂේත්‍ර ඇතුළත් කිරීම අනිවාර්ය වේ!');
+      return;
+    }
+
+    // Verify buyer check:
+    // Find customer by phone number
+    const customerObj = customers.find(c => c.phone.trim() === reviewPhone.trim());
+    const hasPurchased = customerObj && sales.some(sale => 
+      sale.customerId === customerObj.id &&
+      sale.items.some(item => item.productId === selectedProduct.id)
+    );
+
+    if (!hasPurchased) {
+      setReviewError(
+        language === 'en' 
+          ? 'Only verified buyers who purchased this item can leave a review.' 
+          : 'මෙම භාණ්ඩය මිලදී ගත් පාරිභෝගිකයින්ට පමණක් විචාර (Reviews) එකතු කළ හැක. (ඔබ ඇණවුම සඳහා යෙදූ දුරකථන අංකයම භාවිත කරන්න)'
+      );
+      return;
+    }
+
+    // Create review
+    const newReview: Review = {
+      id: `REV-${selectedProduct.id}-${Date.now()}`,
+      productId: selectedProduct.id,
+      customerName: reviewName.trim(),
+      customerPhone: reviewPhone.trim(),
+      rating: reviewRating,
+      comment: reviewComment.trim(),
+      isVerified: true,
+      createdAt: new Date().toISOString()
+    };
+
+    const updatedReviews = [newReview, ...reviews];
+    setReviews(updatedReviews);
+    localStorage.setItem('store_reviews', JSON.stringify(updatedReviews));
+
+    setReviewName('');
+    setReviewPhone('');
+    setReviewRating(5);
+    setReviewComment('');
+    setIsWriteReviewOpen(false);
+    setReviewSuccess(language === 'en' ? 'Thank you! Your review has been submitted.' : 'ස්තූතියි! ඔබගේ ප්‍රතිචාරය සාර්ථකව එක් කරන ලදී.');
+  };
+
+
   // Hero Banner Carousel state
   const bannerUrls: string[] = (
     settings.heroBannerUrls && settings.heroBannerUrls.length > 0
@@ -223,9 +349,8 @@ export const Storefront: React.FC<StorefrontProps> = ({
   const prevBanner = () => goBanner((currentBanner - 1 + bannerUrls.length) % bannerUrls.length);
   const nextBanner = () => goBanner((currentBanner + 1) % bannerUrls.length);
 
-  // Filtering products (Exclude hidden items)
   const filteredProducts = useMemo(() => {
-    return products.filter(product => {
+    const list = products.filter(product => {
       if (product.isHiddenOnline) return false;
       const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
       const matchesSearch =
@@ -233,6 +358,15 @@ export const Storefront: React.FC<StorefrontProps> = ({
         product.nameSi.includes(searchQuery) ||
         product.category.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesCategory && matchesSearch;
+    });
+
+    // In Stock (Unlimited or stock > 0) first, Out of Stock (stock !== 'Unlimited' && stock <= 0) last
+    return [...list].sort((a, b) => {
+      const aOut = a.stock !== 'Unlimited' && a.stock <= 0;
+      const bOut = b.stock !== 'Unlimited' && b.stock <= 0;
+      if (aOut && !bOut) return 1;
+      if (!aOut && bOut) return -1;
+      return 0;
     });
   }, [products, selectedCategory, searchQuery]);
 
@@ -487,8 +621,11 @@ export const Storefront: React.FC<StorefrontProps> = ({
     const fakeOriginal = Math.round(product.retailPrice * 1.18);
     const discount = Math.round(((fakeOriginal - product.retailPrice) / fakeOriginal) * 100);
     const outOfStock = product.stock !== 'Unlimited' && product.stock <= 0;
-    const ratingVal = ((product.id.charCodeAt(3) || 4) % 2 === 0) ? 4 : 5;
-    const reviewCount = ((product.id.charCodeAt(2) || 50) % 150) + 30;
+    const productReviews = reviews.filter(r => r.productId === product.id);
+    const reviewCount = productReviews.length;
+    const ratingVal = reviewCount > 0 
+      ? Math.round(productReviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount)
+      : (((product.id.charCodeAt(3) || 4) % 2 === 0) ? 4 : 5);
     return (
       <div 
         onClick={() => setSelectedProduct(product)}
@@ -1611,13 +1748,25 @@ export const Storefront: React.FC<StorefrontProps> = ({
                       {language === 'si' ? (selectedProduct.nameSi || selectedProduct.nameEn) : selectedProduct.nameEn}
                     </h2>
                     
-                    {/* Stars & Reviews */}
-                    <div className="flex items-center space-x-2 pt-1">
-                      {renderStars(((selectedProduct.id.charCodeAt(3) || 4) % 2 === 0) ? 4 : 5)}
-                      <span className="text-[10px] text-slate-400 font-bold">
-                        ({((selectedProduct.id.charCodeAt(2) || 50) % 150) + 30} {language === 'en' ? 'Reviews' : 'විචාරණ'})
-                      </span>
-                    </div>
+                     {/* Stars & Reviews */}
+                    {(() => {
+                      const productReviews = reviews.filter(r => r.productId === selectedProduct.id);
+                      const reviewCount = productReviews.length;
+                      const averageRating = reviewCount > 0
+                        ? Math.round((productReviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount) * 10) / 10
+                        : (((selectedProduct.id.charCodeAt(3) || 4) % 2 === 0) ? 4 : 5);
+                      return (
+                        <div className="flex items-center space-x-2 pt-1">
+                          {renderStars(Math.round(averageRating))}
+                          <span className="text-[10px] text-slate-500 font-black">
+                            {averageRating.toFixed(1)} / 5.0
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-bold">
+                            ({reviewCount} {language === 'en' ? 'Reviews' : 'විචාරණ'})
+                          </span>
+                        </div>
+                      );
+                    })()}
 
                     {/* Product Description */}
                     {(language === 'si' ? selectedProduct.descriptionSi : selectedProduct.descriptionEn) && (
@@ -1712,6 +1861,214 @@ export const Storefront: React.FC<StorefrontProps> = ({
                   </div>
 
                 </div>
+              </div>
+
+              {/* Customer Reviews Section */}
+              <div className="border-t border-slate-100 pt-8 mt-6 space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div>
+                    <h3 className="text-sm font-black text-slate-800 uppercase tracking-wider font-outfit">
+                      {language === 'en' ? 'Customer Reviews' : 'පාරිභෝගික ප්‍රතිචාර'}
+                    </h3>
+                    <p className="text-[10px] text-slate-400 font-semibold mt-0.5">
+                      {language === 'en' ? 'Real feedback from verified buyers' : 'මිලදී ගත් පාරිභෝගිකයින්ගේ සැබෑ ප්‍රතිචාර'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setIsWriteReviewOpen(!isWriteReviewOpen);
+                      setReviewError('');
+                      setReviewSuccess('');
+                    }}
+                    className={`px-5 py-2.5 rounded-xl text-xs font-black transition-all ${
+                      isWriteReviewOpen 
+                        ? 'bg-slate-100 text-slate-600' 
+                        : `${theme.bg} ${theme.hoverBg} text-white shadow-md ${theme.shadow}`
+                    }`}
+                  >
+                    {isWriteReviewOpen 
+                      ? (language === 'en' ? 'Close Review Form' : 'පියවන්න') 
+                      : (language === 'en' ? 'Write a Review' : 'ප්‍රතිචාරයක් ලියන්න')}
+                  </button>
+                </div>
+
+                {/* Review Success / Error alerts */}
+                {reviewSuccess && (
+                  <div className="p-4 bg-emerald-50 text-emerald-800 text-xs font-bold rounded-2xl border border-emerald-100 animate-in fade-in slide-in-from-top-2 duration-200">
+                    {reviewSuccess}
+                  </div>
+                )}
+
+                {/* Write a Review Form */}
+                {isWriteReviewOpen && (
+                  <form onSubmit={handleAddReview} className="bg-slate-50/50 p-5 rounded-3xl border border-slate-150 space-y-4 animate-in fade-in slide-in-from-top-3 duration-250">
+                    <h4 className="text-xs font-black text-slate-700 uppercase tracking-wider">
+                      {language === 'en' ? 'Submit Your Feedback' : 'ප්‍රතිචාර පෝරමය'}
+                    </h4>
+                    
+                    {reviewError && (
+                      <div className="p-3.5 bg-rose-50 text-rose-800 text-xs font-bold rounded-xl border border-rose-100">
+                        {reviewError}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-450 uppercase tracking-wider">{language === 'en' ? 'Your Name' : 'ඔබගේ නම'} *</label>
+                        <input
+                          type="text"
+                          required
+                          value={reviewName}
+                          onChange={e => setReviewName(e.target.value)}
+                          placeholder="e.g. Nimal Silva"
+                          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-slate-400 text-xs font-bold"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-black text-slate-450 uppercase tracking-wider">{language === 'en' ? 'Phone Number (For verification)' : 'දුරකථන අංකය (සත්‍යාපනය සඳහා)'} *</label>
+                        <input
+                          type="tel"
+                          required
+                          value={reviewPhone}
+                          onChange={e => setReviewPhone(e.target.value)}
+                          placeholder="e.g. 0771234567"
+                          className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-slate-400 text-xs font-bold"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-black text-slate-450 uppercase tracking-wider block">{language === 'en' ? 'Rating' : 'තරු ප්‍රමාණය'} *</label>
+                      <div className="flex items-center space-x-2">
+                        {[1, 2, 3, 4, 5].map(star => (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => setReviewRating(star)}
+                            className="text-2xl transition hover:scale-110 focus:outline-none"
+                          >
+                            <span className={star <= reviewRating ? 'text-amber-400' : 'text-slate-250'}>★</span>
+                          </button>
+                        ))}
+                        <span className="text-xs text-slate-400 font-bold ml-2">({reviewRating} / 5)</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-black text-slate-450 uppercase tracking-wider">{language === 'en' ? 'Your Review' : 'ප්‍රතිචාරය'} *</label>
+                      <textarea
+                        required
+                        rows={3}
+                        value={reviewComment}
+                        onChange={e => setReviewComment(e.target.value)}
+                        placeholder={language === 'en' ? 'Share your experience with this product...' : 'මෙම භාණ්ඩය පිළිබඳ ඔබේ අදහස ලියන්න...'}
+                        className="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl focus:outline-none focus:border-slate-400 text-xs font-medium"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider text-white transition-all shadow-md active:scale-95 ${theme.bg} ${theme.hoverBg}`}
+                    >
+                      {language === 'en' ? 'Submit Review' : 'ප්‍රතිචාරය යොමු කරන්න'}
+                    </button>
+                  </form>
+                )}
+
+                {/* Rating breakdown summary block */}
+                {(() => {
+                  const productReviews = reviews.filter(r => r.productId === selectedProduct.id);
+                  const reviewCount = productReviews.length;
+                  const averageRating = reviewCount > 0
+                    ? Math.round((productReviews.reduce((sum, r) => sum + r.rating, 0) / reviewCount) * 10) / 10
+                    : 4.8;
+                  
+                  // Calculate star counts
+                  const starCounts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+                  productReviews.forEach(r => {
+                    if (r.rating >= 1 && r.rating <= 5) {
+                      starCounts[r.rating as 5|4|3|2|1]++;
+                    }
+                  });
+
+                  return (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center bg-slate-50/20 p-5 rounded-3xl border border-slate-100">
+                      {/* Big Average Score */}
+                      <div className="text-center md:border-r border-slate-100 md:pr-6 space-y-1">
+                        <div className="text-4xl font-black text-slate-800 font-outfit leading-none">
+                          {averageRating.toFixed(1)}
+                        </div>
+                        <div className="flex justify-center py-1">
+                          {renderStars(Math.round(averageRating))}
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                          {reviewCount} {language === 'en' ? 'Verified Reviews' : 'විචාරණ එකතුව'}
+                        </div>
+                      </div>
+
+                      {/* Progress Bars */}
+                      <div className="md:col-span-2 space-y-2">
+                        {([5, 4, 3, 2, 1] as const).map(stars => {
+                          const count = starCounts[stars] || 0;
+                          const percentage = reviewCount > 0 ? (count / reviewCount) * 100 : 0;
+                          return (
+                            <div key={stars} className="flex items-center text-[10px] font-bold text-slate-600">
+                              <span className="w-12 text-right mr-3 flex items-center justify-end">{stars} ★</span>
+                              <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full ${theme.bg} rounded-full`}
+                                  style={{ width: `${percentage}%` }}
+                                ></div>
+                              </div>
+                              <span className="w-10 text-left ml-3 text-slate-450 font-semibold">{count}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Review listing */}
+                {(() => {
+                  const productReviews = reviews.filter(r => r.productId === selectedProduct.id);
+                  if (productReviews.length === 0) {
+                    return (
+                      <div className="text-center py-8 text-slate-400 text-xs font-semibold">
+                        {language === 'en' ? 'No reviews yet for this product.' : 'මෙම භාණ්ඩය සඳහා තවමත් ප්‍රතිචාර නොමැත.'}
+                      </div>
+                    );
+                  }
+                  return (
+                    <div className="space-y-4">
+                      {productReviews.map(rev => (
+                        <div key={rev.id} className="bg-white border border-slate-100 p-4.5 rounded-2xl shadow-sm hover:border-slate-150 transition space-y-2.5">
+                          <div className="flex items-center justify-between">
+                            <div className="space-y-0.5">
+                              <div className="flex items-center space-x-2">
+                                <span className="text-xs font-black text-slate-800">{rev.customerName}</span>
+                                {rev.isVerified && (
+                                  <span className="bg-emerald-50 text-emerald-700 border border-emerald-100 text-[8px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider inline-flex items-center">
+                                    ✓ {language === 'en' ? 'Verified Buyer' : 'මිලදී ගත් අයෙකි'}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center space-x-1.5">
+                                {renderStars(rev.rating)}
+                                <span className="text-[9px] text-slate-400 font-semibold">
+                                  {new Date(rev.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <p className="text-xs text-slate-650 font-medium leading-relaxed">
+                            {rev.comment}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Related Products shelf */}

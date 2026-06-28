@@ -218,6 +218,7 @@ export interface Employee {
   address?: string;
   joinedDate: string;
   walletBalance: number;
+  passcode?: string; // Credentials passcode to access POS/Repairs panels
 }
 
 export interface AttendanceRecord {
@@ -342,4 +343,32 @@ export interface ShopSettings {
   onlineTagline?: string;
   onlineAnnouncementMessage?: string;
   onlineAnnouncementBgColor?: string;
+
+  // ROLE-BASED ACCESS CONTROL PERMISSIONS
+  rolePermissions?: {
+    cashier: {
+      allowPOS: boolean;
+      allowRepairs: boolean;
+      allowCustomers: boolean;
+      allowInventory: boolean;
+    };
+    technician: {
+      allowPOS: boolean;
+      allowRepairs: boolean;
+      allowCustomers: boolean;
+      allowInventory: boolean;
+    };
+  };
 }
+
+export interface Review {
+  id: string;
+  productId: string;
+  customerName: string;
+  customerPhone: string;
+  rating: number; // 1 to 5
+  comment: string;
+  isVerified: boolean;
+  createdAt: string;
+}
+

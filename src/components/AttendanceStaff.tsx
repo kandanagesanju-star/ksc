@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Employee, AttendanceRecord, CommissionRecord } from '../types';
+import { Employee, AttendanceRecord, CommissionRecord, ShopSettings } from '../types';
 import { translations } from '../lib/translations';
 import { 
   Plus, Calendar, DollarSign, Users, User, Phone, CheckCircle, 
@@ -8,6 +8,7 @@ import {
 
 interface AttendanceStaffProps {
   language: 'en' | 'si';
+  settings: ShopSettings;
   employees: Employee[];
   attendance: AttendanceRecord[];
   commissions: CommissionRecord[];
@@ -23,6 +24,7 @@ interface AttendanceStaffProps {
 
 export const AttendanceStaff: React.FC<AttendanceStaffProps> = ({
   language,
+  settings,
   employees,
   attendance,
   commissions,
@@ -54,6 +56,7 @@ export const AttendanceStaff: React.FC<AttendanceStaffProps> = ({
   const [eSalary, setESalary] = useState<number>(0);
   const [eCommission, setECommission] = useState<number>(0);
   const [eAddress, setEAddress] = useState('');
+  const [ePasscode, setEPasscode] = useState('');
 
   // New Attendance Form Fields
   const [attEmpId, setAttEmpId] = useState('');
@@ -102,7 +105,8 @@ export const AttendanceStaff: React.FC<AttendanceStaffProps> = ({
         role: eRole,
         basicSalary: eSalary,
         commissionRate: eCommission,
-        address: eAddress.trim() || undefined
+        address: eAddress.trim() || undefined,
+        passcode: ePasscode.trim() || undefined
       });
       setEditingEmployee(null);
     } else {
@@ -115,12 +119,13 @@ export const AttendanceStaff: React.FC<AttendanceStaffProps> = ({
         commissionRate: eCommission,
         address: eAddress.trim() || undefined,
         joinedDate: new Date().toISOString().split('T')[0],
-        walletBalance: 0
+        walletBalance: 0,
+        passcode: ePasscode.trim() || undefined
       });
     }
 
     setIsEmpModalOpen(false);
-    setEName(''); setEPhone(''); setESalary(0); setECommission(0); setEAddress('');
+    setEName(''); setEPhone(''); setESalary(0); setECommission(0); setEAddress(''); setEPasscode('');
   };
 
   // Handle Record Attendance
@@ -245,6 +250,11 @@ export const AttendanceStaff: React.FC<AttendanceStaffProps> = ({
                   <div className="flex space-x-1">
                     <button
                       onClick={() => {
+                        const entered = prompt(language === 'en' ? 'Security authentication: Enter Admin PIN passcode to edit employee profile:' : 'ආරක්ෂක සත්‍යාපනය: සේවක පැතිකඩ වෙනස් කිරීමට කළමනාකරු PIN අංකය ඇතුළත් කරන්න:');
+                        if (entered !== (settings.adminPin || '1234')) {
+                          alert(language === 'en' ? 'Unauthorized! Incorrect Admin PIN.' : 'අනවසරයි! වැරදි කළමනාකරු PIN අංකයකි.');
+                          return;
+                        }
                         setEditingEmployee(emp);
                         setEName(emp.name);
                         setEPhone(emp.phone);
@@ -252,6 +262,7 @@ export const AttendanceStaff: React.FC<AttendanceStaffProps> = ({
                         setESalary(emp.basicSalary);
                         setECommission(emp.commissionRate);
                         setEAddress(emp.address || '');
+                        setEPasscode(emp.passcode || '');
                         setIsEmpModalOpen(true);
                       }}
                       className="p-1 hover:bg-slate-100 text-slate-500 hover:text-slate-800 rounded-lg transition cursor-pointer"
@@ -261,6 +272,11 @@ export const AttendanceStaff: React.FC<AttendanceStaffProps> = ({
                     </button>
                     <button
                       onClick={() => {
+                        const entered = prompt(language === 'en' ? 'Security authentication: Enter Admin PIN passcode to delete employee:' : 'ආරක්ෂක සත්‍යාපනය: සේවකයා ඉවත් කිරීමට කළමනාකරු PIN අංකය ඇතුළත් කරන්න:');
+                        if (entered !== (settings.adminPin || '1234')) {
+                          alert(language === 'en' ? 'Unauthorized! Incorrect Admin PIN.' : 'අනවසරයි! වැරදි කළමනාකරු PIN අංකයකි.');
+                          return;
+                        }
                         if (confirm(language === 'en' ? `Are you sure you want to delete employee ${emp.name}?` : `මෙම සේවකයා (${emp.name}) පද්ධතියෙන් ඉවත් කිරීමට අවශ්‍ය බව ස්ථිරද?`)) {
                           onDeleteEmployee(emp.id);
                         }
@@ -502,6 +518,17 @@ export const AttendanceStaff: React.FC<AttendanceStaffProps> = ({
                 </div>
               </div>
               <div className="space-y-1">
+                <label className="font-bold text-slate-500">Employee Login Passcode PIN (4 digits)</label>
+                <input
+                  type="password"
+                  maxLength={4}
+                  value={ePasscode}
+                  onChange={(e) => setEPasscode(e.target.value.replace(/\D/g, ''))}
+                  placeholder="e.g. 1111"
+                  className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-center font-extrabold tracking-widest text-slate-800 focus:bg-slate-50"
+                />
+              </div>
+              <div className="space-y-1">
                 <label className="font-bold text-slate-500">Address</label>
                 <input
                   type="text" value={eAddress} onChange={(e) => setEAddress(e.target.value)}
@@ -510,7 +537,7 @@ export const AttendanceStaff: React.FC<AttendanceStaffProps> = ({
               </div>
 
               <div className="flex space-x-2 pt-2">
-                <button type="button" onClick={() => { setIsEmpModalOpen(false); setEditingEmployee(null); setEName(''); setEPhone(''); setESalary(0); setECommission(0); setEAddress(''); }} className="flex-1 bg-slate-100 py-2 rounded-lg font-bold">Cancel</button>
+                <button type="button" onClick={() => { setIsEmpModalOpen(false); setEditingEmployee(null); setEName(''); setEPhone(''); setESalary(0); setECommission(0); setEAddress(''); setEPasscode(''); }} className="flex-1 bg-slate-100 py-2 rounded-lg font-bold">Cancel</button>
                 <button type="submit" className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold shadow">Save Employee</button>
               </div>
             </form>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { translations } from '../lib/translations';
-import { ShopSettings, Customer } from '../types';
-import { ShoppingBag, ShieldAlert, Laptop, Languages, Layers, Wifi, WifiOff, Key, Lock, User, Award, X } from 'lucide-react';
+import { ShopSettings, Customer, Employee } from '../types';
+import { ShoppingBag, ShieldAlert, Laptop, Languages, Layers, Wifi, WifiOff, Key, Lock, User, Award, X, LogOut } from 'lucide-react';
 
 interface NavbarProps {
   language: 'en' | 'si';
@@ -21,6 +21,10 @@ interface NavbarProps {
   setShowCustomerPortal: (show: boolean) => void;
   loggedInCustomer: any;
   setLoggedInCustomer: (customer: any) => void;
+  employees?: Employee[];
+  activeUser?: any;
+  onLoginUser?: (user: any) => void;
+  onLogoutUser?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -40,7 +44,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   showCustomerPortal,
   setShowCustomerPortal,
   loggedInCustomer,
-  setLoggedInCustomer
+  setLoggedInCustomer,
+  employees = [],
+  activeUser = null,
+  onLoginUser,
+  onLogoutUser
 }) => {
   const t = translations[language];
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -90,8 +98,20 @@ export const Navbar: React.FC<NavbarProps> = ({
   const handleAdminAccess = () => {
     if (lockoutTime > 0) return;
     const requiredPin = settings.adminPin || '1234';
-    if (passcode === requiredPin) {
+    
+    const matchedEmployee = employees.find(e => e.passcode === passcode);
+
+    if (passcode === requiredPin || matchedEmployee) {
       setViewMode('admin');
+      
+      const loggedUser = matchedEmployee 
+        ? { id: matchedEmployee.id, name: matchedEmployee.name, role: matchedEmployee.role }
+        : { id: 'admin', name: 'Admin', role: 'Admin' as const };
+        
+      if (onLoginUser) {
+        onLoginUser(loggedUser);
+      }
+      
       setShowPasscodeModal(false);
       setPasscode('');
       setAttempts(0);
@@ -207,10 +227,34 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="hidden md:flex items-center space-x-4">
             {viewMode === 'admin' ? (
               <>
+                {/* Active User Session Details */}
+                {activeUser && (
+                  <div className="flex items-center space-x-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl">
+                    <div className="h-6 w-6 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-xs">
+                      {activeUser.name.charAt(0)}
+                    </div>
+                    <div className="text-[10px] text-left">
+                      <p className="font-extrabold text-slate-200 leading-tight">{activeUser.name}</p>
+                      <p className="text-[8px] text-slate-400 font-bold uppercase tracking-wider">{activeUser.role}</p>
+                    </div>
+                    {onLogoutUser && (
+                      <button
+                        onClick={onLogoutUser}
+                        className="ml-1 p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-rose-400 transition cursor-pointer"
+                        title="Logout Session"
+                      >
+                        <LogOut className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {/* View Toggle */}
                 <div className="bg-slate-900 p-1 rounded-xl flex space-x-1 border border-slate-800">
                   <button
-                    onClick={() => setViewMode('storefront')}
+                    onClick={() => {
+                      if (onLogoutUser) onLogoutUser();
+                    }}
                     className="flex items-center px-4 py-2 rounded-lg text-xs font-bold transition-all text-slate-400 hover:text-white"
                   >
                     <ShoppingBag className="h-4 w-4 mr-1.5" />
@@ -276,12 +320,22 @@ export const Navbar: React.FC<NavbarProps> = ({
             )}
 
             {viewMode === 'admin' && (
-              <button
-                onClick={() => setViewMode('storefront')}
-                className="p-2 bg-blue-600 text-white rounded-xl text-xs font-bold shadow"
-              >
-                Store
-              </button>
+              <div className="flex items-center gap-1.5">
+                {activeUser && (
+                  <span className="text-[9px] bg-slate-900 border border-slate-800 px-2 py-1 rounded-lg text-slate-300 font-extrabold max-w-[60px] truncate">
+                    {activeUser.name.split(' ')[0]}
+                  </span>
+                )}
+                <button
+                  onClick={() => {
+                    if (onLogoutUser) onLogoutUser();
+                  }}
+                  className="p-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow flex items-center justify-center cursor-pointer"
+                  title="Logout"
+                >
+                  <LogOut className="h-4 w-4" />
+                </button>
+              </div>
             )}
           </div>
         </div>

@@ -987,53 +987,55 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
           </div>
           
           {/* Universal Search & Date Filter Bar inside the Top Bar */}
-          <div className="flex flex-col sm:flex-row items-center gap-2 w-full lg:w-auto">
-            <div className="relative w-full sm:w-60">
-              <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
-              <input
-                type="text"
-                placeholder={language === 'en' ? 'Search by phone, name, bill #, barcode...' : 'නම, අංකය, බිල් අංකය, බාකෝඩ් මගින් සොයන්න...'}
-                value={globalSearchTerm}
-                onChange={(e) => setGlobalSearchTerm(e.target.value)}
-                className="w-full pl-8 pr-2 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="flex items-center gap-1.5 w-full sm:w-auto">
-              <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-[11px] font-semibold text-slate-500">
-                <Calendar className="h-3 w-3 text-slate-450" />
-                <span>{language === 'en' ? 'From' : 'සිට'}:</span>
+          {reportType !== 'sales' && (
+            <div className="flex flex-col sm:flex-row items-center gap-2 w-full lg:w-auto">
+              <div className="relative w-full sm:w-60">
+                <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-slate-400" />
                 <input
-                  type="date"
-                  value={globalStartDate}
-                  onChange={(e) => setGlobalStartDate(e.target.value)}
-                  className="bg-transparent border-none p-0 focus:outline-none text-[11px] font-bold text-slate-700 cursor-pointer text-xs"
+                  type="text"
+                  placeholder={language === 'en' ? 'Search by phone, name, bill #, barcode...' : 'නම, අංකය, බිල් අංකය, බාකෝඩ් මගින් සොයන්න...'}
+                  value={globalSearchTerm}
+                  onChange={(e) => setGlobalSearchTerm(e.target.value)}
+                  className="w-full pl-8 pr-2 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-[11px] font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-              <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-[11px] font-semibold text-slate-500">
-                <Calendar className="h-3 w-3 text-slate-450" />
-                <span>{language === 'en' ? 'To' : 'දක්වා'}:</span>
-                <input
-                  type="date"
-                  value={globalEndDate}
-                  onChange={(e) => setGlobalEndDate(e.target.value)}
-                  className="bg-transparent border-none p-0 focus:outline-none text-[11px] font-bold text-slate-700 cursor-pointer text-xs"
-                />
+              <div className="flex items-center gap-1.5 w-full sm:w-auto">
+                <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-[11px] font-semibold text-slate-500">
+                  <Calendar className="h-3 w-3 text-slate-450" />
+                  <span>{language === 'en' ? 'From' : 'සිට'}:</span>
+                  <input
+                    type="date"
+                    value={globalStartDate}
+                    onChange={(e) => setGlobalStartDate(e.target.value)}
+                    className="bg-transparent border-none p-0 focus:outline-none text-[11px] font-bold text-slate-700 cursor-pointer text-xs"
+                  />
+                </div>
+                <div className="flex items-center gap-1 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 text-[11px] font-semibold text-slate-500">
+                  <Calendar className="h-3 w-3 text-slate-450" />
+                  <span>{language === 'en' ? 'To' : 'දක්වා'}:</span>
+                  <input
+                    type="date"
+                    value={globalEndDate}
+                    onChange={(e) => setGlobalEndDate(e.target.value)}
+                    className="bg-transparent border-none p-0 focus:outline-none text-[11px] font-bold text-slate-700 cursor-pointer text-xs"
+                  />
+                </div>
+                {(globalSearchTerm || globalStartDate || globalEndDate) && (
+                  <button
+                    onClick={() => {
+                      setGlobalSearchTerm('');
+                      setGlobalStartDate('');
+                      setGlobalEndDate('');
+                    }}
+                    className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-[11px] font-extrabold transition cursor-pointer"
+                    title="Reset Filters"
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
-              {(globalSearchTerm || globalStartDate || globalEndDate) && (
-                <button
-                  onClick={() => {
-                    setGlobalSearchTerm('');
-                    setGlobalStartDate('');
-                    setGlobalEndDate('');
-                  }}
-                  className="px-2 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-xl text-[11px] font-extrabold transition cursor-pointer"
-                  title="Reset Filters"
-                >
-                  ✕
-                </button>
-              )}
             </div>
-          </div>
+          )}
         </div>
 
         <div className="p-5 space-y-6">
@@ -1108,6 +1110,73 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
                 {language === 'en' ? 'Find Invoice' : 'බිල සොයන්න'}
               </button>
             </form>
+          </div>
+
+          {/* Sales Report Filters (Requested directly under the Scanner) */}
+          <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row items-center gap-4">
+            <div className="relative flex-1 w-full">
+              <label className="text-[10px] font-black text-slate-400 uppercase block mb-1.5">
+                {language === 'en' ? 'Search Sales Transactions' : 'විකුණුම් ගනුදෙනු සොයන්න'}
+              </label>
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder={language === 'en' ? 'Search by phone, name, bill #, barcode...' : 'දුරකථන, නම, බිල් අංකය, බාකෝඩ් මගින් සොයන්න...'}
+                  value={globalSearchTerm}
+                  onChange={(e) => setGlobalSearchTerm(e.target.value)}
+                  className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+              <div className="flex flex-col">
+                <label className="text-[10px] font-black text-slate-400 uppercase mb-1.5">
+                  {language === 'en' ? 'From Date' : 'සිට දිනය'}
+                </label>
+                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-500">
+                  <Calendar className="h-4 w-4 text-slate-450" />
+                  <input
+                    type="date"
+                    value={globalStartDate}
+                    onChange={(e) => setGlobalStartDate(e.target.value)}
+                    className="bg-transparent border-none p-0 focus:outline-none text-xs font-bold text-slate-700 cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col">
+                <label className="text-[10px] font-black text-slate-400 uppercase mb-1.5">
+                  {language === 'en' ? 'To Date' : 'දක්වා දිනය'}
+                </label>
+                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-500">
+                  <Calendar className="h-4 w-4 text-slate-450" />
+                  <input
+                    type="date"
+                    value={globalEndDate}
+                    onChange={(e) => setGlobalEndDate(e.target.value)}
+                    className="bg-transparent border-none p-0 focus:outline-none text-xs font-bold text-slate-700 cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              {(globalSearchTerm || globalStartDate || globalEndDate) && (
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-slate-400 uppercase mb-1.5 opacity-0">Reset</span>
+                  <button
+                    onClick={() => {
+                      setGlobalSearchTerm('');
+                      setGlobalStartDate('');
+                      setGlobalEndDate('');
+                    }}
+                    className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-200 rounded-xl text-xs font-black transition cursor-pointer"
+                  >
+                    Reset
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex justify-between items-center bg-white p-4 rounded-2xl shadow-sm border border-slate-100">

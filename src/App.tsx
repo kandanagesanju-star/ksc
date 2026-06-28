@@ -212,6 +212,11 @@ function App() {
     return (saved === 'storefront' || saved === 'admin') ? saved : 'storefront';
   });
 
+  const [activeUser, setActiveUser] = useState<any>(() => {
+    const saved = localStorage.getItem('active_user');
+    return saved ? JSON.parse(saved) : null;
+  });
+
   const [adminTab, setAdminTab] = useState<'dashboard' | 'pos' | 'inventory' | 'sales-history' | 'contacts' | 'purchases' | 'special-orders' | 'quotations' | 'attendance' | 'reports' | 'settings' | 'insights' | 'backup'>(() => {
     const saved = localStorage.getItem('shop_admin_tab');
     return saved ? (saved as any) : 'dashboard';
@@ -224,6 +229,36 @@ function App() {
     const saved = localStorage.getItem('logged_in_customer');
     return saved ? JSON.parse(saved) : null;
   });
+
+  const isTabAllowed = (tab: string) => {
+    if (!activeUser) return true;
+    if (activeUser.role === 'Admin' || activeUser.id === 'admin') return true;
+
+    const permissions = settings.rolePermissions || {
+      cashier: { allowPOS: true, allowRepairs: false, allowCustomers: true, allowInventory: false },
+      technician: { allowPOS: false, allowRepairs: true, allowCustomers: true, allowInventory: false }
+    };
+
+    if (activeUser.role === 'Cashier') {
+      if (tab === 'pos') return permissions.cashier.allowPOS;
+      if (tab === 'special-orders') return true;
+      if (tab === 'quotations') return permissions.cashier.allowRepairs;
+      if (tab === 'contacts') return permissions.cashier.allowCustomers;
+      if (tab === 'inventory') return permissions.cashier.allowInventory;
+      return false;
+    }
+
+    if (activeUser.role === 'Technician') {
+      if (tab === 'quotations') return permissions.technician.allowRepairs;
+      if (tab === 'special-orders') return true;
+      if (tab === 'contacts') return permissions.technician.allowCustomers;
+      if (tab === 'inventory') return permissions.technician.allowInventory;
+      if (tab === 'pos') return permissions.technician.allowPOS;
+      return false;
+    }
+
+    return false;
+  };
 
   // Network offline/online listeners
   useEffect(() => {
@@ -363,6 +398,14 @@ function App() {
   useEffect(() => {
     localStorage.setItem('shop_view_mode', viewMode);
   }, [viewMode]);
+
+  useEffect(() => {
+    if (activeUser) {
+      localStorage.setItem('active_user', JSON.stringify(activeUser));
+    } else {
+      localStorage.removeItem('active_user');
+    }
+  }, [activeUser]);
 
   useEffect(() => {
     localStorage.setItem('shop_admin_tab', adminTab);
@@ -1065,6 +1108,22 @@ function App() {
         setShowCustomerPortal={setShowCustomerPortal}
         loggedInCustomer={loggedInCustomer}
         setLoggedInCustomer={setLoggedInCustomer}
+        employees={employees}
+        activeUser={activeUser}
+        onLoginUser={(user) => {
+          setActiveUser(user);
+          if (user.role === 'Cashier') {
+            setAdminTab('pos');
+          } else if (user.role === 'Technician') {
+            setAdminTab('quotations');
+          } else {
+            setAdminTab('dashboard');
+          }
+        }}
+        onLogoutUser={() => {
+          setActiveUser(null);
+          setViewMode('storefront');
+        }}
       />
 
       {/* Main Content Body */}
@@ -1076,6 +1135,7 @@ function App() {
             products={products}
             customers={customers}
             repairs={repairs}
+            sales={sales}
             onAddSale={handleAddSale}
             onAddCustomer={handleAddCustomer}
             updateProductStock={updateProductStock}
@@ -1109,148 +1169,172 @@ function App() {
               </div>
 
               {/* Dashboard */}
-              <button
-                onClick={() => setAdminTab('dashboard')}
-                className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
-                  adminTab === 'dashboard' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
-                }`}
-                title={language === 'en' ? 'Dashboard' : 'ප්‍රධාන පුවරුව'}
-              >
-                <TrendingUp className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
-                {!isPosFullScreen && (language === 'en' ? 'Dashboard' : 'ප්‍රධාන පුවරුව')}
-              </button>
+              {isTabAllowed('dashboard') && (
+                <button
+                  onClick={() => setAdminTab('dashboard')}
+                  className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
+                    adminTab === 'dashboard' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                  title={language === 'en' ? 'Dashboard' : 'ප්‍රධාන පුවරුව'}
+                >
+                  <TrendingUp className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
+                  {!isPosFullScreen && (language === 'en' ? 'Dashboard' : 'ප්‍රධාන පුවරුව')}
+                </button>
+              )}
 
               {/* POS Terminal */}
-              <button
-                onClick={() => setAdminTab('pos')}
-                className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
-                  adminTab === 'pos' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
-                }`}
-                title={t.posTerminal}
-              >
-                <ShoppingCart className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
-                {!isPosFullScreen && t.posTerminal}
-              </button>
+              {isTabAllowed('pos') && (
+                <button
+                  onClick={() => setAdminTab('pos')}
+                  className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
+                    adminTab === 'pos' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                  title={t.posTerminal}
+                >
+                  <ShoppingCart className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
+                  {!isPosFullScreen && t.posTerminal}
+                </button>
+              )}
 
               {/* Central Inventory */}
-              <button
-                onClick={() => setAdminTab('inventory')}
-                className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
-                  adminTab === 'inventory' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
-                }`}
-                title={t.inventoryTitle}
-              >
-                <Laptop className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
-                {!isPosFullScreen && t.inventoryTitle}
-              </button>
+              {isTabAllowed('inventory') && (
+                <button
+                  onClick={() => setAdminTab('inventory')}
+                  className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
+                    adminTab === 'inventory' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                  title={t.inventoryTitle}
+                >
+                  <Laptop className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
+                  {!isPosFullScreen && t.inventoryTitle}
+                </button>
+              )}
 
               {/* Contacts & Loyalty */}
-              <button
-                onClick={() => setAdminTab('contacts')}
-                className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
-                  adminTab === 'contacts' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
-                }`}
-                title={language === 'en' ? 'Contacts & Loyalty' : 'ගැනුම්කරුවන් සහ ලෝයල්ටි'}
-              >
-                <Users className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
-                {!isPosFullScreen && (language === 'en' ? 'Contacts & Loyalty' : 'ගැනුම්කරුවන් සහ ලෝයල්ටි')}
-              </button>
+              {isTabAllowed('contacts') && (
+                <button
+                  onClick={() => setAdminTab('contacts')}
+                  className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
+                    adminTab === 'contacts' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                  title={language === 'en' ? 'Contacts & Loyalty' : 'ගැනුම්කරුවන් සහ ලෝයල්ටි'}
+                >
+                  <Users className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
+                  {!isPosFullScreen && (language === 'en' ? 'Contacts & Loyalty' : 'ගැනුම්කරුවන් සහ ලෝයල්ටි')}
+                </button>
+              )}
 
               {/* Purchases & Adjustments */}
-              <button
-                onClick={() => setAdminTab('purchases')}
-                className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
-                  adminTab === 'purchases' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
-                }`}
-                title={language === 'en' ? 'Purchases & Adjusts' : 'මිලදී ගැනීම් සහ තොග'}
-              >
-                <Truck className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
-                {!isPosFullScreen && (language === 'en' ? 'Purchases & Adjusts' : 'මිලදී ගැනීම් සහ තොග')}
-              </button>
+              {isTabAllowed('purchases') && (
+                <button
+                  onClick={() => setAdminTab('purchases')}
+                  className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
+                    adminTab === 'purchases' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                  title={language === 'en' ? 'Purchases & Adjusts' : 'මිලදී ගැනීම් සහ තොග'}
+                >
+                  <Truck className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
+                  {!isPosFullScreen && (language === 'en' ? 'Purchases & Adjusts' : 'මිලදී ගැනීම් සහ තොග')}
+                </button>
+              )}
 
               {/* Special Custom Orders */}
-              <button
-                onClick={() => setAdminTab('special-orders')}
-                className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
-                  adminTab === 'special-orders' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
-                }`}
-                title={language === 'en' ? 'Special Custom Orders' : 'විශේෂ ඇණවුම්'}
-              >
-                <ShoppingBag className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
-                {!isPosFullScreen && (language === 'en' ? 'Special Custom Orders' : 'විශේෂ ඇණවුම්')}
-              </button>
+              {isTabAllowed('special-orders') && (
+                <button
+                  onClick={() => setAdminTab('special-orders')}
+                  className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
+                    adminTab === 'special-orders' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                  title={language === 'en' ? 'Special Custom Orders' : 'විශේෂ ඇණවුම්'}
+                >
+                  <ShoppingBag className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
+                  {!isPosFullScreen && (language === 'en' ? 'Special Custom Orders' : 'විශේෂ ඇණවුම්')}
+                </button>
+              )}
 
               {/* Quotations & Repairs */}
-              <button
-                onClick={() => setAdminTab('quotations')}
-                className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
-                  adminTab === 'quotations' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
-                }`}
-                title={language === 'en' ? 'Quotations & Repairs' : 'කොටේෂන් සහ රෙපෙයාර්'}
-              >
-                <FileText className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
-                {!isPosFullScreen && (language === 'en' ? 'Quotations & Repairs' : 'කොටේෂන් සහ රෙපෙයාර්')}
-              </button>
+              {isTabAllowed('quotations') && (
+                <button
+                  onClick={() => setAdminTab('quotations')}
+                  className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
+                    adminTab === 'quotations' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                  title={language === 'en' ? 'Quotations & Repairs' : 'කොටේෂන් සහ රෙපෙයාර්'}
+                >
+                  <FileText className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
+                  {!isPosFullScreen && (language === 'en' ? 'Quotations & Repairs' : 'කොටේෂන් සහ රෙපෙයාර්')}
+                </button>
+              )}
 
               {/* Attendance & Staff Profiles */}
-              <button
-                onClick={() => setAdminTab('attendance')}
-                className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
-                  adminTab === 'attendance' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
-                }`}
-                title={language === 'en' ? 'Attendance & Profiles' : 'පැමිණීම සහ සේවක පැතිකඩ'}
-              >
-                <UserCheck className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
-                {!isPosFullScreen && (language === 'en' ? 'Attendance & Profiles' : 'පැමිණීම සහ සේවක පැතිකඩ')}
-              </button>
+              {isTabAllowed('attendance') && (
+                <button
+                  onClick={() => setAdminTab('attendance')}
+                  className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
+                    adminTab === 'attendance' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                  title={language === 'en' ? 'Attendance & Profiles' : 'පැමිණීම සහ සේවක පැතිකඩ'}
+                >
+                  <UserCheck className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
+                  {!isPosFullScreen && (language === 'en' ? 'Attendance & Profiles' : 'පැමිණීම සහ සේවක පැතිකඩ')}
+                </button>
+              )}
 
               {/* Reports Panel */}
-              <button
-                onClick={() => setAdminTab('reports')}
-                className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
-                  adminTab === 'reports' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
-                }`}
-                title={language === 'en' ? 'Reports' : 'වාර්තා (Reports)'}
-              >
-                <BarChart3 className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
-                {!isPosFullScreen && (language === 'en' ? 'Reports' : 'වාර්තා (Reports)')}
-              </button>
+              {isTabAllowed('reports') && (
+                <button
+                  onClick={() => setAdminTab('reports')}
+                  className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
+                    adminTab === 'reports' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                  title={language === 'en' ? 'Reports' : 'වාර්තා (Reports)'}
+                >
+                  <BarChart3 className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
+                  {!isPosFullScreen && (language === 'en' ? 'Reports' : 'වාර්තා (Reports)')}
+                </button>
+              )}
 
               {/* Settings Panel */}
-              <button
-                onClick={() => setAdminTab('settings')}
-                className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
-                  adminTab === 'settings' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
-                }`}
-                title={language === 'en' ? 'Settings' : 'සිටින්ස් (Settings)'}
-              >
-                <Settings className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
-                {!isPosFullScreen && (language === 'en' ? 'Settings' : 'සිටින්ස් (Settings)')}
-              </button>
+              {isTabAllowed('settings') && (
+                <button
+                  onClick={() => setAdminTab('settings')}
+                  className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
+                    adminTab === 'settings' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                  title={language === 'en' ? 'Settings' : 'සිටින්ස් (Settings)'}
+                >
+                  <Settings className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
+                  {!isPosFullScreen && (language === 'en' ? 'Settings' : 'සිටින්ස් (Settings)')}
+                </button>
+              )}
 
               {/* Expert Insights */}
-              <button
-                onClick={() => setAdminTab('insights')}
-                className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
-                  adminTab === 'insights' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
-                }`}
-                title={language === 'en' ? 'Architect Insights' : 'නිර්මාණ සැලසුම්'}
-              >
-                <Layers className={`h-4 w-4 shrink-0 text-indigo-400 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
-                {!isPosFullScreen && (language === 'en' ? 'Architect Insights' : 'නිර්මාණ සැලසුම්')}
-              </button>
+              {isTabAllowed('insights') && (
+                <button
+                  onClick={() => setAdminTab('insights')}
+                  className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
+                    adminTab === 'insights' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                  title={language === 'en' ? 'Architect Insights' : 'නිර්මාණ සැලසුම්'}
+                >
+                  <Layers className={`h-4 w-4 shrink-0 text-indigo-400 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
+                  {!isPosFullScreen && (language === 'en' ? 'Architect Insights' : 'නිර්මාණ සැලසුම්')}
+                </button>
+              )}
 
               {/* System Backup & Restore */}
-              <button
-                onClick={() => setAdminTab('backup')}
-                className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
-                  adminTab === 'backup' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
-                }`}
-                title={language === 'en' ? 'Database Backup' : 'පද්ධති උපස්ථය (Backup)'}
-              >
-                <Download className={`h-4 w-4 shrink-0 text-emerald-500 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
-                {!isPosFullScreen && (language === 'en' ? 'Database Backup' : 'පද්ධති උපස්ථය (Backup)')}
-              </button>
+              {isTabAllowed('backup') && (
+                <button
+                  onClick={() => setAdminTab('backup')}
+                  className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
+                    adminTab === 'backup' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
+                  }`}
+                  title={language === 'en' ? 'Database Backup' : 'පද්ධති උපස්ථය (Backup)'}
+                >
+                  <Download className={`h-4 w-4 shrink-0 text-emerald-500 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
+                  {!isPosFullScreen && (language === 'en' ? 'Database Backup' : 'පද්ධති උපස්ථය (Backup)')}
+                </button>
+              )}
             </div>
 
             {/* Admin Content Area */}
@@ -1279,6 +1363,7 @@ function App() {
                   language={language}
                   products={products}
                   customers={customers}
+                  sales={sales}
                   onAddSale={handleAddSale}
                   onAddCustomer={handleAddCustomer}
                   updateProductStock={updateProductStock}
@@ -1397,6 +1482,7 @@ function App() {
               {adminTab === 'attendance' && (
                 <AttendanceStaff
                   language={language}
+                  settings={settings}
                   employees={employees}
                   attendance={attendance}
                   commissions={commissions}

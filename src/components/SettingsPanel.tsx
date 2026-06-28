@@ -160,6 +160,17 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [uiTheme, setUiTheme] = useState(settings.uiTheme || 'slate');
   const [adminPin, setAdminPin] = useState(settings.adminPin || '1234');
 
+  // Role permissions states
+  const [cashierAllowPOS, setCashierAllowPOS] = useState(settings.rolePermissions?.cashier?.allowPOS ?? true);
+  const [cashierAllowRepairs, setCashierAllowRepairs] = useState(settings.rolePermissions?.cashier?.allowRepairs ?? false);
+  const [cashierAllowCustomers, setCashierAllowCustomers] = useState(settings.rolePermissions?.cashier?.allowCustomers ?? true);
+  const [cashierAllowInventory, setCashierAllowInventory] = useState(settings.rolePermissions?.cashier?.allowInventory ?? false);
+
+  const [techAllowPOS, setTechAllowPOS] = useState(settings.rolePermissions?.technician?.allowPOS ?? false);
+  const [techAllowRepairs, setTechAllowRepairs] = useState(settings.rolePermissions?.technician?.allowRepairs ?? true);
+  const [techAllowCustomers, setTechAllowCustomers] = useState(settings.rolePermissions?.technician?.allowCustomers ?? true);
+  const [techAllowInventory, setTechAllowInventory] = useState(settings.rolePermissions?.technician?.allowInventory ?? false);
+
   // Feature toggles states
   const [enableSms, setEnableSms] = useState(!!settings.enableSms);
 
@@ -215,6 +226,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     setOnlineAnnouncementBgColor(settings.onlineAnnouncementBgColor || 'bg-blue-500/15 text-blue-300 border-blue-500/30');
     setUiTheme(settings.uiTheme || 'slate');
     setAdminPin(settings.adminPin || '1234');
+    setCashierAllowPOS(settings.rolePermissions?.cashier?.allowPOS ?? true);
+    setCashierAllowRepairs(settings.rolePermissions?.cashier?.allowRepairs ?? false);
+    setCashierAllowCustomers(settings.rolePermissions?.cashier?.allowCustomers ?? true);
+    setCashierAllowInventory(settings.rolePermissions?.cashier?.allowInventory ?? false);
+    setTechAllowPOS(settings.rolePermissions?.technician?.allowPOS ?? false);
+    setTechAllowRepairs(settings.rolePermissions?.technician?.allowRepairs ?? true);
+    setTechAllowCustomers(settings.rolePermissions?.technician?.allowCustomers ?? true);
+    setTechAllowInventory(settings.rolePermissions?.technician?.allowInventory ?? false);
     setEnableSms(!!settings.enableSms);
     setEnableRepairs(!!settings.enableRepairs);
     setEnableSpecialOrders(!!settings.enableSpecialOrders);
@@ -490,7 +509,21 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       enableRepairs,
       enableSpecialOrders,
       enableHP: enableHp,
-      enableBatches
+      enableBatches,
+      rolePermissions: {
+        cashier: {
+          allowPOS: cashierAllowPOS,
+          allowRepairs: cashierAllowRepairs,
+          allowCustomers: cashierAllowCustomers,
+          allowInventory: cashierAllowInventory
+        },
+        technician: {
+          allowPOS: techAllowPOS,
+          allowRepairs: techAllowRepairs,
+          allowCustomers: techAllowCustomers,
+          allowInventory: techAllowInventory
+        }
+      }
     });
 
     alert(language === 'en' ? 'Settings updated successfully!' : 'සිටින්ස් සාර්ථකව යාවත්කාලීන කරන ලදී!');
@@ -930,7 +963,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
       {/* SHOP PROFILE */}
       {subTab === 'shop' && (
-        <form onSubmit={handleSave} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4 text-xs font-semibold">
+        <>
+          <form onSubmit={handleSave} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4 text-xs font-semibold">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="font-bold text-slate-500">Shop Name *</label>
@@ -1105,48 +1139,21 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           <div className="flex justify-end pt-3">
             <button
               type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition shadow-md flex items-center space-x-1.5"
+              className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition shadow-md flex items-center space-x-1.5 cursor-pointer active:scale-95"
             >
               <Save className="h-4 w-4" />
               <span>Save Profile Settings</span>
             </button>
           </div>
         </form>
-      )}
 
-      {/* USERS & ROLES */}
-      {subTab === 'users' && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in duration-200">
-          {/* Left Column: static roles list */}
-          <div className="lg:col-span-6 bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4">
-            <div className="border-b border-slate-100 pb-3">
-              <h3 className="text-sm font-bold text-slate-800">User Roles & Access Control</h3>
-              <p className="text-[10px] text-slate-400 font-medium">Manage cashiers, admins and technical staff roles.</p>
-            </div>
-
-            <div className="space-y-2 text-xs font-semibold">
-              {[
-                { role: 'Admin', desc: 'Full access to all settings, inventory, sales reports, and database backups.' },
-                { role: 'Cashier', desc: 'Can operate POS Cash Register Terminal. Restricted from accessing analytics, settings, and full reports.' },
-                { role: 'Technician', desc: 'Access to computer and mobile repair logs and job tracking boards. Restricted from billing.' }
-              ].map(usr => (
-                <div key={usr.role} className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 flex items-start space-x-3">
-                  <div className="bg-blue-100 text-blue-600 p-2 rounded-lg font-bold">{usr.role[0]}</div>
-                  <div className="flex-1">
-                    <h4 className="font-extrabold text-slate-800">{usr.role}</h4>
-                    <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-0.5">{usr.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Right Column: Change passcode PIN form */}
-          <form onSubmit={handleChangePin} className="lg:col-span-6 bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4 text-xs font-semibold flex flex-col justify-between">
+        {/* Change Admin & POS Passcode PIN (Moved from Users & Roles) */}
+        <div className="mt-8 border-t border-slate-200/60 pt-6 animate-in fade-in duration-200">
+          <form onSubmit={handleChangePin} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4 text-xs font-semibold max-w-xl">
             <div className="space-y-4">
               <div className="border-b border-slate-100 pb-3">
                 <h3 className="text-sm font-bold text-slate-800 flex items-center">
-                  <Key className="h-4 w-4 mr-1.5 text-blue-650" />
+                  <Key className="h-4 w-4 mr-1.5 text-blue-600" />
                   {language === 'en' ? 'Change Admin & POS Passcode PIN' : 'කළමනාකරණ සහ POS පින් අංකය වෙනස් කිරීම'}
                 </h3>
                 <p className="text-[10px] text-slate-400 font-medium">
@@ -1220,6 +1227,170 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               </button>
             </div>
           </form>
+        </div>
+      </>)}
+
+      {/* USERS & ROLES */}
+      {subTab === 'users' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 animate-in fade-in duration-200">
+          {/* Left Column: static roles list */}
+          <div className="lg:col-span-6 bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-800">User Roles & Access Control</h3>
+              <p className="text-[10px] text-slate-400 font-medium">Manage cashiers, admins and technical staff roles.</p>
+            </div>
+
+            <div className="space-y-2 text-xs font-semibold">
+              {[
+                { role: 'Admin', desc: 'Full access to all settings, inventory, sales reports, and database backups.' },
+                { role: 'Cashier', desc: 'Can operate POS Cash Register Terminal. Restricted from accessing analytics, settings, and full reports.' },
+                { role: 'Technician', desc: 'Access to computer and mobile repair logs and job tracking boards. Restricted from billing.' }
+              ].map(usr => (
+                <div key={usr.role} className="bg-slate-50 p-4 rounded-xl border border-slate-200/60 flex items-start space-x-3">
+                  <div className="bg-blue-100 text-blue-600 p-2 rounded-lg font-bold">{usr.role[0]}</div>
+                  <div className="flex-1">
+                    <h4 className="font-extrabold text-slate-800">{usr.role}</h4>
+                    <p className="text-[11px] text-slate-500 font-medium leading-relaxed mt-0.5">{usr.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Right Column: Custom Role Permissions */}
+          <div className="lg:col-span-6 bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4 text-xs font-semibold animate-in fade-in duration-200">
+            <div className="border-b border-slate-100 pb-3">
+              <h3 className="text-sm font-bold text-slate-800 flex items-center">
+                <ShieldAlert className="h-4 w-4 mr-1.5 text-blue-600" />
+                {language === 'en' ? 'User Roles & Access Permissions' : 'පරිශීලක භූමිකා සහ අවසර සීමාවන්'}
+              </h3>
+              <p className="text-[10px] text-slate-400 font-medium">
+                {language === 'en' ? 'Select which modules each role is authorized to view and operate.' : 'එක් එක් භූමිකාවට සක්‍රීය කිරීමට අවශ්‍ය අංශ තෝරන්න.'}
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              {/* Cashier Permissions Card */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 space-y-2.5">
+                <h4 className="font-extrabold text-xs text-indigo-700 uppercase tracking-wider">
+                  Cashier Role Permissions
+                </h4>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <label className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input
+                      type="checkbox"
+                      checked={cashierAllowPOS}
+                      onChange={(e) => setCashierAllowPOS(e.target.checked)}
+                      className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
+                    />
+                    <span className="text-[11px] text-slate-700 font-bold">Allow POS Terminal</span>
+                  </label>
+                  <label className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input
+                      type="checkbox"
+                      checked={cashierAllowRepairs}
+                      onChange={(e) => setCashierAllowRepairs(e.target.checked)}
+                      className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
+                    />
+                    <span className="text-[11px] text-slate-700 font-bold">Allow Repairs Tracker</span>
+                  </label>
+                  <label className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input
+                      type="checkbox"
+                      checked={cashierAllowCustomers}
+                      onChange={(e) => setCashierAllowCustomers(e.target.checked)}
+                      className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
+                    />
+                    <span className="text-[11px] text-slate-700 font-bold">Allow Contacts & Loyalty</span>
+                  </label>
+                  <label className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input
+                      type="checkbox"
+                      checked={cashierAllowInventory}
+                      onChange={(e) => setCashierAllowInventory(e.target.checked)}
+                      className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
+                    />
+                    <span className="text-[11px] text-slate-700 font-bold">Allow Inventory View</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Technician Permissions Card */}
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 space-y-2.5">
+                <h4 className="font-extrabold text-xs text-indigo-700 uppercase tracking-wider">
+                  Technician Role Permissions
+                </h4>
+                <div className="grid grid-cols-2 gap-2.5">
+                  <label className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input
+                      type="checkbox"
+                      checked={techAllowPOS}
+                      onChange={(e) => setTechAllowPOS(e.target.checked)}
+                      className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
+                    />
+                    <span className="text-[11px] text-slate-700 font-bold">Allow POS Terminal</span>
+                  </label>
+                  <label className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input
+                      type="checkbox"
+                      checked={techAllowRepairs}
+                      onChange={(e) => setTechAllowRepairs(e.target.checked)}
+                      className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
+                    />
+                    <span className="text-[11px] text-slate-700 font-bold">Allow Repairs Tracker</span>
+                  </label>
+                  <label className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input
+                      type="checkbox"
+                      checked={techAllowCustomers}
+                      onChange={(e) => setTechAllowCustomers(e.target.checked)}
+                      className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
+                    />
+                    <span className="text-[11px] text-slate-700 font-bold">Allow Contacts & Loyalty</span>
+                  </label>
+                  <label className="flex items-center space-x-2 bg-white px-3 py-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
+                    <input
+                      type="checkbox"
+                      checked={techAllowInventory}
+                      onChange={(e) => setTechAllowInventory(e.target.checked)}
+                      className="rounded text-blue-600 focus:ring-blue-500 h-4 w-4 cursor-pointer"
+                    />
+                    <span className="text-[11px] text-slate-700 font-bold">Allow Inventory View</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => {
+                  onUpdateSettings({
+                    ...settings,
+                    rolePermissions: {
+                      cashier: {
+                        allowPOS: cashierAllowPOS,
+                        allowRepairs: cashierAllowRepairs,
+                        allowCustomers: cashierAllowCustomers,
+                        allowInventory: cashierAllowInventory
+                      },
+                      technician: {
+                        allowPOS: techAllowPOS,
+                        allowRepairs: techAllowRepairs,
+                        allowCustomers: techAllowCustomers,
+                        allowInventory: techAllowInventory
+                      }
+                    }
+                  });
+                  alert(language === 'en' ? 'Role permissions updated successfully!' : 'භූමිකා අවසරයන් සාර්ථකව යාවත්කාලීන කරන ලදී!');
+                }}
+                className="bg-blue-600 hover:bg-blue-750 text-white px-5 py-2 rounded-xl text-xs font-bold transition shadow-md flex items-center space-x-1.5 cursor-pointer active:scale-95"
+              >
+                <Save className="h-4 w-4" />
+                <span>{language === 'en' ? 'Save Permissions' : 'අවසර සුරකින්න'}</span>
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -240,7 +240,8 @@ export const initialEmployees: Employee[] = [
     commissionRate: 10,
     address: 'Kurunegala Road, Wariyapola',
     joinedDate: '2024-06-01',
-    walletBalance: 0
+    walletBalance: 0,
+    passcode: '4321'
   },
   {
     id: 'EMP002',
@@ -251,7 +252,8 @@ export const initialEmployees: Employee[] = [
     commissionRate: 1,
     address: 'Negombo Road, Kurunegala',
     joinedDate: '2024-11-15',
-    walletBalance: 0
+    walletBalance: 0,
+    passcode: '1111'
   }
 ];
 
@@ -441,5 +443,19 @@ export const initialSettings: ShopSettings = {
   enableRepairs: true,
   enableSpecialOrders: true,
   enableHP: true,
-  enableBatches: true
+  enableBatches: true,
+  rolePermissions: {
+    cashier: {
+      allowPOS: true,
+      allowRepairs: false,
+      allowCustomers: true,
+      allowInventory: false
+    },
+    technician: {
+      allowPOS: false,
+      allowRepairs: true,
+      allowCustomers: true,
+      allowInventory: false
+    }
+  }
 };

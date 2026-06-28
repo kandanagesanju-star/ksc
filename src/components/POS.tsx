@@ -12,6 +12,7 @@ interface POSProps {
   language: 'en' | 'si';
   products: Product[];
   customers: Customer[];
+  sales?: Sale[];
   onAddSale: (sale: Sale) => void;
   onAddCustomer: (customer: Customer) => Customer;
   updateProductStock: (productId: string, quantitySold: number) => void;
@@ -34,6 +35,7 @@ export const POS: React.FC<POSProps> = ({
   language,
   products,
   customers,
+  sales = [],
   onAddSale,
   onAddCustomer,
   updateProductStock,
@@ -155,6 +157,7 @@ export const POS: React.FC<POSProps> = ({
 
   const toggleVoiceAssistant = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    setVoiceLog('');
     
     if (!SpeechRecognition) {
       // Fallback: Simulate voice commands for demonstration/sandbox environments
@@ -186,13 +189,24 @@ export const POS: React.FC<POSProps> = ({
 
     recognition.onstart = () => {
       setIsListening(true);
-      setVoiceLog(language === 'en' ? 'Listening...' : 'ශ්‍රවණය කරමින්...');
+      setVoiceLog(language === 'en' ? 'Listening... Speak now!' : 'ශ්‍රවණය කරමින්... දැන් කතා කරන්න!');
     };
 
     recognition.onerror = (event: any) => {
-      console.error(event.error);
+      console.error('Speech recognition error:', event.error);
       setIsListening(false);
-      setVoiceLog(`Error: ${event.error}`);
+      
+      if (event.error === 'not-allowed') {
+        setVoiceLog(language === 'en' 
+          ? 'Error: Microphone access is blocked. Please enable it in browser settings.' 
+          : 'දෝෂයකි: මයික්‍රෆෝනයට ප්‍රවේශය අවහිර කර ඇත. කරුණාකර බ්‍රවුසර් සැකසුම් වලින් එය සක්‍රීය කරන්න.');
+      } else if (event.error === 'no-speech') {
+        setVoiceLog(language === 'en' 
+          ? 'Error: No speech detected. Please speak closer to the mic.' 
+          : 'දෝෂයකි: කිසිදු හඬක් හඳුනා ගැනීමට නොහැකි විය. කරුණාකර මයික්‍රෆෝනයට ආසන්නව කතා කරන්න.');
+      } else {
+        setVoiceLog(`Error: ${event.error}`);
+      }
     };
 
     recognition.onend = () => {
@@ -205,11 +219,18 @@ export const POS: React.FC<POSProps> = ({
       processVoiceCommand(speechToText);
     };
 
-    recognition.start();
+    try {
+      recognition.start();
+    } catch (e: any) {
+      console.error(e);
+      setVoiceLog(`Error: ${e.message}`);
+    }
   };
 
   const processVoiceCommand = (cmd: string) => {
     const cleanCmd = cmd.toLowerCase().trim();
+    
+    // Command matches
     if (cleanCmd.includes('clear') || cleanCmd.includes('හිස් කරන්න')) {
       setPosCart([]);
       setVoiceLog(language === 'en' ? 'Cleared cart!' : 'කරත්තය හිස් කරන ලදී!');
@@ -233,7 +254,8 @@ export const POS: React.FC<POSProps> = ({
       setSearchQuery(keyword);
       setVoiceLog(language === 'en' ? `Searching: "${keyword}"` : `සොයමින්: "${keyword}"`);
     } else {
-      setSearchQuery(cleanCmd);
+      // Default to search whatever was spoken directly
+      setSearchQuery(cmd);
     }
   };
 
@@ -261,9 +283,22 @@ export const POS: React.FC<POSProps> = ({
 
 
 
-  // Filter products for quick add
+  // Memoized product sales popularity from sales ledger
+  const productPopularity = useMemo(() => {
+    const counts: Record<string, number> = {};
+    sales.forEach(sale => {
+      if (sale.items) {
+        sale.items.forEach(item => {
+          counts[item.productId] = (counts[item.productId] || 0) + item.quantity;
+        });
+      }
+    });
+    return counts;
+  }, [sales]);
+
+  // Filter products for quick add, sorted by popularity descending (most sold first)
   const filteredProducts = useMemo(() => {
-    return products.filter(p => {
+    const list = products.filter(p => {
       const matchesCategory = selectedCategory === 'All' || p.category === selectedCategory;
       const matchesSearch = 
         p.nameEn.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -271,7 +306,21 @@ export const POS: React.FC<POSProps> = ({
         p.id.toLowerCase().includes(searchQuery.toLowerCase());
       return matchesCategory && matchesSearch;
     });
-  }, [products, selectedCategory, searchQuery]);
+
+    return list.sort((a, b) => {
+      const aOut = a.stock !== 'Unlimited' && a.stock <= 0;
+      const bOut = b.stock !== 'Unlimited' && b.stock <= 0;
+
+      // If one is sold out and the other is not, put sold out at the end
+      if (aOut && !bOut) return 1;
+      if (!aOut && bOut) return -1;
+
+      // If both have the same stock status, sort by popularity descending
+      const countA = productPopularity[a.id] || 0;
+      const countB = productPopularity[b.id] || 0;
+      return countB - countA;
+    });
+  }, [products, selectedCategory, searchQuery, productPopularity]);
 
   // Reset to first page on filter/search change
   useEffect(() => {
