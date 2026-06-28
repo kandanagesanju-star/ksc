@@ -175,6 +175,53 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [enableHp, setEnableHp] = useState(!!settings.enableHP);
   const [enableBatches, setEnableBatches] = useState(!!settings.enableBatches);
 
+  // Sync state with settings prop when settings updates from parent (e.g. database restore, tab switches, quota fallback updates)
+  React.useEffect(() => {
+    setShopName(settings.shopName || '');
+    setShopAddress(settings.shopAddress || '');
+    setShopPhone(settings.shopPhone || '');
+    setShopEmail(settings.shopEmail || '');
+    setShopLogoUrl(settings.shopLogoUrl || '');
+    setTaxNo(settings.taxRegistrationNo || '');
+    setFooterMsg(settings.receiptFooterMessage || '');
+    setVatRate(settings.vatRate ?? 15);
+    setSsclRate(settings.ssclRate ?? 2.5);
+    setLoyaltyValue(settings.loyaltyPointValue ?? 100);
+    setShortcutComplete(settings.posShortcuts.completeSale || 'F8');
+    setShortcutClear(settings.posShortcuts.clearCart || 'F9');
+    setShortcutSearch(settings.posShortcuts.focusSearch || 'F1');
+    setShortcutCash(settings.posShortcuts.cashCheckout || 'F2');
+    setShortcutCard(settings.posShortcuts.cardCheckout || 'F4');
+    setShortcutBank(settings.posShortcuts.bankCheckout || 'F6');
+    setReceiptWidth(settings.receiptWidth || '80mm');
+    setBankName(settings.bankName || '');
+    setAccNo(settings.bankAccountNo || '');
+    setAccName(settings.bankAccountName || '');
+    setOnlineStoreName(settings.onlineStoreName || 'My Online Shop');
+    setOnlineLogoUrl(settings.onlineStoreLogoUrl || '');
+    setOnlineHeaderBg(settings.onlineHeaderBgColor || 'bg-slate-900');
+    setOnlineHeroBanner(settings.onlineHeroBannerUrl || '');
+    setHeroBannerUrls(
+      settings.heroBannerUrls && settings.heroBannerUrls.length > 0
+        ? settings.heroBannerUrls
+        : (settings.onlineHeroBannerUrl ? [settings.onlineHeroBannerUrl] : ['/hero-banner.png'])
+    );
+    setOnlineThemeColor(settings.onlinePrimaryThemeColor || 'bg-blue-600');
+    setOnlinePhone(settings.onlinePhone || '+94 11 234 5678');
+    setOnlineEmail(settings.onlineEmail || 'info@smartshoppro.lk');
+    setOnlineAddress(settings.onlineAddress || 'No. 250, Galle Road, Colombo 03, Sri Lanka');
+    setOnlineTagline(settings.onlineTagline || 'Premium Quality & Fast Repairs');
+    setOnlineAnnouncementMessage(settings.onlineAnnouncementMessage || '');
+    setOnlineAnnouncementBgColor(settings.onlineAnnouncementBgColor || 'bg-blue-500/15 text-blue-300 border-blue-500/30');
+    setUiTheme(settings.uiTheme || 'slate');
+    setAdminPin(settings.adminPin || '1234');
+    setEnableSms(!!settings.enableSms);
+    setEnableRepairs(!!settings.enableRepairs);
+    setEnableSpecialOrders(!!settings.enableSpecialOrders);
+    setEnableHp(!!settings.enableHP);
+    setEnableBatches(!!settings.enableBatches);
+  }, [settings]);
+
   // Database Health check helper (Database Engineer)
   const dbHealth = useMemo(() => {
     let issues: string[] = [];

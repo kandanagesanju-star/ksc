@@ -311,11 +311,13 @@ function App() {
       try {
         const stripped = {
           ...settings,
+          shopLogoUrl: settings.shopLogoUrl?.startsWith('http') ? settings.shopLogoUrl : '',
           onlineStoreLogoUrl: settings.onlineStoreLogoUrl?.startsWith('http') ? settings.onlineStoreLogoUrl : '',
           heroBannerUrls: (settings.heroBannerUrls || []).filter((u: string) => u.startsWith('http')),
           onlineHeroBannerUrl: settings.onlineHeroBannerUrl?.startsWith('http') ? settings.onlineHeroBannerUrl : '',
         };
         localStorage.setItem('shop_settings', JSON.stringify(stripped));
+        setSettings(stripped);
       } catch (e2) {
         console.error('Could not save settings even after stripping images.', e2);
       }
