@@ -1427,13 +1427,18 @@ export const Storefront: React.FC<StorefrontProps> = ({
 
       {/* ── PRODUCT DETAIL PORTAL (PDP MODAL) ────────────────────────────────── */}
       {selectedProduct && (
-        <div className="fixed inset-0 bg-slate-955/65 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto transition-all duration-300">
+        <div className="fixed inset-0 bg-slate-955/75 backdrop-blur-md z-50 flex items-end sm:items-center justify-center sm:p-4 transition-all duration-300">
           <div 
             ref={modalScrollRef}
-            className="bg-white rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-250 flex flex-col"
+            className="bg-white w-full sm:max-w-4xl sm:rounded-3xl rounded-t-3xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-100 animate-in fade-in slide-in-from-bottom-8 sm:zoom-in-95 duration-250 flex flex-col"
           >
+            {/* Mobile bottom-sheet drag handle */}
+            <div className="sm:hidden flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 bg-slate-200 rounded-full"></div>
+            </div>
+
             {/* Header: Title & Close Button */}
-            <div className="flex justify-between items-center px-6 py-4 border-b border-slate-100 sticky top-0 bg-white/95 backdrop-blur-md z-10">
+            <div className="flex justify-between items-center px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 sticky top-0 bg-white/95 backdrop-blur-md z-10">
               <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-50 px-3 py-1 rounded-full border border-slate-100">
                 {selectedProduct.category}
               </span>
@@ -1446,17 +1451,17 @@ export const Storefront: React.FC<StorefrontProps> = ({
               </button>
             </div>
 
-            <div className="p-6 md:p-8 space-y-8 flex-1">
+            <div className="p-4 md:p-8 space-y-5 md:space-y-8 flex-1">
               {/* Product Grid */}
-              <div className="grid md:grid-cols-2 gap-8 items-start">
+              <div className="grid md:grid-cols-2 gap-4 md:gap-8 items-start">
                 
                 {/* Left Column: Image Container */}
-                <div className="bg-slate-50/50 border border-slate-100 rounded-3xl p-4 flex items-center justify-center overflow-hidden relative group">
+                <div className="bg-slate-50/50 border border-slate-100 rounded-2xl md:rounded-3xl p-3 md:p-4 flex items-center justify-center overflow-hidden relative group" style={{minHeight: '160px', maxHeight: '240px'}}>
                   {selectedProduct.imageUrl ? (
                     <img 
                       src={selectedProduct.imageUrl} 
                       alt={selectedProduct.nameEn} 
-                      className="max-h-80 w-auto object-contain rounded-2xl shadow-sm transition-transform duration-500 group-hover:scale-105"
+                      className="max-h-48 md:max-h-80 w-auto object-contain rounded-xl md:rounded-2xl shadow-sm transition-transform duration-500 group-hover:scale-105"
                     />
                   ) : (
                     <div className="text-slate-300 py-16">
@@ -1481,7 +1486,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
                         {selectedProduct.brand}
                       </span>
                     )}
-                    <h2 className="text-xl md:text-2xl font-black text-slate-800 leading-tight font-outfit">
+                    <h2 className="text-base md:text-2xl font-black text-slate-800 leading-tight font-outfit">
                       {language === 'si' ? (selectedProduct.nameSi || selectedProduct.nameEn) : selectedProduct.nameEn}
                     </h2>
                     
@@ -1506,7 +1511,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
                     <div>
                       <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{language === 'en' ? 'Price' : 'මිල'}</div>
                       <div className="flex items-baseline space-x-2.5 mt-0.5">
-                        <span className={`text-2xl font-black ${theme.text} font-outfit`}>
+                        <span className={`text-lg md:text-2xl font-black ${theme.text} font-outfit`}>
                           Rs. {selectedProduct.retailPrice.toLocaleString()}
                         </span>
                         <span className="text-xs text-slate-400 line-through font-semibold">
@@ -1569,7 +1574,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
                     <div className="text-[10px] font-black uppercase text-slate-400 tracking-wider mb-0.5">
                       Delivery & Returns
                     </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[10.5px] font-bold text-slate-600">
+                    <div className="grid grid-cols-3 gap-2 text-[10px] font-bold text-slate-600">
                       <div className="flex items-center space-x-2">
                         <span className="w-5 h-5 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center text-[11px]">🚚</span>
                         <span>Islandwide Delivery</span>
@@ -1639,7 +1644,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
             <div className="p-4 border-t border-slate-100 bg-slate-50/50 flex justify-end">
               <button
                 onClick={() => setSelectedProduct(null)}
-                className="bg-slate-200 hover:bg-slate-300 text-slate-750 px-6 py-2.5 rounded-xl text-xs font-black transition cursor-pointer"
+                className="bg-slate-200 hover:bg-slate-300 text-slate-750 px-6 py-2.5 rounded-xl text-xs font-black transition cursor-pointer w-full sm:w-auto"
               >
                 {t.close}
               </button>
