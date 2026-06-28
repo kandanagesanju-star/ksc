@@ -1,0 +1,128 @@
+@import "tailwindcss";
+
+/* ==========================================================================
+   PREMIUM THEMES SYSTEM CONFIGURATION (UI/UX DESIGNER & ARCHITECT)
+   ========================================================================== */
+
+/* OLED Deep Black Theme overrides */
+.theme-oled, .theme-oled body {
+  background-color: #000000 !important;
+  color: #f5f5f5 !important;
+}
+.theme-oled .bg-white {
+  background-color: #0c0c0c !important;
+  border-color: #1c1c1c !important;
+  color: #f5f5f5 !important;
+}
+.theme-oled .text-slate-800, 
+.theme-oled .text-slate-700,
+.theme-oled .text-slate-600 {
+  color: #e5e5e5 !important;
+}
+.theme-oled .text-slate-500,
+.theme-oled .text-slate-400 {
+  color: #8a8a8a !important;
+}
+.theme-oled .border-slate-100, 
+.theme-oled .border-slate-200 {
+  border-color: #1e1e1e !important;
+}
+.theme-oled .bg-slate-50, 
+.theme-oled .bg-slate-100 {
+  background-color: #141414 !important;
+}
+.theme-oled .bg-slate-200 {
+  background-color: #222222 !important;
+}
+.theme-oled select, .theme-oled input, .theme-oled textarea {
+  background-color: #161616 !important;
+  border-color: #2a2a2a !important;
+  color: #f5f5f5 !important;
+}
+
+/* Emerald Cyber Theme overrides */
+.theme-emerald, .theme-emerald body {
+  background-color: #011c16 !important;
+  color: #ecfdf5 !important;
+}
+.theme-emerald .bg-white {
+  background-color: #042f26 !important;
+  border-color: #064e3b !important;
+  color: #ecfdf5 !important;
+}
+.theme-emerald .text-slate-800, 
+.theme-emerald .text-slate-700,
+.theme-emerald .text-slate-600 {
+  color: #a7f3d0 !important;
+}
+.theme-emerald .text-slate-500,
+.theme-emerald .text-slate-400 {
+  color: #34d399 !important;
+}
+.theme-emerald .border-slate-100, 
+.theme-emerald .border-slate-200 {
+  border-color: #065f46 !important;
+}
+.theme-emerald .bg-slate-50, 
+.theme-emerald .bg-slate-100 {
+  background-color: #022c22 !important;
+}
+.theme-emerald .bg-slate-200 {
+  background-color: #042f26 !important;
+}
+.theme-emerald select, .theme-emerald input, .theme-emerald textarea {
+  background-color: #022c22 !important;
+  border-color: #065f46 !important;
+  color: #ecfdf5 !important;
+}
+
+/* Glassmorphism Cyber Theme overrides */
+.theme-glass, .theme-glass body {
+  background-color: #090d16 !important;
+  background-image: radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
+                    radial-gradient(at 50% 0%, hsla(222,40%,25%,0.3) 0, transparent 50%), 
+                    radial-gradient(at 100% 0%, hsla(339,49%,20%,0.2) 0, transparent 50%) !important;
+  background-attachment: fixed !important;
+  color: #e2e8f0 !important;
+}
+.theme-glass .bg-white {
+  background-color: rgba(22, 29, 49, 0.45) !important;
+  backdrop-filter: blur(16px) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+  color: #f1f5f9 !important;
+}
+.theme-glass .text-slate-800, 
+.theme-glass .text-slate-700,
+.theme-glass .text-slate-600 {
+  color: #e2e8f0 !important;
+}
+.theme-glass .text-slate-500,
+.theme-glass .text-slate-400 {
+  color: #94a3b8 !important;
+}
+.theme-glass .border-slate-100, 
+.theme-glass .border-slate-200 {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+.theme-glass .bg-slate-50, 
+.theme-glass .bg-slate-100 {
+  background-color: rgba(15, 23, 42, 0.4) !important;
+}
+.theme-glass .bg-slate-200 {
+  background-color: rgba(255, 255, 255, 0.06) !important;
+}
+.theme-glass select, .theme-glass input, .theme-glass textarea {
+  background-color: rgba(15, 23, 42, 0.6) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  color: #f1f5f9 !important;
+}
+
+/* Custom Scrollbar for modern feel */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
