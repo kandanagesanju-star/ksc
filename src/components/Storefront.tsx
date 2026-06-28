@@ -435,11 +435,11 @@ export const Storefront: React.FC<StorefrontProps> = ({
   [products]);
 
   const hotDeals = useMemo(() =>
-    visibleProducts.filter(p => p.stock !== 'Unlimited' && p.stock > 0).slice(0, 6),
+    visibleProducts.filter((p, idx) => p.stock !== 'Unlimited' && p.stock > 0 && idx % 2 === 0).slice(0, 6),
   [visibleProducts]);
 
   const featuredProducts = useMemo(() =>
-    visibleProducts.filter(p => p.stock !== 'Unlimited' && p.stock > 5).slice(0, 6),
+    visibleProducts.filter((p, idx) => p.stock !== 'Unlimited' && p.stock > 0 && idx % 2 !== 0).slice(0, 6),
   [visibleProducts]);
 
   const newArrivals = useMemo(() =>
@@ -917,12 +917,55 @@ export const Storefront: React.FC<StorefrontProps> = ({
                   </div>
                 )}
                 {totalPages > 1 && (
-                  <div className="flex justify-center items-center space-x-2 pt-4">
-                    <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1} className="px-3 py-1.5 bg-white border rounded-lg text-xs font-bold disabled:opacity-50 transition">{language === 'en' ? 'Prev' : 'පෙර'}</button>
-                    {Array.from({ length: totalPages }).map((_, i) => (
-                      <button key={i} onClick={() => setCurrentPage(i + 1)} className={`w-8 h-8 rounded-lg text-xs font-bold border transition ${currentPage === i + 1 ? `${theme.bg} text-white` : 'bg-white text-slate-700 hover:bg-slate-50'}`}>{i + 1}</button>
-                    ))}
-                    <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages} className="px-3 py-1.5 bg-white border rounded-lg text-xs font-bold disabled:opacity-50 transition">{language === 'en' ? 'Next' : 'මීළඟ'}</button>
+                  <div className="flex justify-center items-center space-x-1.5 pt-6 text-xs font-bold text-slate-600">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 transition cursor-pointer font-bold"
+                    >
+                      ‹
+                    </button>
+                    {(() => {
+                      const pages: (number | string)[] = [];
+                      if (totalPages <= 5) {
+                        for (let i = 1; i <= totalPages; i++) pages.push(i);
+                      } else {
+                        pages.push(1);
+                        if (currentPage > 3) pages.push('...');
+                        const start = Math.max(2, currentPage - 1);
+                        const end = Math.min(totalPages - 1, currentPage + 1);
+                        for (let i = start; i <= end; i++) {
+                          pages.push(i);
+                        }
+                        if (currentPage < totalPages - 2) pages.push('...');
+                        pages.push(totalPages);
+                      }
+                      return pages.map((p, idx) => {
+                        if (p === '...') {
+                          return <span key={`dots-${idx}`} className="px-1 text-slate-400 font-bold">...</span>;
+                        }
+                        return (
+                          <button
+                            key={p}
+                            onClick={() => setCurrentPage(p as number)}
+                            className={`w-8 h-8 rounded-lg border text-xs font-bold transition cursor-pointer ${
+                              currentPage === p 
+                                ? `${theme.bg} border-transparent text-white shadow-sm` 
+                                : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        );
+                      });
+                    })()}
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 transition cursor-pointer font-bold"
+                    >
+                      ›
+                    </button>
                   </div>
                 )}
               </div>
@@ -942,7 +985,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
                           {language === 'en' ? 'ENDS SOON: 02h 41m' : 'තව ස්වල්ප වේලාවයි'}
                         </span>
                       </div>
-                      <button onClick={() => setSelectedCategory('All')} className={`text-xs font-black ${theme.text} hover:opacity-80 transition flex items-center space-x-1 uppercase tracking-wider bg-slate-50 hover:bg-slate-100/60 px-3.5 py-1.5 rounded-2xl border border-slate-100 shadow-sm cursor-pointer`}>
+                      <button onClick={() => document.getElementById('all-products-catalog')?.scrollIntoView({ behavior: 'smooth' })} className={`text-xs font-black ${theme.text} hover:opacity-80 transition flex items-center space-x-1 uppercase tracking-wider bg-slate-50 hover:bg-slate-100/60 px-3.5 py-1.5 rounded-2xl border border-slate-100 shadow-sm cursor-pointer`}>
                         <span>{language === 'en' ? 'View All' : 'සියල්ල'}</span>
                         <ArrowRight className="h-3 w-3" />
                       </button>
@@ -961,7 +1004,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
                         <span className="text-2xl text-yellow-500">⭐</span>
                         <span>{language === 'en' ? 'Featured Products' : 'විශේෂිත නිෂ්පාදන'}</span>
                       </h2>
-                      <button onClick={() => setSelectedCategory('All')} className={`text-xs font-black ${theme.text} hover:opacity-80 transition flex items-center space-x-1 uppercase tracking-wider bg-slate-50 hover:bg-slate-100/60 px-3.5 py-1.5 rounded-2xl border border-slate-100 shadow-sm cursor-pointer`}>
+                      <button onClick={() => document.getElementById('all-products-catalog')?.scrollIntoView({ behavior: 'smooth' })} className={`text-xs font-black ${theme.text} hover:opacity-80 transition flex items-center space-x-1 uppercase tracking-wider bg-slate-50 hover:bg-slate-100/60 px-3.5 py-1.5 rounded-2xl border border-slate-100 shadow-sm cursor-pointer`}>
                         <span>{language === 'en' ? 'View All' : 'සියල්ල'}</span>
                         <ArrowRight className="h-3 w-3" />
                       </button>
@@ -980,7 +1023,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
                         <span className={`text-white text-[8px] font-black px-2 py-0.5 rounded-md ${theme.bg} tracking-widest uppercase shadow-sm`}>NEW</span>
                         <span>{language === 'en' ? 'New Arrivals' : 'අලුතින් ආ ද්‍රව්‍ය'}</span>
                       </h2>
-                      <button onClick={() => setSelectedCategory('All')} className={`text-xs font-black ${theme.text} hover:opacity-80 transition flex items-center space-x-1 uppercase tracking-wider bg-slate-50 hover:bg-slate-100/60 px-3.5 py-1.5 rounded-2xl border border-slate-100 shadow-sm cursor-pointer`}>
+                      <button onClick={() => document.getElementById('all-products-catalog')?.scrollIntoView({ behavior: 'smooth' })} className={`text-xs font-black ${theme.text} hover:opacity-80 transition flex items-center space-x-1 uppercase tracking-wider bg-slate-50 hover:bg-slate-100/60 px-3.5 py-1.5 rounded-2xl border border-slate-100 shadow-sm cursor-pointer`}>
                         <span>{language === 'en' ? 'View All' : 'සියල්ල'}</span>
                         <ArrowRight className="h-3 w-3" />
                       </button>
@@ -991,11 +1034,89 @@ export const Storefront: React.FC<StorefrontProps> = ({
                   </div>
                 )}
 
-                {hotDeals.length === 0 && featuredProducts.length === 0 && newArrivals.length === 0 && (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                    {visibleProducts.map(p => <ProductCard key={p.id} product={p} />)}
+                {/* EXPLORE CATALOG / ALL PRODUCTS */}
+                <div id="all-products-catalog" className="space-y-4 pt-6 border-t border-slate-100">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h2 className="text-xl font-black text-slate-800 flex items-center space-x-2 font-outfit tracking-tight">
+                      <span className="text-2xl text-blue-500">🛍️</span>
+                      <span>{language === 'en' ? 'Explore Our Catalog' : 'සියලුම භාණ්ඩ'}</span>
+                      <span className="text-xs text-slate-400 font-bold ml-2">({visibleProducts.length} {language === 'en' ? 'Products' : 'භාණ්ඩ'})</span>
+                    </h2>
                   </div>
-                )}
+                  
+                  {paginatedProducts.length === 0 ? (
+                    <div className="text-center py-16">
+                      <p className="text-slate-500 font-semibold">{language === 'en' ? 'No products available.' : 'භාණ්ඩ නොමැත.'}</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+                      {paginatedProducts.map(p => <ProductCard key={p.id} product={p} />)}
+                    </div>
+                  )}
+
+                  {/* Smart Catalog Pagination */}
+                  {totalPages > 1 && (
+                    <div className="flex justify-center items-center space-x-1.5 pt-6 text-xs font-bold text-slate-600">
+                      <button
+                        onClick={() => {
+                          setCurrentPage(p => Math.max(1, p - 1));
+                          document.getElementById('all-products-catalog')?.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                        disabled={currentPage === 1}
+                        className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 transition cursor-pointer font-bold"
+                      >
+                        ‹
+                      </button>
+                      {(() => {
+                        const pages: (number | string)[] = [];
+                        if (totalPages <= 5) {
+                          for (let i = 1; i <= totalPages; i++) pages.push(i);
+                        } else {
+                          pages.push(1);
+                          if (currentPage > 3) pages.push('...');
+                          const start = Math.max(2, currentPage - 1);
+                          const end = Math.min(totalPages - 1, currentPage + 1);
+                          for (let i = start; i <= end; i++) {
+                            pages.push(i);
+                          }
+                          if (currentPage < totalPages - 2) pages.push('...');
+                          pages.push(totalPages);
+                        }
+                        return pages.map((pNum, idx) => {
+                          if (pNum === '...') {
+                            return <span key={`dots-${idx}`} className="px-1 text-slate-400 font-bold">...</span>;
+                          }
+                          return (
+                            <button
+                              key={pNum}
+                              onClick={() => {
+                                setCurrentPage(pNum as number);
+                                document.getElementById('all-products-catalog')?.scrollIntoView({ behavior: 'smooth' });
+                              }}
+                              className={`w-8 h-8 rounded-lg border text-xs font-bold transition cursor-pointer ${
+                                currentPage === pNum 
+                                  ? `${theme.bg} border-transparent text-white shadow-sm` 
+                                  : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-700'
+                              }`}
+                            >
+                              {pNum}
+                            </button>
+                          );
+                        });
+                      })()}
+                      <button
+                        onClick={() => {
+                          setCurrentPage(p => Math.min(totalPages, p + 1));
+                          document.getElementById('all-products-catalog')?.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                        disabled={currentPage === totalPages}
+                        className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-40 transition cursor-pointer font-bold"
+                      >
+                        ›
+                      </button>
+                    </div>
+                  )}
+                </div>
               </>
             )}
 
