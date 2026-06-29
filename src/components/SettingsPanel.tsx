@@ -258,6 +258,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       // Add timestamp
       state.lastUpdated = Date.now();
       const res = await pushLocalStateToCloud(syncId, state);
+      if (res.shopId && res.shopId !== syncId) {
+        setSyncId(res.shopId);
+        localStorage.setItem('shop_sync_id', res.shopId);
+      }
       setIsPrivateCloud(res.isPrivate);
       localStorage.setItem('shop_sync_private', res.isPrivate ? 'true' : 'false');
       setBulkUploadStatus('success');

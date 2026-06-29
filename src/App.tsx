@@ -478,7 +478,10 @@ function App() {
           // Push local database state to cloud
           const completeState: any = getCompleteDatabaseState();
           completeState.lastUpdated = localTime || Date.now();
-          await pushLocalStateToCloud(syncId, completeState);
+          const res = await pushLocalStateToCloud(syncId, completeState);
+          if (res.shopId && res.shopId !== syncId) {
+            localStorage.setItem('shop_sync_id', res.shopId);
+          }
         } else if (cloudMeta.lastUpdated > localTime) {
           // Cloud is newer -> Download full state and restore locally
           const cloudState = await getCloudSyncState(syncId);
@@ -489,7 +492,10 @@ function App() {
           // Local is newer -> Upload full local state to cloud
           const completeState: any = getCompleteDatabaseState();
           completeState.lastUpdated = localTime;
-          await pushLocalStateToCloud(syncId, completeState);
+          const res = await pushLocalStateToCloud(syncId, completeState);
+          if (res.shopId && res.shopId !== syncId) {
+            localStorage.setItem('shop_sync_id', res.shopId);
+          }
         }
       } catch (err) {
         console.error('Cloud Sync background check error:', err);

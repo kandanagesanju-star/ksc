@@ -1,7 +1,7 @@
 /**
- * Zero-Setup Cloud Sync Service with Chunking
+ * Zero-Setup Cloud Sync Service
  * Connects directly to Cloudflare Pages serverless API (/api/sync)
- * Chunks products to support large inventories on public sandbox limits
+ * Uses Cloudflare Workers KV if bound, falls back to ExtendsClass API for unlimited size public sandbox
  */
 
 export interface SyncResponse {
@@ -10,10 +10,11 @@ export interface SyncResponse {
   isPrivate: boolean;
 }
 
-const CHUNK_SIZE = 150; // Max products per API request to stay safe under 64KB limits
-
 // Get the latest cloud database update timestamp
 export const getCloudSyncTimestamp = async (shopId: string): Promise<SyncResponse> => {
+  if (!shopId || shopId === 'undefined' || shopId === 'null') {
+    return { found: false, lastUpdated: 0, isPrivate: false };
+  }
   try {
     const res = await fetch(`/api/sync?shopId=${encodeURIComponent(shopId)}&timestampOnly=true`);
     if (!res.ok) {
@@ -26,80 +27,36 @@ export const getCloudSyncTimestamp = async (shopId: string): Promise<SyncRespons
   }
 };
 
-// Download and assemble the full cloud database state (dechunking)
+// Download the full cloud database state
 export const getCloudSyncState = async (shopId: string): Promise<any> => {
+  if (!shopId || shopId === 'undefined' || shopId === 'null') {
+    return null;
+  }
   try {
     const res = await fetch(`/api/sync?shopId=${encodeURIComponent(shopId)}`);
     if (!res.ok) {
       throw new Error(`Cloud download error: ${res.statusText}`);
     }
-    const metaState = await res.json();
-    if (metaState.found === false) {
-      return null;
-    }
-
-    // If chunks are listed, download products chunks and assemble
-    if (metaState.chunks && Array.isArray(metaState.chunks)) {
-      const chunkPromises = metaState.chunks.map(async (chunkId: string) => {
-        try {
-          const chunkRes = await fetch(`/api/sync?shopId=${encodeURIComponent(shopId)}&chunk=${chunkId}`);
-          if (chunkRes.ok) {
-            const chunkData = await chunkRes.json();
-            return Array.isArray(chunkData) ? chunkData : [];
-          }
-        } catch (err) {
-          console.error(`Error downloading chunk ${chunkId}:`, err);
-        }
-        return [];
-      });
-
-      const productChunks = await Promise.all(chunkPromises);
-      metaState.products = productChunks.flat();
-    }
-
-    return metaState;
+    const data = await res.json();
+    return data.found === false ? null : data;
   } catch (e) {
     console.error('Error downloading cloud state:', e);
     throw e;
   }
 };
 
-// Chunk and upload local database state to the cloud
-export const pushLocalStateToCloud = async (shopId: string, state: any): Promise<{ success: boolean; isPrivate: boolean }> => {
+// Upload local database state to the cloud (creates new bin if no ID exists)
+export const pushLocalStateToCloud = async (shopId: string, state: any): Promise<{ success: boolean; shopId: string; isPrivate: boolean }> => {
   try {
     const cleanState = JSON.parse(JSON.stringify(state)); // Remove undefined or non-JSON fields
-    const products = cleanState.products || [];
     
-    // 1. Chunk products
-    const chunks: string[] = [];
-    const chunkPromises = [];
-    
-    for (let i = 0; i < products.length; i += CHUNK_SIZE) {
-      const chunkData = products.slice(i, i + CHUNK_SIZE);
-      const chunkId = String(Math.floor(i / CHUNK_SIZE));
-      chunks.push(chunkId);
-      
-      // Upload product chunk
-      chunkPromises.push(
-        fetch(`/api/sync?shopId=${encodeURIComponent(shopId)}&chunk=${chunkId}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(chunkData)
-        }).then(res => {
-          if (!res.ok) throw new Error(`Chunk ${chunkId} upload failed`);
-          return res.json();
-        })
-      );
-    }
-    
-    // Wait for all product chunks to upload successfully
-    await Promise.all(chunkPromises);
-    
-    // 2. Upload metadata (all other tables + settings) with products removed but chunks referenced
-    cleanState.products = [];
-    cleanState.chunks = chunks;
-    
-    const res = await fetch(`/api/sync?shopId=${encodeURIComponent(shopId)}`, {
+    // Determine if we need to create a new bin (if no ID or if it is our temporary client placeholder)
+    const isNew = !shopId || shopId === 'undefined' || shopId === 'null' || shopId.startsWith('ksc-');
+    const url = isNew 
+      ? '/api/sync?createBin=true' 
+      : `/api/sync?shopId=${encodeURIComponent(shopId)}`;
+
+    const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -109,7 +66,7 @@ export const pushLocalStateToCloud = async (shopId: string, state: any): Promise
 
     if (!res.ok) {
       const errData = await res.json().catch(() => ({}));
-      throw new Error(errData.error || `Metadata upload failed: ${res.statusText}`);
+      throw new Error(errData.error || `Upload failed: ${res.statusText}`);
     }
 
     return await res.json();

@@ -6,12 +6,11 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { env, request } = context;
   const url = new URL(request.url);
   const shopId = url.searchParams.get('shopId');
-  const chunk = url.searchParams.get('chunk');
   const timestampOnly = url.searchParams.get('timestampOnly') === 'true';
 
-  if (!shopId) {
-    return new Response(JSON.stringify({ error: 'Missing shopId' }), {
-      status: 400,
+  if (!shopId || shopId === 'undefined' || shopId === 'null') {
+    return new Response(JSON.stringify({ found: false, error: 'Missing shopId', isPrivate: !!env.SYNC_KV }), {
+      status: 200,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   }
@@ -19,21 +18,18 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   let data: string | null = null;
   let isPrivate = false;
 
-  const storageKey = chunk ? `shop_${shopId}_chunk_${chunk}` : `shop_${shopId}`;
-
-  // Try Cloudflare KV first
   if (env.SYNC_KV) {
-    data = await env.SYNC_KV.get(storageKey);
+    data = await env.SYNC_KV.get(`shop_${shopId}`);
     isPrivate = true;
   } else {
-    // Fallback to kvdb.io public sandbox
+    // Fetch from ExtendsClass JSON storage
     try {
-      const res = await fetch(`https://kvdb.io/ksc_pos_public_sync_v1/${storageKey}`);
+      const res = await fetch(`https://extendsclass.com/api/json-storage/bin/${shopId}`);
       if (res.ok) {
         data = await res.text();
       }
     } catch (err) {
-      console.error('Fallback read error:', err);
+      console.error('ExtendsClass GET error:', err);
     }
   }
 
@@ -46,22 +42,22 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   try {
     const parsed = JSON.parse(data);
-    if (timestampOnly && !chunk) {
+    if (timestampOnly) {
       return new Response(JSON.stringify({ found: true, lastUpdated: parsed.lastUpdated || 0, isPrivate }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
     
-    // Add isPrivate flag to response
     if (typeof parsed === 'object' && parsed !== null) {
       parsed.isPrivate = isPrivate;
+      parsed.found = true;
     }
     return new Response(JSON.stringify(parsed), {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   } catch (e) {
     return new Response(JSON.stringify({ error: 'Invalid JSON stored', isPrivate }), {
-      status: 500,
+      status: 200, // Return 200 so frontend doesn't crash on invalid data, just treats it as not found
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   }
@@ -71,14 +67,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { env, request } = context;
   const url = new URL(request.url);
   const shopId = url.searchParams.get('shopId');
-  const chunk = url.searchParams.get('chunk');
-
-  if (!shopId) {
-    return new Response(JSON.stringify({ error: 'Missing shopId' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-    });
-  }
+  const createBin = url.searchParams.get('createBin') === 'true';
 
   try {
     const body = await request.text();
@@ -86,23 +75,43 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     JSON.parse(body);
 
     let isPrivate = false;
-    const storageKey = chunk ? `shop_${shopId}_chunk_${chunk}` : `shop_${shopId}`;
+    let finalShopId = shopId;
 
     if (env.SYNC_KV) {
-      await env.SYNC_KV.put(storageKey, body);
       isPrivate = true;
+      if (createBin || !finalShopId || finalShopId === 'undefined' || finalShopId === 'null') {
+        // For private KV, we generate a simple random ID if creating new
+        finalShopId = 'ksc-' + Math.floor(1000 + Math.random() * 9000);
+      }
+      await env.SYNC_KV.put(`shop_${finalShopId}`, body);
     } else {
-      // Fallback to kvdb.io public sandbox
-      const res = await fetch(`https://kvdb.io/ksc_pos_public_sync_v1/${storageKey}`, {
-        method: 'POST',
-        body: body
-      });
-      if (!res.ok) {
-        throw new Error(`Fallback sync write failed: ${res.statusText}`);
+      // Use ExtendsClass API
+      if (createBin || !finalShopId || finalShopId === 'undefined' || finalShopId === 'null') {
+        // Create new bin
+        const res = await fetch('https://extendsclass.com/api/json-storage/bin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: body
+        });
+        if (!res.ok) {
+          throw new Error(`ExtendsClass create failed: ${res.statusText}`);
+        }
+        const resData = await res.json() as { id: string };
+        finalShopId = resData.id;
+      } else {
+        // Update existing bin
+        const res = await fetch(`https://extendsclass.com/api/json-storage/bin/${finalShopId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: body
+        });
+        if (!res.ok) {
+          throw new Error(`ExtendsClass update failed: ${res.statusText}`);
+        }
       }
     }
 
-    return new Response(JSON.stringify({ success: true, isPrivate }), {
+    return new Response(JSON.stringify({ success: true, shopId: finalShopId, isPrivate }), {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   } catch (e: any) {
