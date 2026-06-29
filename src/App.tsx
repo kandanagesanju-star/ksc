@@ -436,20 +436,18 @@ function App() {
     localStorage.setItem('shop_admin_tab', adminTab);
   }, [adminTab]);
 
-  // Update local lastUpdated timestamp whenever React state mutations occur
+  // Update local lastUpdated timestamp whenever the user performs an action in the UI
   useEffect(() => {
-    // Skip updating on first load to prevent overwriting cloud updates
-    const isFirstLoad = sessionStorage.getItem('shop_sync_first_load') !== 'false';
-    if (isFirstLoad) {
-      sessionStorage.setItem('shop_sync_first_load', 'false');
-      return;
-    }
-    localStorage.setItem('shop_last_updated', Date.now().toString());
-  }, [
-    products, customers, suppliers, repairs, sales, employees,
-    attendance, commissions, specialOrders, expenses,
-    stockAdjustments, stockReturns, quotations, settings
-  ]);
+    const handleUserAction = () => {
+      localStorage.setItem('shop_last_updated', Date.now().toString());
+    };
+    window.addEventListener('click', handleUserAction);
+    window.addEventListener('keydown', handleUserAction);
+    return () => {
+      window.removeEventListener('click', handleUserAction);
+      window.removeEventListener('keydown', handleUserAction);
+    };
+  }, []);
 
   // Timestamp-Based Zero-Setup Cloud Synchronizer
   useEffect(() => {
