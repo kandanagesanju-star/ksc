@@ -6,6 +6,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const { env, request } = context;
   const url = new URL(request.url);
   const shopId = url.searchParams.get('shopId');
+  const chunk = url.searchParams.get('chunk');
   const timestampOnly = url.searchParams.get('timestampOnly') === 'true';
 
   if (!shopId) {
@@ -18,14 +19,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   let data: string | null = null;
   let isPrivate = false;
 
+  const storageKey = chunk ? `shop_${shopId}_chunk_${chunk}` : `shop_${shopId}`;
+
   // Try Cloudflare KV first
   if (env.SYNC_KV) {
-    data = await env.SYNC_KV.get(`shop_${shopId}`);
+    data = await env.SYNC_KV.get(storageKey);
     isPrivate = true;
   } else {
     // Fallback to kvdb.io public sandbox
     try {
-      const res = await fetch(`https://kvdb.io/ksc_pos_public_sync_v1/shop_${shopId}`);
+      const res = await fetch(`https://kvdb.io/ksc_pos_public_sync_v1/${storageKey}`);
       if (res.ok) {
         data = await res.text();
       }
@@ -43,14 +46,16 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   try {
     const parsed = JSON.parse(data);
-    if (timestampOnly) {
+    if (timestampOnly && !chunk) {
       return new Response(JSON.stringify({ found: true, lastUpdated: parsed.lastUpdated || 0, isPrivate }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
     
     // Add isPrivate flag to response
-    parsed.isPrivate = isPrivate;
+    if (typeof parsed === 'object' && parsed !== null) {
+      parsed.isPrivate = isPrivate;
+    }
     return new Response(JSON.stringify(parsed), {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
@@ -66,6 +71,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { env, request } = context;
   const url = new URL(request.url);
   const shopId = url.searchParams.get('shopId');
+  const chunk = url.searchParams.get('chunk');
 
   if (!shopId) {
     return new Response(JSON.stringify({ error: 'Missing shopId' }), {
@@ -80,13 +86,14 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     JSON.parse(body);
 
     let isPrivate = false;
+    const storageKey = chunk ? `shop_${shopId}_chunk_${chunk}` : `shop_${shopId}`;
 
     if (env.SYNC_KV) {
-      await env.SYNC_KV.put(`shop_${shopId}`, body);
+      await env.SYNC_KV.put(storageKey, body);
       isPrivate = true;
     } else {
       // Fallback to kvdb.io public sandbox
-      const res = await fetch(`https://kvdb.io/ksc_pos_public_sync_v1/shop_${shopId}`, {
+      const res = await fetch(`https://kvdb.io/ksc_pos_public_sync_v1/${storageKey}`, {
         method: 'POST',
         body: body
       });
