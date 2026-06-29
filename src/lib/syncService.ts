@@ -2,7 +2,7 @@
  * Zero-Setup Cloud Sync Service
  * Connects directly to Cloudflare Pages serverless API (/api/sync)
  * Uses Cloudflare Workers KV if bound, falls back to ExtendsClass API
- * Auto-chunks products for public sandbox to stay under payload limits (Payload Too Large 413)
+ * Generic string slicer chunking ensures any size database works on public sandbox
  */
 
 export interface SyncResponse {
@@ -11,7 +11,7 @@ export interface SyncResponse {
   isPrivate: boolean;
 }
 
-const CHUNK_SIZE = 150; // Max products per ExtendsClass request to bypass 100KB limits
+const CHUNK_CHAR_LIMIT = 50000; // 50KB string slice size to guarantee bypass of 413 Payload Too Large limits
 
 // Get the latest cloud database update timestamp (reads main metadata bin)
 export const getCloudSyncTimestamp = async (shopId: string): Promise<SyncResponse> => {
@@ -30,7 +30,7 @@ export const getCloudSyncTimestamp = async (shopId: string): Promise<SyncRespons
   }
 };
 
-// Download and assemble the full cloud database state (dechunking)
+// Download and assemble the full cloud database state (dechunking string slices)
 export const getCloudSyncState = async (shopId: string): Promise<any> => {
   if (!shopId || shopId === 'undefined' || shopId === 'null') {
     return null;
@@ -45,9 +45,8 @@ export const getCloudSyncState = async (shopId: string): Promise<any> => {
       return null;
     }
 
-    // If chunks are listed, download products chunks and assemble
-    if (metaState.chunks && Array.isArray(metaState.chunks)) {
-      // Save chunk bin IDs locally to reuse during next upload
+    // If metadata indicates it is chunked, download all slices and assemble
+    if (metaState.isChunked && metaState.chunks && Array.isArray(metaState.chunks)) {
       localStorage.setItem('shop_sync_chunks', JSON.stringify(metaState.chunks));
 
       const chunkPromises = metaState.chunks.map(async (chunkId: string) => {
@@ -55,18 +54,20 @@ export const getCloudSyncState = async (shopId: string): Promise<any> => {
           const chunkRes = await fetch(`/api/sync?shopId=${encodeURIComponent(chunkId)}`);
           if (chunkRes.ok) {
             const chunkData = await chunkRes.json();
-            return Array.isArray(chunkData) ? chunkData : [];
+            return chunkData.chunk || '';
           }
         } catch (err) {
           console.error(`Error downloading chunk ${chunkId}:`, err);
         }
-        return [];
+        return '';
       });
 
-      const productChunks = await Promise.all(chunkPromises);
-      metaState.products = productChunks.flat();
+      const slices = await Promise.all(chunkPromises);
+      const fullJson = slices.join('');
+      return JSON.parse(fullJson);
     }
 
+    // Otherwise return non-chunked (private cloud KV state)
     return metaState;
   } catch (e) {
     console.error('Error downloading cloud state:', e);
@@ -74,11 +75,12 @@ export const getCloudSyncState = async (shopId: string): Promise<any> => {
   }
 };
 
-// Upload local database state to the cloud (with chunking for ExtendsClass)
+// Upload local database state to the cloud (with generic string chunking for ExtendsClass)
 export const pushLocalStateToCloud = async (shopId: string, state: any): Promise<{ success: boolean; shopId: string; isPrivate: boolean }> => {
   try {
     const cleanState = JSON.parse(JSON.stringify(state)); // Remove undefined or non-JSON fields
-    const products = cleanState.products || [];
+    cleanState.lastUpdated = cleanState.lastUpdated || Date.now();
+    const jsonString = JSON.stringify(cleanState);
 
     // Check if we are using Private Cloud (Cloudflare KV)
     const isPrivate = localStorage.getItem('shop_sync_private') === 'true';
@@ -95,7 +97,7 @@ export const pushLocalStateToCloud = async (shopId: string, state: any): Promise
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(cleanState)
+        body: jsonString
       });
 
       if (!res.ok) {
@@ -106,16 +108,16 @@ export const pushLocalStateToCloud = async (shopId: string, state: any): Promise
       return await res.json();
     }
 
-    // --- PUBLIC SANDBOX CHUNKING (ExtendsClass) ---
+    // --- PUBLIC SANDBOX CHUNKING (ExtendsClass String Slicing) ---
     const savedChunksStr = localStorage.getItem('shop_sync_chunks');
     const chunkIds: string[] = savedChunksStr ? JSON.parse(savedChunksStr) : [];
 
-    const numChunks = Math.ceil(products.length / CHUNK_SIZE);
+    const numChunks = Math.ceil(jsonString.length / CHUNK_CHAR_LIMIT);
     const newChunkIds: string[] = [];
 
     // Upload chunks sequentially to avoid concurrency limits
     for (let i = 0; i < numChunks; i++) {
-      const chunkData = products.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
+      const slice = jsonString.substring(i * CHUNK_CHAR_LIMIT, (i + 1) * CHUNK_CHAR_LIMIT);
       const existingChunkId = chunkIds[i];
 
       const isChunkNew = !existingChunkId || existingChunkId.startsWith('ksc-') || existingChunkId === 'undefined';
@@ -126,12 +128,12 @@ export const pushLocalStateToCloud = async (shopId: string, state: any): Promise
       const chunkRes = await fetch(chunkUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(chunkData)
+        body: JSON.stringify({ chunk: slice })
       });
 
       if (!chunkRes.ok) {
         const errData = await chunkRes.json().catch(() => ({}));
-        throw new Error(errData.error || `Chunk ${i} upload failed: ${chunkRes.statusText}`);
+        throw new Error(errData.error || `Slice ${i} upload failed: ${chunkRes.statusText}`);
       }
 
       const chunkResData = await chunkRes.json();
@@ -141,9 +143,12 @@ export const pushLocalStateToCloud = async (shopId: string, state: any): Promise
     // Save chunk bin IDs locally
     localStorage.setItem('shop_sync_chunks', JSON.stringify(newChunkIds));
 
-    // Upload metadata (products are empty, chunks referenced)
-    cleanState.products = [];
-    cleanState.chunks = newChunkIds;
+    // Upload metadata bin referencing all slices
+    const metaData = {
+      lastUpdated: cleanState.lastUpdated,
+      chunks: newChunkIds,
+      isChunked: true
+    };
 
     const isMainNew = !shopId || shopId === 'undefined' || shopId === 'null' || shopId.startsWith('ksc-');
     const mainUrl = isMainNew 
@@ -155,7 +160,7 @@ export const pushLocalStateToCloud = async (shopId: string, state: any): Promise
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(cleanState)
+      body: JSON.stringify(metaData)
     });
 
     if (!mainRes.ok) {
