@@ -15,6 +15,8 @@ import { QuotationsRepairs } from './components/QuotationsRepairs';
 import { AttendanceStaff } from './components/AttendanceStaff';
 import { ReportsPanel } from './components/ReportsPanel';
 import { SettingsPanel } from './components/SettingsPanel';
+import { isFirebaseEnabled } from './lib/firebase';
+import { saveCloudDoc, deleteCloudDoc, subscribeToCollection, subscribeToSettingsDoc } from './lib/syncService';
 
 import { 
   initialProducts, 
@@ -415,6 +417,32 @@ function App() {
     localStorage.setItem('shop_admin_tab', adminTab);
   }, [adminTab]);
 
+  // Real-Time Firebase Cloud Database Synchronization Listener
+  useEffect(() => {
+    if (!isFirebaseEnabled) return;
+
+    const unsubscribers = [
+      subscribeToSettingsDoc(setSettings),
+      subscribeToCollection('products', setProducts),
+      subscribeToCollection('customers', setCustomers),
+      subscribeToCollection('suppliers', setSuppliers),
+      subscribeToCollection('repairs', setRepairs),
+      subscribeToCollection('sales', setSales),
+      subscribeToCollection('employees', setEmployees),
+      subscribeToCollection('attendance', setAttendance),
+      subscribeToCollection('commissions', setCommissions),
+      subscribeToCollection('special_orders', setSpecialOrders),
+      subscribeToCollection('expenses', setExpenses),
+      subscribeToCollection('stock_adjustments', setStockAdjustments),
+      subscribeToCollection('stock_returns', setStockReturns),
+      subscribeToCollection('quotations', setQuotations)
+    ];
+
+    return () => {
+      unsubscribers.forEach(unsub => unsub());
+    };
+  }, []);
+
   // Apply theme settings to root HTML element (UI/UX Designer & Architect)
   useEffect(() => {
     const themeName = settings.uiTheme || 'slate';
@@ -505,6 +533,7 @@ function App() {
   const handleAddExpense = (newExpense: Expense) => {
     setExpenses(prev => [newExpense, ...prev]);
     addAuditLog('EXPENSE_ADDED', `Recorded expense of Rs. ${newExpense.amount} for category ${newExpense.category}`);
+    saveCloudDoc('expenses', newExpense.id, newExpense);
   };
 
   const handleAddSale = (newSale: Sale) => {
@@ -517,13 +546,21 @@ function App() {
       // Standard online billing
       setSales(prev => [newSale, ...prev]);
       addAuditLog('SALE_COMPLETED', `Completed sale ${newSale.id} for Rs. ${newSale.total}`);
+      saveCloudDoc('sales', newSale.id, newSale);
     }
 
     // Award loyalty points
     if (newSale.customerId) {
       const pointsEarned = Math.floor(newSale.total / settings.loyaltyPointValue);
       if (pointsEarned > 0) {
-        setCustomers(prevCust => prevCust.map(c => c.id === newSale.customerId ? { ...c, loyaltyPoints: c.loyaltyPoints + pointsEarned } : c));
+        setCustomers(prevCust => prevCust.map(c => {
+          if (c.id === newSale.customerId) {
+            const updated = { ...c, loyaltyPoints: c.loyaltyPoints + pointsEarned };
+            saveCloudDoc('customers', updated.id, updated);
+            return updated;
+          }
+          return c;
+        }));
       }
     }
 
@@ -590,17 +627,20 @@ function App() {
   const handleAddCustomer = (newCustomer: Customer): Customer => {
     setCustomers(prev => [...prev, newCustomer]);
     addAuditLog('CUSTOMER_REGISTERED', `Registered customer ${newCustomer.name}`);
+    saveCloudDoc('customers', newCustomer.id, newCustomer);
     return newCustomer;
   };
 
   const handleAddSupplier = (newSupplier: Supplier) => {
     setSuppliers(prev => [...prev, newSupplier]);
     addAuditLog('SUPPLIER_ADDED', `Added supplier ${newSupplier.companyName}`);
+    saveCloudDoc('suppliers', newSupplier.id, newSupplier);
   };
 
   const handleAddRepair = (newRepair: RepairJob) => {
     setRepairs(prev => [newRepair, ...prev]);
     addAuditLog('REPAIR_REGISTERED', `Registered repair job ${newRepair.id} for ${newRepair.deviceName}`);
+    saveCloudDoc('repairs', newRepair.id, newRepair);
   };
 
   const handleUpdateRepairStatus = (
@@ -609,19 +649,24 @@ function App() {
     notes: string, 
     actualCost?: number
   ) => {
+    let updatedRep: RepairJob | null = null;
     setRepairs(prev => prev.map(rep => {
       if (rep.id === repairId) {
-        return {
+        updatedRep = {
           ...rep,
           status,
           notes,
           actualCost: actualCost !== undefined ? actualCost : rep.actualCost,
           completedAt: status === 'Delivered' ? new Date().toISOString() : rep.completedAt
         };
+        return updatedRep;
       }
       return rep;
     }));
     addAuditLog('REPAIR_STATUS_UPDATED', `Updated repair ${repairId} status to ${status}`);
+    if (updatedRep) {
+      saveCloudDoc('repairs', repairId, updatedRep);
+    }
   };
 
   const updateProductStock = (productId: string, quantitySold: number) => {
@@ -656,16 +701,19 @@ function App() {
   const handleAddProduct = (newProduct: Product) => {
     setProducts(prev => [...prev, newProduct]);
     addAuditLog('PRODUCT_ADDED', `Added new product ${newProduct.nameEn}`);
+    saveCloudDoc('products', newProduct.id, newProduct);
   };
 
   const handleUpdateProduct = (updatedProduct: Product) => {
     setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
     addAuditLog('PRODUCT_UPDATED', `Updated product details for ${updatedProduct.nameEn}`);
+    saveCloudDoc('products', updatedProduct.id, updatedProduct);
   };
 
   const handleDeleteProduct = (productId: string) => {
     setProducts(prev => prev.filter(p => p.id !== productId));
     addAuditLog('PRODUCT_DELETED', `Deleted product ${productId}`);
+    deleteCloudDoc('products', productId);
   };
 
   const handleBulkProductsImport = (importedProducts: Product[]) => {
@@ -683,50 +731,69 @@ function App() {
   const handleAddEmployee = (emp: Employee) => {
     setEmployees(prev => [...prev, emp]);
     addAuditLog('EMPLOYEE_ADDED', `Added employee ${emp.name}`);
+    saveCloudDoc('employees', emp.id, emp);
   };
 
   const handleRecordAttendance = (rec: AttendanceRecord) => {
     setAttendance(prev => [rec, ...prev]);
     addAuditLog('ATTENDANCE_RECORDED', `Recorded attendance for ${rec.employeeName}`);
+    saveCloudDoc('attendance', rec.id, rec);
   };
 
   const handleAddCommission = (com: CommissionRecord) => {
     setCommissions(prev => [com, ...prev]);
-    setEmployees(prevEmp => prevEmp.map(e => e.id === com.employeeId ? { ...e, walletBalance: e.walletBalance + com.amount } : e));
+    setEmployees(prevEmp => prevEmp.map(e => {
+      if (e.id === com.employeeId) {
+        const updated = { ...e, walletBalance: e.walletBalance + com.amount };
+        saveCloudDoc('employees', updated.id, updated);
+        return updated;
+      }
+      return e;
+    }));
     addAuditLog('COMMISSION_RECORDED', `Recorded Rs. ${com.amount} commission for ${com.employeeName}`);
+    saveCloudDoc('commissions', com.id, com);
   };
 
   const handleAddSpecialOrder = (order: SpecialOrder) => {
     setSpecialOrders(prev => [order, ...prev]);
     addAuditLog('SPECIAL_ORDER_ADDED', `Added custom special order ${order.id} for ${order.itemName}`);
+    saveCloudDoc('special_orders', order.id, order);
   };
 
   const handleUpdateSpecialOrderStatus = (orderId: string, status: SpecialOrder['status'], trackingNo?: string) => {
+    let updatedOrder: SpecialOrder | null = null;
     setSpecialOrders(prev => prev.map(so => {
       if (so.id === orderId) {
-        return {
+        updatedOrder = {
           ...so,
           status,
           courierTrackingNo: trackingNo !== undefined ? trackingNo : so.courierTrackingNo
         };
+        return updatedOrder;
       }
       return so;
     }));
     addAuditLog('SPECIAL_ORDER_UPDATED', `Updated special order ${orderId} to ${status}`);
+    if (updatedOrder) {
+      saveCloudDoc('special_orders', orderId, updatedOrder);
+    }
   };
 
   const handleAddStockAdjustment = (adj: StockAdjustment) => {
     setStockAdjustments(prev => [adj, ...prev]);
     setProducts(prevProducts => prevProducts.map(p => {
       if (p.id === adj.productId && p.stock !== 'Unlimited') {
-        return {
+        const updated = {
           ...p,
           stock: Math.max(0, p.stock + adj.qtyAdjusted)
         };
+        saveCloudDoc('products', updated.id, updated);
+        return updated;
       }
       return p;
     }));
     addAuditLog('STOCK_ADJUSTED', `Adjusted stock for ${adj.productName} by ${adj.qtyAdjusted}`);
+    saveCloudDoc('stock_adjustments', adj.id, adj);
   };
 
   const handleAddStockReturn = (ret: StockReturn) => {
@@ -740,14 +807,15 @@ function App() {
             if (ret.action === 'Return to Stock' || !ret.action) {
               newStock += item.qty;
             }
-            // if action === 'Scrap', net stock change is 0 (customer returns it, but it is thrown away)
           } else if (ret.type === 'Purchase Return') {
             newStock = Math.max(0, newStock - item.qty);
           }
-          return {
+          const updated = {
             ...p,
             stock: newStock
           };
+          saveCloudDoc('products', updated.id, updated);
+          return updated;
         }
         return p;
       }));
@@ -766,36 +834,43 @@ function App() {
         };
         setStockAdjustments(prev => [scrapAdj, ...prev]);
         addAuditLog('STOCK_ADJUSTED', `Adjusted stock for ${scrapAdj.productName} by ${scrapAdj.qtyAdjusted} (Scrapped Return ${ret.id})`);
+        saveCloudDoc('stock_adjustments', scrapAdj.id, scrapAdj);
       }
     });
 
     addAuditLog('STOCK_RETURNED', `Recorded ${ret.type} ${ret.id} - Refund: Rs. ${ret.totalRefund}`);
+    saveCloudDoc('stock_returns', ret.id, ret);
   };
 
   const handleAddQuotation = (quote: Quotation) => {
     setQuotations(prev => [quote, ...prev]);
     addAuditLog('QUOTATION_CREATED', `Created quotation ${quote.id} for ${quote.customerName}`);
+    saveCloudDoc('quotations', quote.id, quote);
   };
 
   // --- EDIT AND DELETE HANDLERS ---
   const handleUpdateCustomer = (updatedCust: Customer) => {
     setCustomers(prev => prev.map(c => c.id === updatedCust.id ? updatedCust : c));
     addAuditLog('CUSTOMER_UPDATED', `Updated customer details for ${updatedCust.name}`);
+    saveCloudDoc('customers', updatedCust.id, updatedCust);
   };
 
   const handleDeleteCustomer = (id: string) => {
     setCustomers(prev => prev.filter(c => c.id !== id));
     addAuditLog('CUSTOMER_DELETED', `Deleted customer ID ${id}`);
+    deleteCloudDoc('customers', id);
   };
 
   const handleUpdateSupplier = (updatedSupp: Supplier) => {
     setSuppliers(prev => prev.map(s => s.id === updatedSupp.id ? updatedSupp : s));
     addAuditLog('SUPPLIER_UPDATED', `Updated supplier details for ${updatedSupp.companyName}`);
+    saveCloudDoc('suppliers', updatedSupp.id, updatedSupp);
   };
 
   const handleDeleteSupplier = (id: string) => {
     setSuppliers(prev => prev.filter(s => s.id !== id));
     addAuditLog('SUPPLIER_DELETED', `Deleted supplier ID ${id}`);
+    deleteCloudDoc('suppliers', id);
   };
 
   const handleDeletePurchaseOrder = (id: string) => {
@@ -806,11 +881,13 @@ function App() {
   const handleDeleteStockAdjustment = (id: string) => {
     setStockAdjustments(prev => prev.filter(a => a.id !== id));
     addAuditLog('STOCK_ADJUSTMENT_DELETED', `Deleted stock adjustment ${id}`);
+    deleteCloudDoc('stock_adjustments', id);
   };
 
   const handleDeleteStockReturn = (id: string) => {
     setStockReturns(prev => prev.filter(r => r.id !== id));
     addAuditLog('STOCK_RETURN_DELETED', `Deleted stock return ${id}`);
+    deleteCloudDoc('stock_returns', id);
   };
 
   // WARRANTY REPLACEMENT HANDLER
@@ -833,9 +910,13 @@ function App() {
       warrantyReplacementId: replacement.id,
     };
     setStockAdjustments(prev => [stockAdj, ...prev]);
+    saveCloudDoc('stock_adjustments', stockAdj.id, stockAdj);
+
     setProducts(prev => prev.map(p => {
       if (p.id === replacement.replacementProductId && p.stock !== 'Unlimited') {
-        return { ...p, stock: Math.max(0, p.stock - replacement.quantity) };
+        const updated = { ...p, stock: Math.max(0, p.stock - replacement.quantity) };
+        saveCloudDoc('products', updated.id, updated);
+        return updated;
       }
       return p;
     }));
@@ -850,31 +931,37 @@ function App() {
   const handleUpdateSpecialOrder = (updatedOrder: SpecialOrder) => {
     setSpecialOrders(prev => prev.map(o => o.id === updatedOrder.id ? updatedOrder : o));
     addAuditLog('SPECIAL_ORDER_UPDATED', `Updated special order ${updatedOrder.id}`);
+    saveCloudDoc('special_orders', updatedOrder.id, updatedOrder);
   };
 
   const handleDeleteSpecialOrder = (id: string) => {
     setSpecialOrders(prev => prev.filter(o => o.id !== id));
     addAuditLog('SPECIAL_ORDER_DELETED', `Deleted special order ${id}`);
+    deleteCloudDoc('special_orders', id);
   };
 
   const handleUpdateQuotation = (updatedQuot: Quotation) => {
     setQuotations(prev => prev.map(q => q.id === updatedQuot.id ? updatedQuot : q));
     addAuditLog('QUOTATION_UPDATED', `Updated quotation ${updatedQuot.id}`);
+    saveCloudDoc('quotations', updatedQuot.id, updatedQuot);
   };
 
   const handleDeleteQuotation = (id: string) => {
     setQuotations(prev => prev.filter(q => q.id !== id));
     addAuditLog('QUOTATION_DELETED', `Deleted quotation ${id}`);
+    deleteCloudDoc('quotations', id);
   };
 
   const handleUpdateRepair = (updatedRep: RepairJob) => {
     setRepairs(prev => prev.map(r => r.id === updatedRep.id ? updatedRep : r));
     addAuditLog('REPAIR_UPDATED', `Updated repair job ${updatedRep.id}`);
+    saveCloudDoc('repairs', updatedRep.id, updatedRep);
   };
 
   const handleDeleteRepair = (id: string) => {
     setRepairs(prev => prev.filter(r => r.id !== id));
     addAuditLog('REPAIR_DELETED', `Deleted repair job ${id}`);
+    deleteCloudDoc('repairs', id);
   };
 
   const handleUpdateEmployee = (updatedEmp: Employee) => {
@@ -882,10 +969,25 @@ function App() {
     const nameChanged = oldEmp && oldEmp.name !== updatedEmp.name;
 
     setEmployees(prev => prev.map(e => e.id === updatedEmp.id ? updatedEmp : e));
+    saveCloudDoc('employees', updatedEmp.id, updatedEmp);
 
     if (nameChanged && oldEmp) {
-      setAttendance(prev => prev.map(a => a.employeeId === updatedEmp.id ? { ...a, employeeName: updatedEmp.name } : a));
-      setCommissions(prev => prev.map(c => c.employeeId === updatedEmp.id ? { ...c, employeeName: updatedEmp.name } : c));
+      setAttendance(prev => prev.map(a => {
+        if (a.employeeId === updatedEmp.id) {
+          const updated = { ...a, employeeName: updatedEmp.name };
+          saveCloudDoc('attendance', updated.id, updated);
+          return updated;
+        }
+        return a;
+      }));
+      setCommissions(prev => prev.map(c => {
+        if (c.employeeId === updatedEmp.id) {
+          const updated = { ...c, employeeName: updatedEmp.name };
+          saveCloudDoc('commissions', updated.id, updated);
+          return updated;
+        }
+        return c;
+      }));
       setShifts(prev => prev.map(s => s.cashierName === oldEmp.name ? { ...s, cashierName: updatedEmp.name } : s));
     }
 
@@ -894,19 +996,35 @@ function App() {
 
   const handleDeleteEmployee = (id: string) => {
     setEmployees(prev => prev.filter(e => e.id !== id));
-    setAttendance(prev => prev.filter(a => a.employeeId !== id));
-    setCommissions(prev => prev.filter(c => c.employeeId !== id));
+    deleteCloudDoc('employees', id);
+
+    setAttendance(prev => {
+      prev.forEach(a => {
+        if (a.employeeId === id) deleteCloudDoc('attendance', a.id);
+      });
+      return prev.filter(a => a.employeeId !== id);
+    });
+
+    setCommissions(prev => {
+      prev.forEach(c => {
+        if (c.employeeId === id) deleteCloudDoc('commissions', c.id);
+      });
+      return prev.filter(c => c.employeeId !== id);
+    });
+
     addAuditLog('EMPLOYEE_DELETED', `Deleted employee ID ${id}`);
   };
 
   const handleUpdateAttendance = (updatedRec: AttendanceRecord) => {
     setAttendance(prev => prev.map(a => a.id === updatedRec.id ? updatedRec : a));
     addAuditLog('ATTENDANCE_UPDATED', `Updated attendance record for ${updatedRec.employeeName}`);
+    saveCloudDoc('attendance', updatedRec.id, updatedRec);
   };
 
   const handleDeleteAttendance = (id: string) => {
     setAttendance(prev => prev.filter(a => a.id !== id));
     addAuditLog('ATTENDANCE_DELETED', `Deleted attendance record ID ${id}`);
+    deleteCloudDoc('attendance', id);
   };
 
   const addAuditLog = (action: string, details: string) => {
@@ -936,6 +1054,30 @@ function App() {
       
       return [newLog, ...prev];
     });
+  };
+
+  const handleUpdateSettings = (newSettings: ShopSettings) => {
+    setSettings(newSettings);
+    saveCloudDoc('settings', 'shop_settings', newSettings);
+  };
+
+  const getCompleteDatabaseState = () => {
+    return {
+      products,
+      customers,
+      suppliers,
+      repairs,
+      sales,
+      employees,
+      attendance,
+      commissions,
+      specialOrders,
+      expenses,
+      stockAdjustments,
+      stockReturns,
+      quotations,
+      settings
+    };
   };
 
   // Database Snapshotting & History Rollbacks (Database Engineer)
@@ -1533,7 +1675,7 @@ function App() {
                   customers={customers}
                   repairs={repairs}
                   sales={sales}
-                  onUpdateSettings={setSettings}
+                  onUpdateSettings={handleUpdateSettings}
                   onClearLogs={() => setAuditLogs([])}
                   onUpdateProduct={handleUpdateProduct}
                   onRestoreDatabase={handleRestoreDatabase}
@@ -1543,6 +1685,7 @@ function App() {
                   onDeleteSnapshot={handleDeleteSnapshot}
                   bankTransactions={bankTransactions}
                   bankBalance={bankBalance}
+                  onGetCompleteDatabaseState={getCompleteDatabaseState}
                 />
               )}
 

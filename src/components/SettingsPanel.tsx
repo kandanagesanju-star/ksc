@@ -6,6 +6,9 @@ import {
   CreditCard, Activity, Save, RefreshCw, AlertCircle, Layout, Eye, EyeOff, ShieldAlert, ShieldCheck, Check, History, Trash, Download, Upload, Lock, Unlock, Image, X
 } from 'lucide-react';
 
+import { isFirebaseEnabled } from '../lib/firebase';
+import { bulkUploadToCloud } from '../lib/syncService';
+
 interface SettingsPanelProps {
   language: 'en' | 'si';
   settings: ShopSettings;
@@ -24,6 +27,7 @@ interface SettingsPanelProps {
   onDeleteSnapshot: (id: string) => void;
   bankTransactions?: BankTransaction[];
   bankBalance?: number;
+  onGetCompleteDatabaseState?: () => any;
 }
 
 const compressImage = (file: File, maxWidth: number, maxHeight: number): Promise<string> => {
@@ -96,7 +100,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   onRollbackSnapshot,
   onDeleteSnapshot,
   bankTransactions = [],
-  bankBalance = 125000
+  bankBalance = 125000,
+  onGetCompleteDatabaseState
 }) => {
   const t = translations[language];
 
@@ -185,6 +190,76 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [enableSpecialOrders, setEnableSpecialOrders] = useState(!!settings.enableSpecialOrders);
   const [enableHp, setEnableHp] = useState(!!settings.enableHP);
   const [enableBatches, setEnableBatches] = useState(!!settings.enableBatches);
+
+  // Firebase Config States
+  const [fbApiKey, setFbApiKey] = useState(() => {
+    const saved = localStorage.getItem('firebase_config');
+    return saved ? JSON.parse(saved).apiKey || '' : '';
+  });
+  const [fbAuthDomain, setFbAuthDomain] = useState(() => {
+    const saved = localStorage.getItem('firebase_config');
+    return saved ? JSON.parse(saved).authDomain || '' : '';
+  });
+  const [fbProjectId, setFbProjectId] = useState(() => {
+    const saved = localStorage.getItem('firebase_config');
+    return saved ? JSON.parse(saved).projectId || '' : '';
+  });
+  const [fbStorageBucket, setFbStorageBucket] = useState(() => {
+    const saved = localStorage.getItem('firebase_config');
+    return saved ? JSON.parse(saved).storageBucket || '' : '';
+  });
+  const [fbMessagingSenderId, setFbMessagingSenderId] = useState(() => {
+    const saved = localStorage.getItem('firebase_config');
+    return saved ? JSON.parse(saved).messagingSenderId || '' : '';
+  });
+  const [fbAppId, setFbAppId] = useState(() => {
+    const saved = localStorage.getItem('firebase_config');
+    return saved ? JSON.parse(saved).appId || '' : '';
+  });
+
+  const [bulkUploadMsg, setBulkUploadMsg] = useState('');
+  const [bulkUploadStatus, setBulkUploadStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+
+  const handleSaveFirebaseConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    const config = {
+      apiKey: fbApiKey.trim(),
+      authDomain: fbAuthDomain.trim(),
+      projectId: fbProjectId.trim(),
+      storageBucket: fbStorageBucket.trim(),
+      messagingSenderId: fbMessagingSenderId.trim(),
+      appId: fbAppId.trim()
+    };
+
+    if (!config.apiKey || !config.projectId) {
+      alert(language === 'en' ? 'API Key and Project ID are required!' : 'API key සහ Project ID ඇතුළත් කිරීම අනිවාර්ය වේ!');
+      return;
+    }
+
+    localStorage.setItem('firebase_config', JSON.stringify(config));
+    alert(language === 'en' 
+      ? 'Firebase configuration saved! Please reload the page to initialize the cloud sync.' 
+      : 'Firebase සැකසුම් සුරකින ලදී! Cloud sync ආරම්භ කිරීමට කරුණාකර පිටුව reload කරන්න.');
+    window.location.reload();
+  };
+
+  const handleCloudMigration = async () => {
+    if (!onGetCompleteDatabaseState) return;
+    setBulkUploadStatus('loading');
+    setBulkUploadMsg(language === 'en' ? 'Preparing local data...' : 'දේශීය දත්ත සූදානම් කරමින්...');
+    
+    try {
+      const state = onGetCompleteDatabaseState();
+      await bulkUploadToCloud(state, (msg) => {
+        setBulkUploadMsg(msg);
+      });
+      setBulkUploadStatus('success');
+    } catch (err: any) {
+      console.error(err);
+      setBulkUploadStatus('error');
+      setBulkUploadMsg(language === 'en' ? `Migration failed: ${err.message}` : `දත්ත සංක්‍රමණය අසාර්ථක විය: ${err.message}`);
+    }
+  };
 
   // Sync state with settings prop when settings updates from parent (e.g. database restore, tab switches, quota fallback updates)
   React.useEffect(() => {
@@ -1759,6 +1834,134 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs font-semibold">
           {/* Health Check and Log Integrity Verification */}
           <div className="lg:col-span-6 space-y-6">
+            {/* Cloud Sync & Firebase Configuration */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 space-y-4 text-slate-800">
+              <div className="flex justify-between items-center">
+                <div>
+                  <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center">
+                    <Database className="h-4.5 w-4.5 mr-1.5 text-blue-600 animate-pulse" />
+                    {language === 'en' ? 'Cloud Database Sync (Firebase)' : 'Cloud දත්ත ගබඩා සම්බන්ධතාවය'}
+                  </h3>
+                  <p className="text-[10px] text-slate-400 font-medium leading-relaxed mt-0.5">
+                    {language === 'en' 
+                      ? 'Synchronize all POS products, sales, and settings to the cloud in real-time.' 
+                      : 'සියලුම භාණ්ඩ, විකුණුම් සහ සැකසුම් Cloud Database එකක් හරහා එසැණින් sync කරන්න.'}
+                  </p>
+                </div>
+                <div>
+                  {isFirebaseEnabled ? (
+                    <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                      {language === 'en' ? 'CONNECTED' : 'සම්බන්ධයි'}
+                    </span>
+                  ) : (
+                    <span className="bg-amber-50 text-amber-700 border border-amber-200 text-[9px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
+                      {language === 'en' ? 'LOCAL ONLY' : 'LOCAL පමණි'}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <form onSubmit={handleSaveFirebaseConfig} className="space-y-3 pt-2 border-t border-slate-100">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-slate-500 font-bold">API Key *</label>
+                    <input
+                      type="password"
+                      required
+                      value={fbApiKey}
+                      onChange={(e) => setFbApiKey(e.target.value)}
+                      placeholder="AIzaSyA1..."
+                      className="w-full px-2 py-1.5 border border-slate-200 rounded-lg bg-white text-[10px]"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-slate-500 font-bold">Project ID *</label>
+                    <input
+                      type="text"
+                      required
+                      value={fbProjectId}
+                      onChange={(e) => setFbProjectId(e.target.value)}
+                      placeholder="my-pos-project"
+                      className="w-full px-2 py-1.5 border border-slate-200 rounded-lg bg-white text-[10px] font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-slate-500 font-bold">Auth Domain (Optional)</label>
+                    <input
+                      type="text"
+                      value={fbAuthDomain}
+                      onChange={(e) => setFbAuthDomain(e.target.value)}
+                      placeholder="project.firebaseapp.com"
+                      className="w-full px-2 py-1.5 border border-slate-200 rounded-lg bg-white text-[10px]"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] text-slate-500 font-bold">App ID (Optional)</label>
+                    <input
+                      type="text"
+                      value={fbAppId}
+                      onChange={(e) => setFbAppId(e.target.value)}
+                      placeholder="1:12345:web:abcd"
+                      className="w-full px-2 py-1.5 border border-slate-200 rounded-lg bg-white text-[10px]"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <button
+                    type="submit"
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold transition shadow-sm cursor-pointer"
+                  >
+                    {language === 'en' ? 'Save & Initialize Cloud Sync' : 'සුරැකලා සම්බන්ධ කරන්න'}
+                  </button>
+                </div>
+              </form>
+
+              {isFirebaseEnabled && (
+                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2.5">
+                  <div className="flex justify-between items-center">
+                    <div className="pr-2">
+                      <div className="text-[10px] font-extrabold text-slate-700">
+                        {language === 'en' ? 'Migrate Local Database to Cloud' : 'දේශීය දත්ත Cloud එකට මාරු කිරීම'}
+                      </div>
+                      <div className="text-[9px] text-slate-450 font-medium leading-relaxed">
+                        {language === 'en' 
+                          ? 'Upload your current local products (2000+ items) and settings to the cloud.' 
+                          : 'ඔබගේ වත්මන් දේශීය දත්ත (භාණ්ඩ 2000+) සහ සැකසුම් Cloud Database එකට අප්ලෝඩ් කරන්න.'}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={bulkUploadStatus === 'loading'}
+                      onClick={handleCloudMigration}
+                      className="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold disabled:opacity-50 transition cursor-pointer shrink-0"
+                    >
+                      {bulkUploadStatus === 'loading' 
+                        ? (language === 'en' ? 'Uploading...' : 'අප්ලෝඩ් වෙමින්...') 
+                        : (language === 'en' ? 'Upload Database' : 'දත්ත අප්ලෝඩ් කරන්න')}
+                    </button>
+                  </div>
+                  {bulkUploadMsg && (
+                    <div className={`p-2 rounded-lg border font-mono text-[9px] ${
+                      bulkUploadStatus === 'success' 
+                        ? 'bg-emerald-50 border-emerald-150 text-emerald-700 font-bold'
+                        : bulkUploadStatus === 'error'
+                        ? 'bg-rose-50 border-rose-150 text-rose-700 font-bold'
+                        : 'bg-blue-50 border-blue-150 text-blue-700 font-semibold'
+                    }`}>
+                      {bulkUploadStatus === 'success' ? '🛡️ ' : bulkUploadStatus === 'error' ? '❌ ' : '⏳ '}
+                      {bulkUploadMsg}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Health Check Card */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 space-y-3">
               <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center">
