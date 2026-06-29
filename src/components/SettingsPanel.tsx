@@ -242,6 +242,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     localStorage.setItem('shop_sync_id', syncId.trim());
     setIsSyncEnabled(true);
     localStorage.setItem('shop_sync_enabled', 'true');
+    localStorage.setItem('shop_sync_force_pull', 'true'); // Force download cloud state on reload
     alert(language === 'en' 
       ? 'Shop Sync ID saved! Reloading to fetch cloud data...' 
       : 'Shop Sync ID එක සුරකින ලදී! Cloud දත්ත ලබා ගැනීමට පිටුව reload වෙමින් පවතී...');

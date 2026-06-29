@@ -462,6 +462,7 @@ function App() {
       isSyncing = true;
 
       try {
+        const forcePull = localStorage.getItem('shop_sync_force_pull') === 'true';
         const localTimeStr = localStorage.getItem('shop_last_updated') || '0';
         const localTime = parseInt(localTimeStr, 10);
 
@@ -471,7 +472,16 @@ function App() {
         // Save private cloud flag
         localStorage.setItem('shop_sync_private', cloudMeta.isPrivate ? 'true' : 'false');
 
-        if (!cloudMeta.found) {
+        if (forcePull) {
+          // Force download requested (connected to new sync ID)
+          if (cloudMeta.found) {
+            const cloudState = await getCloudSyncState(syncId);
+            if (cloudState) {
+              handleSyncPullUpdate(cloudState);
+            }
+          }
+          localStorage.removeItem('shop_sync_force_pull');
+        } else if (!cloudMeta.found) {
           // Cloud has no data yet (first time set up)
           // Push local database state to cloud
           const completeState: any = getCompleteDatabaseState();
