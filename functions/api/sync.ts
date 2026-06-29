@@ -1,0 +1,119 @@
+interface Env {
+  SYNC_KV?: KVNamespace;
+}
+
+export const onRequestGet: PagesFunction<Env> = async (context) => {
+  const { env, request } = context;
+  const url = new URL(request.url);
+  const shopId = url.searchParams.get('shopId');
+  const timestampOnly = url.searchParams.get('timestampOnly') === 'true';
+
+  if (!shopId) {
+    return new Response(JSON.stringify({ error: 'Missing shopId' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  }
+
+  let data: string | null = null;
+  let isPrivate = false;
+
+  // Try Cloudflare KV first
+  if (env.SYNC_KV) {
+    data = await env.SYNC_KV.get(`shop_${shopId}`);
+    isPrivate = true;
+  } else {
+    // Fallback to kvdb.io public sandbox
+    try {
+      const res = await fetch(`https://kvdb.io/ksc_pos_public_sync_v1/shop_${shopId}`);
+      if (res.ok) {
+        data = await res.text();
+      }
+    } catch (err) {
+      console.error('Fallback read error:', err);
+    }
+  }
+
+  if (!data) {
+    return new Response(JSON.stringify({ found: false, isPrivate }), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  }
+
+  try {
+    const parsed = JSON.parse(data);
+    if (timestampOnly) {
+      return new Response(JSON.stringify({ found: true, lastUpdated: parsed.lastUpdated || 0, isPrivate }), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+    
+    // Add isPrivate flag to response
+    parsed.isPrivate = isPrivate;
+    return new Response(JSON.stringify(parsed), {
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  } catch (e) {
+    return new Response(JSON.stringify({ error: 'Invalid JSON stored', isPrivate }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  }
+};
+
+export const onRequestPost: PagesFunction<Env> = async (context) => {
+  const { env, request } = context;
+  const url = new URL(request.url);
+  const shopId = url.searchParams.get('shopId');
+
+  if (!shopId) {
+    return new Response(JSON.stringify({ error: 'Missing shopId' }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  }
+
+  try {
+    const body = await request.text();
+    // Validate JSON structure
+    JSON.parse(body);
+
+    let isPrivate = false;
+
+    if (env.SYNC_KV) {
+      await env.SYNC_KV.put(`shop_${shopId}`, body);
+      isPrivate = true;
+    } else {
+      // Fallback to kvdb.io public sandbox
+      const res = await fetch(`https://kvdb.io/ksc_pos_public_sync_v1/shop_${shopId}`, {
+        method: 'POST',
+        body: body
+      });
+      if (!res.ok) {
+        throw new Error(`Fallback sync write failed: ${res.statusText}`);
+      }
+    }
+
+    return new Response(JSON.stringify({ success: true, isPrivate }), {
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  } catch (e: any) {
+    return new Response(JSON.stringify({ error: e.message }), {
+      status: 400,
+      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+    });
+  }
+};
+
+// Handle OPTIONS requests for CORS
+export const onRequestOptions: PagesFunction<Env> = async () => {
+  return new Response(null, {
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Max-Age': '86400'
+    }
+  });
+};

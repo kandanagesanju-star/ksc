@@ -15,8 +15,7 @@ import { QuotationsRepairs } from './components/QuotationsRepairs';
 import { AttendanceStaff } from './components/AttendanceStaff';
 import { ReportsPanel } from './components/ReportsPanel';
 import { SettingsPanel } from './components/SettingsPanel';
-import { isFirebaseEnabled } from './lib/firebase';
-import { saveCloudDoc, deleteCloudDoc, subscribeToCollection, subscribeToSettingsDoc } from './lib/syncService';
+import { getCloudSyncTimestamp, getCloudSyncState, pushLocalStateToCloud, saveCloudDoc, deleteCloudDoc } from './lib/syncService';
 
 import { 
   initialProducts, 
@@ -289,6 +288,26 @@ function App() {
     };
   }, []);
 
+  const getCompleteDatabaseState = () => {
+    return {
+      products,
+      customers,
+      suppliers,
+      repairs,
+      sales,
+      employees,
+      attendance,
+      commissions,
+      specialOrders,
+      expenses,
+      stockAdjustments,
+      stockReturns,
+      quotations,
+      settings,
+      lastUpdated: parseInt(localStorage.getItem('shop_last_updated') || '0', 10)
+    };
+  };
+
   // Save states to LocalStorage
   useEffect(() => {
     localStorage.setItem('shop_products', JSON.stringify(products));
@@ -417,30 +436,74 @@ function App() {
     localStorage.setItem('shop_admin_tab', adminTab);
   }, [adminTab]);
 
-  // Real-Time Firebase Cloud Database Synchronization Listener
+  // Update local lastUpdated timestamp whenever React state mutations occur
   useEffect(() => {
-    if (!isFirebaseEnabled) return;
+    // Skip updating on first load to prevent overwriting cloud updates
+    const isFirstLoad = sessionStorage.getItem('shop_sync_first_load') !== 'false';
+    if (isFirstLoad) {
+      sessionStorage.setItem('shop_sync_first_load', 'false');
+      return;
+    }
+    localStorage.setItem('shop_last_updated', Date.now().toString());
+  }, [
+    products, customers, suppliers, repairs, sales, employees,
+    attendance, commissions, specialOrders, expenses,
+    stockAdjustments, stockReturns, quotations, settings
+  ]);
 
-    const unsubscribers = [
-      subscribeToSettingsDoc(setSettings),
-      subscribeToCollection('products', setProducts),
-      subscribeToCollection('customers', setCustomers),
-      subscribeToCollection('suppliers', setSuppliers),
-      subscribeToCollection('repairs', setRepairs),
-      subscribeToCollection('sales', setSales),
-      subscribeToCollection('employees', setEmployees),
-      subscribeToCollection('attendance', setAttendance),
-      subscribeToCollection('commissions', setCommissions),
-      subscribeToCollection('special_orders', setSpecialOrders),
-      subscribeToCollection('expenses', setExpenses),
-      subscribeToCollection('stock_adjustments', setStockAdjustments),
-      subscribeToCollection('stock_returns', setStockReturns),
-      subscribeToCollection('quotations', setQuotations)
-    ];
+  // Timestamp-Based Zero-Setup Cloud Synchronizer
+  useEffect(() => {
+    const isSyncEnabled = localStorage.getItem('shop_sync_enabled') === 'true';
+    const syncId = localStorage.getItem('shop_sync_id');
+    if (!isSyncEnabled || !syncId) return;
 
-    return () => {
-      unsubscribers.forEach(unsub => unsub());
+    let isSyncing = false;
+
+    const performSync = async () => {
+      if (isSyncing) return;
+      isSyncing = true;
+
+      try {
+        const localTimeStr = localStorage.getItem('shop_last_updated') || '0';
+        const localTime = parseInt(localTimeStr, 10);
+
+        // 1. Fetch cloud metadata timestamp
+        const cloudMeta = await getCloudSyncTimestamp(syncId);
+        
+        // Save private cloud flag
+        localStorage.setItem('shop_sync_private', cloudMeta.isPrivate ? 'true' : 'false');
+
+        if (!cloudMeta.found) {
+          // Cloud has no data yet (first time set up)
+          // Push local database state to cloud
+          const completeState: any = getCompleteDatabaseState();
+          completeState.lastUpdated = localTime || Date.now();
+          await pushLocalStateToCloud(syncId, completeState);
+        } else if (cloudMeta.lastUpdated > localTime) {
+          // Cloud is newer -> Download full state and restore locally
+          const cloudState = await getCloudSyncState(syncId);
+          if (cloudState) {
+            handleSyncPullUpdate(cloudState);
+          }
+        } else if (localTime > cloudMeta.lastUpdated) {
+          // Local is newer -> Upload full local state to cloud
+          const completeState: any = getCompleteDatabaseState();
+          completeState.lastUpdated = localTime;
+          await pushLocalStateToCloud(syncId, completeState);
+        }
+      } catch (err) {
+        console.error('Cloud Sync background check error:', err);
+      } finally {
+        isSyncing = false;
+      }
     };
+
+    // Run sync instantly on start
+    performSync();
+
+    // Poll every 15 seconds
+    const interval = setInterval(performSync, 15000);
+    return () => clearInterval(interval);
   }, []);
 
   // Apply theme settings to root HTML element (UI/UX Designer & Architect)
@@ -1058,26 +1121,6 @@ function App() {
 
   const handleUpdateSettings = (newSettings: ShopSettings) => {
     setSettings(newSettings);
-    saveCloudDoc('settings', 'shop_settings', newSettings);
-  };
-
-  const getCompleteDatabaseState = () => {
-    return {
-      products,
-      customers,
-      suppliers,
-      repairs,
-      sales,
-      employees,
-      attendance,
-      commissions,
-      specialOrders,
-      expenses,
-      stockAdjustments,
-      stockReturns,
-      quotations,
-      settings
-    };
   };
 
   // Database Snapshotting & History Rollbacks (Database Engineer)
@@ -1128,6 +1171,26 @@ function App() {
     setRepairs(data.repairs);
     setSales(data.sales);
     addAuditLog('DATABASE_RESTORED', 'Restored complete database state from backup file.');
+  };
+
+  const handleSyncPullUpdate = (data: any) => {
+    if (data.products) setProducts(data.products);
+    if (data.customers) setCustomers(data.customers);
+    if (data.suppliers) setSuppliers(data.suppliers);
+    if (data.repairs) setRepairs(data.repairs);
+    if (data.sales) setSales(data.sales);
+    if (data.employees) setEmployees(data.employees);
+    if (data.attendance) setAttendance(data.attendance);
+    if (data.commissions) setCommissions(data.commissions);
+    if (data.specialOrders) setSpecialOrders(data.specialOrders);
+    if (data.expenses) setExpenses(data.expenses);
+    if (data.stockAdjustments) setStockAdjustments(data.stockAdjustments);
+    if (data.stockReturns) setStockReturns(data.stockReturns);
+    if (data.quotations) setQuotations(data.quotations);
+    if (data.settings) setSettings(data.settings);
+    if (data.lastUpdated) {
+      localStorage.setItem('shop_last_updated', data.lastUpdated.toString());
+    }
   };
 
   const handleExportBackup = () => {

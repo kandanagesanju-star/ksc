@@ -6,8 +6,7 @@ import {
   CreditCard, Activity, Save, RefreshCw, AlertCircle, Layout, Eye, EyeOff, ShieldAlert, ShieldCheck, Check, History, Trash, Download, Upload, Lock, Unlock, Image, X
 } from 'lucide-react';
 
-import { isFirebaseEnabled } from '../lib/firebase';
-import { bulkUploadToCloud } from '../lib/syncService';
+import { pushLocalStateToCloud, getCloudSyncTimestamp } from '../lib/syncService';
 
 interface SettingsPanelProps {
   language: 'en' | 'si';
@@ -191,73 +190,82 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [enableHp, setEnableHp] = useState(!!settings.enableHP);
   const [enableBatches, setEnableBatches] = useState(!!settings.enableBatches);
 
-  // Firebase Config States
-  const [fbApiKey, setFbApiKey] = useState(() => {
-    const saved = localStorage.getItem('firebase_config');
-    return saved ? JSON.parse(saved).apiKey || '' : '';
+  // Cloudflare Sync States
+  const [syncId, setSyncId] = useState(() => {
+    const saved = localStorage.getItem('shop_sync_id');
+    if (saved) return saved;
+    const newId = 'ksc-' + Math.floor(1000 + Math.random() * 9000);
+    localStorage.setItem('shop_sync_id', newId);
+    return newId;
   });
-  const [fbAuthDomain, setFbAuthDomain] = useState(() => {
-    const saved = localStorage.getItem('firebase_config');
-    return saved ? JSON.parse(saved).authDomain || '' : '';
+
+  const [isSyncEnabled, setIsSyncEnabled] = useState(() => {
+    return localStorage.getItem('shop_sync_enabled') === 'true';
   });
-  const [fbProjectId, setFbProjectId] = useState(() => {
-    const saved = localStorage.getItem('firebase_config');
-    return saved ? JSON.parse(saved).projectId || '' : '';
-  });
-  const [fbStorageBucket, setFbStorageBucket] = useState(() => {
-    const saved = localStorage.getItem('firebase_config');
-    return saved ? JSON.parse(saved).storageBucket || '' : '';
-  });
-  const [fbMessagingSenderId, setFbMessagingSenderId] = useState(() => {
-    const saved = localStorage.getItem('firebase_config');
-    return saved ? JSON.parse(saved).messagingSenderId || '' : '';
-  });
-  const [fbAppId, setFbAppId] = useState(() => {
-    const saved = localStorage.getItem('firebase_config');
-    return saved ? JSON.parse(saved).appId || '' : '';
+
+  const [isPrivateCloud, setIsPrivateCloud] = useState(() => {
+    return localStorage.getItem('shop_sync_private') === 'true';
   });
 
   const [bulkUploadMsg, setBulkUploadMsg] = useState('');
   const [bulkUploadStatus, setBulkUploadStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
 
-  const handleSaveFirebaseConfig = (e: React.FormEvent) => {
-    e.preventDefault();
-    const config = {
-      apiKey: fbApiKey.trim(),
-      authDomain: fbAuthDomain.trim(),
-      projectId: fbProjectId.trim(),
-      storageBucket: fbStorageBucket.trim(),
-      messagingSenderId: fbMessagingSenderId.trim(),
-      appId: fbAppId.trim()
-    };
-
-    if (!config.apiKey || !config.projectId) {
-      alert(language === 'en' ? 'API Key and Project ID are required!' : 'API key සහ Project ID ඇතුළත් කිරීම අනිවාර්ය වේ!');
-      return;
+  // Load sync metadata on start
+  React.useEffect(() => {
+    if (isSyncEnabled && syncId) {
+      getCloudSyncTimestamp(syncId).then(res => {
+        setIsPrivateCloud(res.isPrivate);
+        localStorage.setItem('shop_sync_private', res.isPrivate ? 'true' : 'false');
+      }).catch(console.error);
     }
+  }, [isSyncEnabled, syncId]);
 
-    localStorage.setItem('firebase_config', JSON.stringify(config));
+  const handleToggleSync = () => {
+    const nextState = !isSyncEnabled;
+    setIsSyncEnabled(nextState);
+    localStorage.setItem('shop_sync_enabled', nextState ? 'true' : 'false');
+    if (nextState) {
+      alert(language === 'en' 
+        ? 'Cloud synchronization enabled! Please reload the page to initialize live sync.'
+        : 'Cloud සමමුහුර්තකරණය සක්‍රිය කර ඇත! Live sync ආරම්භ කිරීමට කරුණාකර පිටුව reload කරන්න.');
+      window.location.reload();
+    } else {
+      alert(language === 'en' 
+        ? 'Cloud synchronization disabled.' 
+        : 'Cloud සමමුහුර්තකරණය අක්‍රිය කරන ලදී.');
+    }
+  };
+
+  const handleSaveSyncId = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!syncId.trim()) return;
+    localStorage.setItem('shop_sync_id', syncId.trim());
+    setIsSyncEnabled(true);
+    localStorage.setItem('shop_sync_enabled', 'true');
     alert(language === 'en' 
-      ? 'Firebase configuration saved! Please reload the page to initialize the cloud sync.' 
-      : 'Firebase සැකසුම් සුරකින ලදී! Cloud sync ආරම්භ කිරීමට කරුණාකර පිටුව reload කරන්න.');
+      ? 'Shop Sync ID saved! Reloading to fetch cloud data...' 
+      : 'Shop Sync ID එක සුරකින ලදී! Cloud දත්ත ලබා ගැනීමට පිටුව reload වෙමින් පවතී...');
     window.location.reload();
   };
 
   const handleCloudMigration = async () => {
     if (!onGetCompleteDatabaseState) return;
     setBulkUploadStatus('loading');
-    setBulkUploadMsg(language === 'en' ? 'Preparing local data...' : 'දේශීය දත්ත සූදානම් කරමින්...');
+    setBulkUploadMsg(language === 'en' ? 'Uploading database to cloud...' : 'දත්ත සමුදාය Cloud එකට අප්ලෝඩ් වෙමින් පවතී...');
     
     try {
       const state = onGetCompleteDatabaseState();
-      await bulkUploadToCloud(state, (msg) => {
-        setBulkUploadMsg(msg);
-      });
+      // Add timestamp
+      state.lastUpdated = Date.now();
+      const res = await pushLocalStateToCloud(syncId, state);
+      setIsPrivateCloud(res.isPrivate);
+      localStorage.setItem('shop_sync_private', res.isPrivate ? 'true' : 'false');
       setBulkUploadStatus('success');
+      setBulkUploadMsg(language === 'en' ? 'All products and settings uploaded successfully!' : 'සියලුම භාණ්ඩ සහ සැකසුම් සාර්ථකව අප්ලෝඩ් කරන ලදී!');
     } catch (err: any) {
       console.error(err);
       setBulkUploadStatus('error');
-      setBulkUploadMsg(language === 'en' ? `Migration failed: ${err.message}` : `දත්ත සංක්‍රමණය අසාර්ථක විය: ${err.message}`);
+      setBulkUploadMsg(language === 'en' ? `Upload failed: ${err.message}` : `අප්ලෝඩ් කිරීම අසාර්ථක විය: ${err.message}`);
     }
   };
 
@@ -1834,130 +1842,123 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs font-semibold">
           {/* Health Check and Log Integrity Verification */}
           <div className="lg:col-span-6 space-y-6">
-            {/* Cloud Sync & Firebase Configuration */}
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 space-y-4 text-slate-800">
+            {/* Zero-Setup Cloud Sync Card */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 space-y-4 text-slate-800 animate-in fade-in slide-in-from-top-4 duration-200">
               <div className="flex justify-between items-center">
                 <div>
                   <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center">
                     <Database className="h-4.5 w-4.5 mr-1.5 text-blue-600 animate-pulse" />
-                    {language === 'en' ? 'Cloud Database Sync (Firebase)' : 'Cloud දත්ත ගබඩා සම්බන්ධතාවය'}
+                    {language === 'en' ? 'Zero-Setup Cloud Sync' : 'එසැණින් Cloud Sync කිරීම'}
                   </h3>
                   <p className="text-[10px] text-slate-400 font-medium leading-relaxed mt-0.5">
                     {language === 'en' 
-                      ? 'Synchronize all POS products, sales, and settings to the cloud in real-time.' 
-                      : 'සියලුම භාණ්ඩ, විකුණුම් සහ සැකසුම් Cloud Database එකක් හරහා එසැණින් sync කරන්න.'}
+                      ? 'Synchronize all products, sales, and settings across your devices in real-time.' 
+                      : 'සියලුම භාණ්ඩ, විකුණුම් සහ සැකසුම් ඔබගේ උපකරණ අතර එසැණින් sync කරන්න.'}
                   </p>
                 </div>
                 <div>
-                  {isFirebaseEnabled ? (
-                    <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping"></span>
-                      {language === 'en' ? 'CONNECTED' : 'සම්බන්ධයි'}
-                    </span>
+                  {isSyncEnabled ? (
+                    isPrivateCloud ? (
+                      <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping"></span>
+                        {language === 'en' ? 'PRIVATE CLOUD' : 'පෞද්ගලික CLOUD'}
+                      </span>
+                    ) : (
+                      <span className="bg-blue-50 text-blue-700 border border-blue-200 text-[9px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
+                        <span className="h-1.5 w-1.5 rounded-full bg-blue-500 animate-ping"></span>
+                        {language === 'en' ? 'PUBLIC SANDBOX' : 'පොදු SANDBOX'}
+                      </span>
+                    )
                   ) : (
                     <span className="bg-amber-50 text-amber-700 border border-amber-200 text-[9px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
                       <span className="h-1.5 w-1.5 rounded-full bg-amber-500"></span>
-                      {language === 'en' ? 'LOCAL ONLY' : 'LOCAL පමණි'}
+                      {language === 'en' ? 'DISABLED' : 'අක්‍රියයි'}
                     </span>
                   )}
                 </div>
               </div>
 
-              <form onSubmit={handleSaveFirebaseConfig} className="space-y-3 pt-2 border-t border-slate-100">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-slate-500 font-bold">API Key *</label>
-                    <input
-                      type="password"
-                      required
-                      value={fbApiKey}
-                      onChange={(e) => setFbApiKey(e.target.value)}
-                      placeholder="AIzaSyA1..."
-                      className="w-full px-2 py-1.5 border border-slate-200 rounded-lg bg-white text-[10px]"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-slate-500 font-bold">Project ID *</label>
+              <form onSubmit={handleSaveSyncId} className="space-y-3 pt-3 border-t border-slate-100">
+                <div className="space-y-1">
+                  <label className="text-[10px] text-slate-500 font-bold">
+                    {language === 'en' ? 'Shop Sync ID (Unique code)' : 'Shop Sync ID (අද්විතීය කේතය)'}
+                  </label>
+                  <div className="flex gap-2">
                     <input
                       type="text"
                       required
-                      value={fbProjectId}
-                      onChange={(e) => setFbProjectId(e.target.value)}
-                      placeholder="my-pos-project"
-                      className="w-full px-2 py-1.5 border border-slate-200 rounded-lg bg-white text-[10px] font-bold"
+                      value={syncId}
+                      onChange={(e) => setSyncId(e.target.value.trim().toLowerCase())}
+                      placeholder="ksc-XXXX"
+                      className="flex-1 px-3 py-2 border border-slate-200 rounded-lg bg-white text-[11px] font-extrabold uppercase tracking-widest text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
+                    <button
+                      type="submit"
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-[10px] font-bold transition shadow-sm cursor-pointer shrink-0"
+                    >
+                      {language === 'en' ? 'Connect' : 'සම්බන්ධ කරන්න'}
+                    </button>
                   </div>
+                  <p className="text-[9px] text-slate-400 font-medium leading-relaxed">
+                    {language === 'en'
+                      ? 'Note: Copy this Sync ID to your other Chrome profile/phone to instantly sync the same shop catalog.'
+                      : 'සටහන: එකම කඩේ දත්ත අනෙක් Chrome profile/දුරකථනයට ලබා ගැනීමට මෙම Sync ID එක එහි ඇතුළත් කරන්න.'}
+                  </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-slate-500 font-bold">Auth Domain (Optional)</label>
-                    <input
-                      type="text"
-                      value={fbAuthDomain}
-                      onChange={(e) => setFbAuthDomain(e.target.value)}
-                      placeholder="project.firebaseapp.com"
-                      className="w-full px-2 py-1.5 border border-slate-200 rounded-lg bg-white text-[10px]"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] text-slate-500 font-bold">App ID (Optional)</label>
-                    <input
-                      type="text"
-                      value={fbAppId}
-                      onChange={(e) => setFbAppId(e.target.value)}
-                      placeholder="1:12345:web:abcd"
-                      className="w-full px-2 py-1.5 border border-slate-200 rounded-lg bg-white text-[10px]"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex justify-end pt-1">
+                <div className="flex gap-2 pt-1.5">
                   <button
-                    type="submit"
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold transition shadow-sm cursor-pointer"
+                    type="button"
+                    onClick={handleToggleSync}
+                    className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold border transition cursor-pointer ${
+                      isSyncEnabled 
+                        ? 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100' 
+                        : 'bg-emerald-50 border-emerald-200 text-emerald-600 hover:bg-emerald-100'
+                    }`}
                   >
-                    {language === 'en' ? 'Save & Initialize Cloud Sync' : 'සුරැකලා සම්බන්ධ කරන්න'}
+                    {isSyncEnabled 
+                      ? (language === 'en' ? 'Disable Live Sync' : 'සමමුහුර්තකරණය අක්‍රිය කරන්න') 
+                      : (language === 'en' ? 'Enable Live Sync' : 'සමමුහුර්තකරණය සක්‍රිය කරන්න')}
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={bulkUploadStatus === 'loading'}
+                    onClick={handleCloudMigration}
+                    className="flex-1 bg-slate-800 hover:bg-slate-900 text-white py-1.5 rounded-lg text-[10px] font-bold disabled:opacity-50 transition cursor-pointer"
+                  >
+                    {bulkUploadStatus === 'loading' 
+                      ? (language === 'en' ? 'Syncing...' : 'Sync වෙමින්...') 
+                      : (language === 'en' ? 'Force Sync Now' : 'දත්ත දැන්ම Sync කරන්න')}
                   </button>
                 </div>
               </form>
 
-              {isFirebaseEnabled && (
-                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-2.5">
-                  <div className="flex justify-between items-center">
-                    <div className="pr-2">
-                      <div className="text-[10px] font-extrabold text-slate-700">
-                        {language === 'en' ? 'Migrate Local Database to Cloud' : 'දේශීය දත්ත Cloud එකට මාරු කිරීම'}
-                      </div>
-                      <div className="text-[9px] text-slate-450 font-medium leading-relaxed">
-                        {language === 'en' 
-                          ? 'Upload your current local products (2000+ items) and settings to the cloud.' 
-                          : 'ඔබගේ වත්මන් දේශීය දත්ත (භාණ්ඩ 2000+) සහ සැකසුම් Cloud Database එකට අප්ලෝඩ් කරන්න.'}
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      disabled={bulkUploadStatus === 'loading'}
-                      onClick={handleCloudMigration}
-                      className="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold disabled:opacity-50 transition cursor-pointer shrink-0"
-                    >
-                      {bulkUploadStatus === 'loading' 
-                        ? (language === 'en' ? 'Uploading...' : 'අප්ලෝඩ් වෙමින්...') 
-                        : (language === 'en' ? 'Upload Database' : 'දත්ත අප්ලෝඩ් කරන්න')}
-                    </button>
+              {bulkUploadMsg && (
+                <div className={`p-2 rounded-lg border font-mono text-[9px] ${
+                  bulkUploadStatus === 'success' 
+                    ? 'bg-emerald-50 border-emerald-150 text-emerald-700 font-bold'
+                    : bulkUploadStatus === 'error'
+                    ? 'bg-rose-50 border-rose-150 text-rose-700 font-bold'
+                    : 'bg-blue-50 border-blue-150 text-blue-700 font-semibold'
+                }`}>
+                  {bulkUploadStatus === 'success' ? '🛡️ ' : bulkUploadStatus === 'error' ? '❌ ' : '⏳ '}
+                  {bulkUploadMsg}
+                </div>
+              )}
+
+              {/* Instructions on Private Cloud Binding */}
+              {!isPrivateCloud && (
+                <div className="bg-amber-50/60 p-3 rounded-xl border border-amber-200/50 text-[9.5px] leading-relaxed text-amber-850 space-y-1.5">
+                  <div className="font-bold flex items-center text-amber-800">
+                    <AlertCircle className="h-3.5 w-3.5 mr-1 shrink-0 text-amber-600" />
+                    <span>{language === 'en' ? 'Private Security Recommendation' : 'පෞද්ගලික ආරක්ෂක නිර්දේශය'}</span>
                   </div>
-                  {bulkUploadMsg && (
-                    <div className={`p-2 rounded-lg border font-mono text-[9px] ${
-                      bulkUploadStatus === 'success' 
-                        ? 'bg-emerald-50 border-emerald-150 text-emerald-700 font-bold'
-                        : bulkUploadStatus === 'error'
-                        ? 'bg-rose-50 border-rose-150 text-rose-700 font-bold'
-                        : 'bg-blue-50 border-blue-150 text-blue-700 font-semibold'
-                    }`}>
-                      {bulkUploadStatus === 'success' ? '🛡️ ' : bulkUploadStatus === 'error' ? '❌ ' : '⏳ '}
-                      {bulkUploadMsg}
-                    </div>
-                  )}
+                  <p>
+                    {language === 'en'
+                      ? 'You are currently using the shared public sandbox. For permanent business storage, go to your Cloudflare Pages dashboard -> Settings -> Functions -> KV namespace bindings. Add a binding named "SYNC_KV" to a KV namespace.'
+                      : 'ඔබ දැනට පොදු sandbox එකක් භාවිතා කරයි. දත්ත සදාකාලිකව සුරක්ෂිතව තබා ගැනීමට, ඔබගේ Cloudflare Dashboard -> Settings -> Functions -> KV namespace bindings වෙත ගොස් "SYNC_KV" නමින් KV binding එකක් එක් කරන්න.'}
+                  </p>
                 </div>
               )}
             </div>
