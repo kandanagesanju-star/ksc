@@ -31,6 +31,7 @@ export const Inventory: React.FC<InventoryProps> = ({
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<Category | 'All'>('All');
+  const [showLowStockOnly, setShowLowStockOnly] = useState(false);
 
   // Pagination State (Pages 1, 2, 3...)
   const [currentPage, setCurrentPage] = useState(1);
@@ -111,9 +112,10 @@ export const Inventory: React.FC<InventoryProps> = ({
         p.nameEn.toLowerCase().includes(searchQuery.toLowerCase()) ||
         p.nameSi.includes(searchQuery) ||
         p.id.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
+      const matchesLowStock = !showLowStockOnly || (p.stock !== 'Unlimited' && p.stock <= p.lowStockAlert);
+      return matchesCategory && matchesSearch && matchesLowStock;
     });
-  }, [products, selectedCategory, searchQuery]);
+  }, [products, selectedCategory, searchQuery, showLowStockOnly]);
 
   // Paginated Products
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage) || 1;
@@ -126,7 +128,7 @@ export const Inventory: React.FC<InventoryProps> = ({
   // Reset to first page on search/filter changes
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedCategory]);
+  }, [searchQuery, selectedCategory, showLowStockOnly]);
 
   // Open modal for new product
   const openNewModal = () => {
@@ -466,6 +468,29 @@ export const Inventory: React.FC<InventoryProps> = ({
             <FileText className="h-4 w-4" />
             Export PDF
           </button>
+
+          {/* Export Reorder List */}
+          <button
+            onClick={() => {
+              const lowStock = products.filter(p => p.stock !== 'Unlimited' && p.stock <= p.lowStockAlert);
+              if (lowStock.length === 0) {
+                alert(language === 'en' ? 'No items need reordering!' : 'ප්‍රති-ඇණවුම් කිරීමට අවශ්‍ය භාණ්ඩ කිසිවක් නොමැත!');
+                return;
+              }
+              const headers = ['ID','Name (EN)','Name (SI)','Category','Current Stock','Low Stock Alert Level','Retail Price'];
+              const rows = lowStock.map(p => [
+                p.id, p.nameEn, p.nameSi, p.category, p.stock, p.lowStockAlert, p.retailPrice
+              ]);
+              const csv = [headers, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+              const blob = new Blob(["\ufeff" + csv], { type: 'text/csv;charset=utf-8;' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a'); a.href = url; a.download = `reorder_list_${new Date().toISOString().split('T')[0]}.csv`; a.click();
+            }}
+            className="bg-amber-600 hover:bg-amber-700 text-white px-3 py-2 rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5"
+          >
+            <Download className="h-4 w-4 text-amber-250" />
+            {language === 'en' ? 'Export Reorder List' : 'ප්‍රති-ඇණවුම් ලැයිස්තුව'}
+          </button>
         </div>
       </div>
 
@@ -492,6 +517,18 @@ export const Inventory: React.FC<InventoryProps> = ({
             <option key={cat} value={cat}>{(t as any)[cat] || cat}</option>
           ))}
         </select>
+
+        <label className="flex items-center space-x-2 bg-rose-50/50 hover:bg-rose-50 text-rose-700 px-3.5 py-2 rounded-xl border border-rose-100 cursor-pointer select-none active:scale-95 transition">
+          <input
+            type="checkbox"
+            checked={showLowStockOnly}
+            onChange={(e) => setShowLowStockOnly(e.target.checked)}
+            className="h-4 w-4 text-rose-600 border-rose-200 rounded focus:ring-rose-500 cursor-pointer"
+          />
+          <span className="text-xs font-black">
+            {language === 'en' ? 'Low Stock Only' : 'අඩු තොග පමණක්'}
+          </span>
+        </label>
       </div>
 
       {/* Inventory Table */}

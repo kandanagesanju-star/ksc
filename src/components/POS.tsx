@@ -5,7 +5,7 @@ import { translations } from '../lib/translations';
 import { 
   Search, ShoppingCart, Tag, AlertTriangle, CheckCircle, Clock, 
   Wrench, ChevronDown, Trash2, User, Phone, MapPin, CreditCard, X, Printer, ArrowRight, Laptop, RefreshCw, Plus, Mic,
-  Scale, Signal, Maximize2, Minimize2
+  Scale, Signal, Maximize2, Minimize2, Keyboard
 } from 'lucide-react';
 
 interface POSProps {
@@ -86,6 +86,8 @@ export const POS: React.FC<POSProps> = ({
   const [priceMode, setPriceMode] = useState<'Retail' | 'Wholesale'>('Retail');
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Card' | 'Online Transfer' | 'Pending'>('Cash');
   const [discount, setDiscount] = useState<number>(0);
+  const [redeemPoints, setRedeemPoints] = useState(false);
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const [amountPaid, setAmountPaid] = useState<number>(0);
   const [paymentReference, setPaymentReference] = useState<string>('');
 
@@ -131,6 +133,7 @@ export const POS: React.FC<POSProps> = ({
   // Voice assistant states (UI/UX Designer & Product Manager)
   const [isListening, setIsListening] = useState(false);
   const [voiceLog, setVoiceLog] = useState<string>('');
+  const recognitionRef = React.useRef<any>(null);
 
   // Local Latency State (Architect)
   const [latencyMode, setLatencyMode] = useState<'online' | 'slow' | 'unstable' | 'offline'>('online');
@@ -162,6 +165,18 @@ export const POS: React.FC<POSProps> = ({
     return () => clearInterval(interval);
   }, [latencyMode]);
 
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch (e) {
+          // ignore
+        }
+      }
+    };
+  }, []);
+
   const toggleVoiceAssistant = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     setVoiceLog('');
@@ -184,11 +199,31 @@ export const POS: React.FC<POSProps> = ({
     }
 
     if (isListening) {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch (e) {
+          console.error('Error aborting speech recognition:', e);
+        }
+        recognitionRef.current = null;
+      }
       setIsListening(false);
       return;
     }
 
+    // Abort any existing instance if it was running (safety check)
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch (e) {
+        // ignore
+      }
+      recognitionRef.current = null;
+    }
+
     const recognition = new SpeechRecognition();
+    recognitionRef.current = recognition;
+    
     recognition.continuous = false;
     recognition.lang = language === 'en' ? 'en-US' : 'si-LK';
     recognition.interimResults = false;
@@ -202,6 +237,9 @@ export const POS: React.FC<POSProps> = ({
     recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error);
       setIsListening(false);
+      if (recognitionRef.current === recognition) {
+        recognitionRef.current = null;
+      }
       
       if (event.error === 'not-allowed') {
         setVoiceLog(language === 'en' 
@@ -211,6 +249,8 @@ export const POS: React.FC<POSProps> = ({
         setVoiceLog(language === 'en' 
           ? 'Error: No speech detected. Please speak closer to the mic.' 
           : 'දෝෂයකි: කිසිදු හඬක් හඳුනා ගැනීමට නොහැකි විය. කරුණාකර මයික්‍රෆෝනයට ආසන්නව කතා කරන්න.');
+      } else if (event.error === 'aborted') {
+        setVoiceLog(language === 'en' ? 'Stopped listening.' : 'ශ්‍රවණය නවත්වන ලදී.');
       } else {
         setVoiceLog(`Error: ${event.error}`);
       }
@@ -218,6 +258,9 @@ export const POS: React.FC<POSProps> = ({
 
     recognition.onend = () => {
       setIsListening(false);
+      if (recognitionRef.current === recognition) {
+        recognitionRef.current = null;
+      }
     };
 
     recognition.onresult = (event: any) => {
@@ -231,6 +274,7 @@ export const POS: React.FC<POSProps> = ({
     } catch (e: any) {
       console.error(e);
       setVoiceLog(`Error: ${e.message}`);
+      recognitionRef.current = null;
     }
   };
 
@@ -408,7 +452,19 @@ export const POS: React.FC<POSProps> = ({
     });
 
     const tierDiscountAmount = subtotal * loyaltyInfo.rate;
-    const total = Math.max(0, subtotal + totalTax - discount - tierDiscountAmount);
+    const rawTotal = Math.max(0, subtotal + totalTax - discount - tierDiscountAmount);
+    
+    let pointsRedeemed = 0;
+    let loyaltyRedemptionDiscount = 0;
+    
+    if (redeemPoints && selectedCustomer && selectedCustomer.loyaltyPoints > 0) {
+      const maxDiscountFromPoints = selectedCustomer.loyaltyPoints * 10;
+      const potentialDiscount = Math.min(rawTotal, maxDiscountFromPoints);
+      pointsRedeemed = Math.ceil(potentialDiscount / 10);
+      loyaltyRedemptionDiscount = pointsRedeemed * 10;
+    }
+
+    const total = Math.max(0, rawTotal - loyaltyRedemptionDiscount);
     const profit = total - totalCost - totalTax;
 
     return {
@@ -422,9 +478,11 @@ export const POS: React.FC<POSProps> = ({
       profit,
       tierDiscountAmount,
       loyaltyTier: loyaltyInfo.name,
-      loyaltyRate: loyaltyInfo.rate
+      loyaltyRate: loyaltyInfo.rate,
+      loyaltyPointsRedeemed: pointsRedeemed,
+      loyaltyRedemptionDiscount
     };
-  }, [posCart, priceMode, discount, vatRate, ssclRate, loyaltyInfo, applyVat, applySscl]);
+  }, [posCart, priceMode, discount, vatRate, ssclRate, loyaltyInfo, applyVat, applySscl, redeemPoints, selectedCustomer]);
 
   // Synchronize amountPaid for Card/Bank Transfer checkouts
   useEffect(() => {
@@ -484,6 +542,9 @@ export const POS: React.FC<POSProps> = ({
             refBox.focus();
           }
         }, 50);
+      } else if (key === '?' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        setShowShortcutsHelp(prev => !prev);
       }
     };
 
@@ -760,6 +821,8 @@ export const POS: React.FC<POSProps> = ({
       paymentMethod,
       paymentReference: (paymentMethod === 'Card' || paymentMethod === 'Online Transfer') ? paymentReference.trim() : undefined,
       loyaltyPointsEarned: Math.floor(totals.total / 1000),
+      loyaltyPointsRedeemed: totals.loyaltyPointsRedeemed,
+      loyaltyRedemptionDiscount: totals.loyaltyRedemptionDiscount,
       createdAt: new Date().toISOString()
     };
 
@@ -779,6 +842,7 @@ export const POS: React.FC<POSProps> = ({
     // Reset POS form
     setPosCart([]);
     setDiscount(0);
+    setRedeemPoints(false);
     setAmountPaid(0);
     setPaymentReference('');
     setSelectedCustomer(null);
@@ -878,6 +942,19 @@ export const POS: React.FC<POSProps> = ({
                   placeholder={language === 'en' ? 'Search by name, ID or code...' : 'නම හෝ අංකය මඟින් සොයන්න...'}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const query = searchQuery.trim();
+                      if (query) {
+                        const matched = products.find(p => p.id.toLowerCase() === query.toLowerCase());
+                        if (matched) {
+                          addToCart(matched);
+                          setSearchQuery('');
+                          e.preventDefault();
+                        }
+                      }
+                    }
+                  }}
                   className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-xs font-bold text-slate-800"
                 />
               </div>
@@ -893,6 +970,15 @@ export const POS: React.FC<POSProps> = ({
                 title="Voice Assistant (English / සිංහල)"
               >
                 <Mic className="h-4 w-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowShortcutsHelp(true)}
+                className="p-2.5 rounded-xl border flex items-center justify-center transition-all bg-slate-50 border-slate-200 hover:bg-slate-100 text-slate-500 hover:border-indigo-400 hover:text-indigo-600"
+                title="Keyboard Shortcuts Cheatsheet (Press '?')"
+              >
+                <Keyboard className="h-4 w-4" />
               </button>
 
               {onToggleFullScreen && (
@@ -1470,6 +1556,30 @@ export const POS: React.FC<POSProps> = ({
                 <div className="flex justify-between text-indigo-500 text-[10px]">
                   <span>🎖️ {totals.loyaltyTier} Loyalty ({(totals.loyaltyRate * 100)}%)</span>
                   <span className="font-bold">- Rs. {totals.tierDiscountAmount.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                </div>
+              )}
+
+              {selectedCustomer && selectedCustomer.loyaltyPoints > 0 && (
+                <div className="flex justify-between items-center py-1 border-t border-dashed border-slate-100 mt-1">
+                  <div className="flex items-center space-x-1.5">
+                    <input
+                      type="checkbox"
+                      id="redeemPointsCheckbox"
+                      checked={redeemPoints}
+                      onChange={(e) => setRedeemPoints(e.target.checked)}
+                      className="h-3.5 w-3.5 text-indigo-600 border-slate-350 rounded focus:ring-indigo-500 cursor-pointer"
+                    />
+                    <label htmlFor="redeemPointsCheckbox" className="text-[10px] font-extrabold text-indigo-600 cursor-pointer hover:text-indigo-800">
+                      {language === 'en' 
+                        ? `Redeem Points (${selectedCustomer.loyaltyPoints} avail.)` 
+                        : `ලකුණු භාවිතය (${selectedCustomer.loyaltyPoints} ඇත)`}
+                    </label>
+                  </div>
+                  {redeemPoints && totals.loyaltyRedemptionDiscount > 0 && (
+                    <span className="text-indigo-600 font-extrabold text-[10px]">
+                      - Rs. {totals.loyaltyRedemptionDiscount.toLocaleString()}
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -2095,6 +2205,76 @@ export const POS: React.FC<POSProps> = ({
                 className="px-3 bg-slate-200 hover:bg-slate-300 text-slate-600 py-2 rounded-xl text-xs font-bold transition"
               >
                 Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* KEYBOARD SHORTCUTS HELP MODAL */}
+      {showShortcutsHelp && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 text-slate-800 animate-in fade-in zoom-in-95 duration-150">
+            <div className="bg-indigo-900 text-white p-4 flex justify-between items-center">
+              <div className="flex items-center space-x-2">
+                <div className="bg-indigo-650/30 p-1.5 rounded-lg border border-indigo-500/30 text-indigo-350">
+                  <Keyboard className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold">
+                    {language === 'en' ? 'Keyboard Shortcuts' : 'යතුරුපුවරු කෙටිමං (Shortcuts)'}
+                  </h3>
+                  <p className="text-[10px] text-indigo-200 font-medium">
+                    {language === 'en' ? 'Operate the POS register instantly' : 'POS පර්යන්තය ඉක්මනින් ක්‍රියාත්මක කරන්න'}
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowShortcutsHelp(false)} 
+                className="text-indigo-200 hover:text-white transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div className="divide-y divide-slate-100">
+                <div className="flex justify-between items-center py-2.5">
+                  <span className="text-xs font-bold text-slate-650">{language === 'en' ? 'Focus Search Input' : 'සෙවුම් කොටුව වෙත යන්න'}</span>
+                  <span className="px-2 py-1 bg-slate-100 border border-slate-200 text-[10px] font-black rounded-lg text-slate-700 shadow-sm">F1</span>
+                </div>
+                <div className="flex justify-between items-center py-2.5">
+                  <span className="text-xs font-bold text-slate-650">{language === 'en' ? 'Select Cash payment' : 'මුදල් ගෙවීම (Cash)'}</span>
+                  <span className="px-2 py-1 bg-slate-100 border border-slate-200 text-[10px] font-black rounded-lg text-slate-700 shadow-sm">F2</span>
+                </div>
+                <div className="flex justify-between items-center py-2.5">
+                  <span className="text-xs font-bold text-slate-650">{language === 'en' ? 'Select Card payment' : 'කාඩ්පත් ගෙවීම (Card)'}</span>
+                  <span className="px-2 py-1 bg-slate-100 border border-slate-200 text-[10px] font-black rounded-lg text-slate-700 shadow-sm">F4</span>
+                </div>
+                <div className="flex justify-between items-center py-2.5">
+                  <span className="text-xs font-bold text-slate-650">{language === 'en' ? 'Select Bank/QR Transfer' : 'බැංකු/QR හුවමාරුව'}</span>
+                  <span className="px-2 py-1 bg-slate-100 border border-slate-200 text-[10px] font-black rounded-lg text-slate-700 shadow-sm">F6</span>
+                </div>
+                <div className="flex justify-between items-center py-2.5">
+                  <span className="text-xs font-bold text-slate-650">{language === 'en' ? 'Complete Sale / Checkout' : 'බිල්පත තහවුරු කරන්න'}</span>
+                  <span className="px-2 py-1 bg-slate-100 border border-slate-200 text-[10px] font-black rounded-lg text-slate-700 shadow-sm">F8</span>
+                </div>
+                <div className="flex justify-between items-center py-2.5">
+                  <span className="text-xs font-bold text-slate-650">{language === 'en' ? 'Clear POS Cart' : 'කරත්තය හිස් කරන්න'}</span>
+                  <span className="px-2 py-1 bg-slate-100 border border-slate-200 text-[10px] font-black rounded-lg text-slate-700 shadow-sm">F9</span>
+                </div>
+                <div className="flex justify-between items-center py-2.5">
+                  <span className="text-xs font-bold text-slate-650">{language === 'en' ? 'Toggle Help Panel' : 'මෙම උදව් මෙනුව පෙන්වන්න'}</span>
+                  <span className="px-2 py-1 bg-slate-100 border border-slate-200 text-[10px] font-black rounded-lg text-slate-700 shadow-sm">?</span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowShortcutsHelp(false)}
+                className="w-full mt-2 bg-slate-900 hover:bg-slate-950 text-white font-bold py-2.5 rounded-xl text-xs transition duration-200 active:scale-95 text-center"
+              >
+                {language === 'en' ? 'Got It' : 'වැටහුණා'}
               </button>
             </div>
           </div>

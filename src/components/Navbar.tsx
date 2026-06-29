@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { translations } from '../lib/translations';
 import { ShopSettings, Customer, Employee } from '../types';
-import { ShoppingBag, ShieldAlert, Laptop, Languages, Layers, Wifi, WifiOff, Key, Lock, User, Award, X, LogOut } from 'lucide-react';
+import { ShoppingBag, ShieldAlert, Laptop, Languages, Layers, Wifi, WifiOff, Key, Lock, User, Award, X, LogOut, ChevronDown, RefreshCw } from 'lucide-react';
 
 interface NavbarProps {
   language: 'en' | 'si';
@@ -59,6 +59,36 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [lockoutTime, setLockoutTime] = useState(0);
   const [showRecovery, setShowRecovery] = useState(false);
   const [recoveryCode, setRecoveryCode] = useState('');
+
+  const [syncEnabled, setSyncEnabled] = useState(() => localStorage.getItem('shop_sync_enabled') === 'true');
+  const [syncId, setSyncId] = useState(() => localStorage.getItem('shop_sync_id') || '');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isPrivate, setIsPrivate] = useState(() => localStorage.getItem('shop_sync_private') === 'true');
+  const [showSyncPopover, setShowSyncPopover] = useState(false);
+
+  React.useEffect(() => {
+    const handleStart = () => setIsSyncing(true);
+    const handleEnd = () => {
+      setIsSyncing(false);
+      setSyncEnabled(localStorage.getItem('shop_sync_enabled') === 'true');
+      setSyncId(localStorage.getItem('shop_sync_id') || '');
+      setIsPrivate(localStorage.getItem('shop_sync_private') === 'true');
+    };
+
+    window.addEventListener('shop-sync-start', handleStart);
+    window.addEventListener('shop-sync-end', handleEnd);
+
+    return () => {
+      window.removeEventListener('shop-sync-start', handleStart);
+      window.removeEventListener('shop-sync-end', handleEnd);
+    };
+  }, []);
+
+  const handleManualSyncNow = () => {
+    if (isSyncing || !isOnline) return;
+    setIsSyncing(true);
+    window.dispatchEvent(new Event('trigger-shop-sync'));
+  };
 
   // Customer Portal states (local form input states)
   const [customerMobile, setCustomerMobile] = useState('');
@@ -309,6 +339,61 @@ export const Navbar: React.FC<NavbarProps> = ({
           <div className="hidden md:flex items-center space-x-4">
             {viewMode === 'admin' ? (
               <>
+                {/* Real-time Cloud Sync status widget */}
+                {syncEnabled && (
+                  <div className="relative flex items-center space-x-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl text-[10px] font-bold text-slate-350 mr-1.5">
+                    <span className="relative flex h-2 w-2">
+                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                        isSyncing ? 'bg-blue-400' : isOnline ? 'bg-emerald-400' : 'bg-amber-400'
+                      }`}></span>
+                      <span className={`relative inline-flex rounded-full h-2 w-2 ${
+                        isSyncing ? 'bg-blue-500' : isOnline ? 'bg-emerald-500' : 'bg-amber-500'
+                      }`}></span>
+                    </span>
+                    <button
+                      onClick={() => setShowSyncPopover(!showSyncPopover)}
+                      className="hover:text-white transition uppercase text-[9px] tracking-wider font-extrabold flex items-center gap-1 cursor-pointer"
+                      title={language === 'en' ? 'Click to view sync status details' : 'සමමුහුර්ත විස්තර බැලීමට ක්ලික් කරන්න'}
+                    >
+                      <span>{isSyncing ? (language === 'en' ? 'Syncing...' : 'යාවත්කාලීන වේ...') : isOnline ? (language === 'en' ? 'Online' : 'සබැඳිව') : (language === 'en' ? 'Offline' : 'නොබැඳි')}</span>
+                      <ChevronDown className="h-3 w-3" />
+                    </button>
+                    <button
+                      onClick={handleManualSyncNow}
+                      disabled={isSyncing || !isOnline}
+                      className="p-0.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-blue-400 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                      title={language === 'en' ? 'Sync Live Database Now' : 'දැන්ම සමමුහුර්ත කරන්න'}
+                    >
+                      <RefreshCw className={`h-3 w-3 ${isSyncing ? 'animate-spin text-blue-400' : ''}`} />
+                    </button>
+
+                    {/* Popover detailed stats */}
+                    {showSyncPopover && (
+                      <div className="absolute right-0 top-11 bg-slate-900 border border-slate-800 p-3 rounded-2xl shadow-2xl z-50 text-xs font-semibold text-slate-300 w-48 space-y-2 text-left animate-in fade-in slide-in-from-top-1 duration-150">
+                        <div className="flex justify-between items-center pb-1 border-b border-slate-800">
+                          <span className="font-extrabold uppercase text-[9px] tracking-wider text-slate-450">{language === 'en' ? 'Sync Profile' : 'සමමුහුර්ත විස්තර'}</span>
+                          <button onClick={() => setShowSyncPopover(false)} className="text-[10px] text-slate-500 hover:text-white font-extrabold">✕</button>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-[10px]"><span className="text-slate-500 font-bold">{language === 'en' ? 'Sync ID:' : 'ID අංකය:'}</span> <code className="bg-slate-950 px-1 py-0.5 rounded text-blue-400 select-all font-mono">{syncId ? `${syncId.slice(0, 8)}...` : 'N/A'}</code></p>
+                          <p className="text-[10px]"><span className="text-slate-500 font-bold">{language === 'en' ? 'Private Cloud:' : 'පෞද්ගලික වලාකුළු:'}</span> <span className={isPrivate ? 'text-emerald-400' : 'text-slate-400'}>{isPrivate ? (language === 'en' ? 'Yes' : 'ඔව්') : (language === 'en' ? 'No (Public)' : 'නැත (පොදු)')}</span></p>
+                          <p className="text-[10px]"><span className="text-slate-500 font-bold">{language === 'en' ? 'Connection:' : 'සම්බන්ධතාවය:'}</span> <span className={isOnline ? 'text-emerald-400' : 'text-rose-500'}>{isOnline ? (language === 'en' ? 'Connected' : 'සම්බන්ධයි') : (language === 'en' ? 'Disconnected' : 'විසන්ධි වී ඇත')}</span></p>
+                        </div>
+                        <button
+                          onClick={() => {
+                            handleManualSyncNow();
+                            setShowSyncPopover(false);
+                          }}
+                          disabled={isSyncing || !isOnline}
+                          className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-1.5 rounded-lg text-[10px] transition active:scale-95 text-center disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                        >
+                          {language === 'en' ? 'Force Sync Now' : 'දැන්ම සමමුහුර්ත කරන්න'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Active User Session Details */}
                 {activeUser && (
                   <div className="flex items-center space-x-2 bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-xl">

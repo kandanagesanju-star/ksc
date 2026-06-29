@@ -288,6 +288,36 @@ function App() {
     };
   }, []);
 
+  // Auto-Lock Inactivity Timer (Cybersecurity Specialist)
+  useEffect(() => {
+    if (viewMode !== 'admin' || !activeUser) return;
+
+    let lastActivity = Date.now();
+    const updateActivity = () => {
+      lastActivity = Date.now();
+    };
+
+    window.addEventListener('mousemove', updateActivity);
+    window.addEventListener('keydown', updateActivity);
+    window.addEventListener('click', updateActivity);
+    window.addEventListener('touchstart', updateActivity);
+
+    const interval = setInterval(() => {
+      // Lock after 5 minutes of inactivity (300,000 ms)
+      if (Date.now() - lastActivity > 300000 && !showPasscodeModal) {
+        setShowPasscodeModal(true);
+      }
+    }, 10000);
+
+    return () => {
+      window.removeEventListener('mousemove', updateActivity);
+      window.removeEventListener('keydown', updateActivity);
+      window.removeEventListener('click', updateActivity);
+      window.removeEventListener('touchstart', updateActivity);
+      clearInterval(interval);
+    };
+  }, [viewMode, activeUser, showPasscodeModal]);
+
   const getCompleteDatabaseState = () => {
     return {
       products,
@@ -460,6 +490,7 @@ function App() {
     const performSync = async () => {
       if (isSyncing) return;
       isSyncing = true;
+      window.dispatchEvent(new Event('shop-sync-start'));
 
       try {
         const forcePull = localStorage.getItem('shop_sync_force_pull') === 'true';
@@ -509,6 +540,7 @@ function App() {
         console.error('Cloud Sync background check error:', err);
       } finally {
         isSyncing = false;
+        window.dispatchEvent(new Event('shop-sync-end'));
       }
     };
 
@@ -517,7 +549,19 @@ function App() {
 
     // Poll every 15 seconds
     const interval = setInterval(performSync, 15000);
-    return () => clearInterval(interval);
+
+    const handleManualSync = () => {
+      performSync();
+    };
+
+    window.addEventListener('trigger-shop-sync', handleManualSync);
+    window.addEventListener('online', handleManualSync);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('trigger-shop-sync', handleManualSync);
+      window.removeEventListener('online', handleManualSync);
+    };
   }, []);
 
   // Apply theme settings to root HTML element (UI/UX Designer & Architect)
@@ -626,18 +670,25 @@ function App() {
       saveCloudDoc('sales', newSale.id, newSale);
     }
 
-    // Award loyalty points
+    // Award and deduct loyalty points
     if (newSale.customerId) {
       const pointsEarned = Math.floor(newSale.total / settings.loyaltyPointValue);
-      if (pointsEarned > 0) {
-        setCustomers(prevCust => prevCust.map(c => {
-          if (c.id === newSale.customerId) {
-            const updated = { ...c, loyaltyPoints: c.loyaltyPoints + pointsEarned };
-            saveCloudDoc('customers', updated.id, updated);
-            return updated;
-          }
-          return c;
-        }));
+      const pointsRedeemed = newSale.loyaltyPointsRedeemed || 0;
+      
+      setCustomers(prevCust => prevCust.map(c => {
+        if (c.id === newSale.customerId) {
+          const updated = { 
+            ...c, 
+            loyaltyPoints: Math.max(0, c.loyaltyPoints + pointsEarned - pointsRedeemed) 
+          };
+          saveCloudDoc('customers', updated.id, updated);
+          return updated;
+        }
+        return c;
+      }));
+
+      if (pointsRedeemed > 0) {
+        addAuditLog('LOYALTY_REDEMPTION', `Redeemed ${pointsRedeemed} points for Rs. ${newSale.loyaltyRedemptionDiscount} on sale ${newSale.id}.`);
       }
     }
 
@@ -1301,14 +1352,14 @@ function App() {
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
-  // Mobile bottom nav tabs — the 5 most important
+  // Mobile bottom nav tabs — the 5 most important, filtered by permissions
   const mobileNavItems = [
     { key: 'pos', icon: ShoppingCart, label: language === 'en' ? 'POS' : 'POS' },
     { key: 'dashboard', icon: TrendingUp, label: language === 'en' ? 'Dash' : 'ප්‍රධාන' },
     { key: 'inventory', icon: Laptop, label: language === 'en' ? 'Stock' : 'තොග' },
     { key: 'contacts', icon: Users, label: language === 'en' ? 'People' : 'ජනයා' },
     { key: 'more', icon: Menu, label: language === 'en' ? 'More' : 'තව' },
-  ];
+  ].filter(item => item.key === 'more' || isTabAllowed(item.key));
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-between text-slate-800">
@@ -1907,7 +1958,7 @@ function App() {
                 { key: 'settings', icon: Settings, label: language === 'en' ? 'Settings' : 'සිටින්ස්', color: 'text-slate-600 bg-slate-100' },
                 { key: 'insights', icon: Layers, label: language === 'en' ? 'Insights' : 'නිර්මාණ', color: 'text-indigo-600 bg-indigo-50' },
                 { key: 'backup', icon: Download, label: language === 'en' ? 'Backup' : 'උපස්ථ', color: 'text-emerald-650 bg-emerald-50' },
-              ].map(item => {
+              ].filter(item => isTabAllowed(item.key)).map(item => {
                 const Icon = item.icon;
                 return (
                   <button

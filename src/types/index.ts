@@ -118,6 +118,8 @@ export interface Sale {
   ssclTotal: number;
   paymentMethod: 'Cash' | 'Card' | 'Online Transfer' | 'Pending';
   loyaltyPointsEarned: number;
+  loyaltyPointsRedeemed?: number;
+  loyaltyRedemptionDiscount?: number;
   createdAt: string;
   isOfflinePending?: boolean; // True if saved offline and waiting to sync
   paymentReference?: string; // Card/Bank transaction details

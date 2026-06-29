@@ -666,8 +666,12 @@ export const Storefront: React.FC<StorefrontProps> = ({
         </div>
         <div className="p-4 flex flex-col flex-1 justify-between space-y-3">
           <div>
-            <span className="text-[9px] font-black tracking-wider uppercase text-slate-400 block mb-1">{product.category}</span>
-            <h3 className="text-xs font-extrabold text-slate-800 line-clamp-2 leading-snug mb-1.5 group-hover:text-slate-955 transition-colors">{product.nameEn}</h3>
+            <span className="text-[9px] font-black tracking-wider uppercase text-slate-400 block mb-1">
+              {(translations[language] as any)[product.category] || product.category}
+            </span>
+            <h3 className="text-xs font-extrabold text-slate-800 line-clamp-2 leading-snug mb-1.5 group-hover:text-slate-955 transition-colors">
+              {language === 'si' ? (product.nameSi || product.nameEn) : product.nameEn}
+            </h3>
             <div className="flex items-center justify-between mt-1 text-[9px] font-extrabold uppercase tracking-wide">
               <div className="flex items-center space-x-1">
                 {renderStars(ratingVal)}
@@ -807,7 +811,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
           <div className="flex items-center space-x-3 shrink-0">
             <button
               onClick={() => setLanguage(language === 'en' ? 'si' : 'en')}
-              className={`hidden md:flex items-center space-x-1.5 px-3.5 py-2.5 rounded-2xl text-xs font-extrabold transition shadow-sm border ${
+              className={`flex items-center space-x-1.5 px-3.5 py-2.5 rounded-2xl text-xs font-extrabold transition shadow-sm border ${
                 isHeaderDark 
                   ? 'bg-slate-900 border-slate-800/60 hover:bg-slate-850 text-slate-200 hover:text-white' 
                   : 'bg-white border-slate-100 hover:bg-slate-50 text-slate-750'
