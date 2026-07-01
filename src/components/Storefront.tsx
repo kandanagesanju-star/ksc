@@ -457,6 +457,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
         return [...prev, { product, quantity: product.isWeighted ? 0.25 : 1 }];
       }
     });
+    setIsCartOpen(true); // Automatically slide open cart drawer for immediate visibility
   };
 
   // Update cart item quantity
@@ -712,23 +713,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
   return (
     <div className="relative -mt-4 -mx-3 sm:-mx-6 lg:-mx-8">
 
-      {/* ── TOP USP BAR ─────────────────────────────────────────────────────── */}
-      <div className="bg-slate-955 text-slate-300 text-[11px] font-semibold py-2.5 px-4 border-b border-white/5">
-        <div className="max-w-7xl mx-auto flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center space-x-5">
-            <span className="flex items-center space-x-1.5 transition hover:text-white cursor-default">
-              <Truck className="h-3.5 w-3.5 text-slate-400" />
-              <span className="font-bold">{language === 'en' ? 'Islandwide Delivery' : 'ලංකාව පුරා'}</span>
-            </span>
-            <span className="hidden sm:flex items-center space-x-1.5 transition hover:text-white cursor-default">
-              <CreditCard className="h-3.5 w-3.5 text-slate-400" />
-              <span className="font-bold">{language === 'en' ? 'Cash on Delivery' : 'COD'}</span>
-            </span>
-            <span className="hidden md:flex items-center space-x-1.5 transition hover:text-white cursor-default">
-              <RotateCcw className="h-3.5 w-3.5 text-slate-400" />
-              <span className="font-bold">{language === 'en' ? 'Easy Returns' : 'ආපසු ගෙවීම'}</span>
-            </span>
-            <span className="hidden lg:flex items-center space-x-1.5 transition hover:text-white cursor-default">
+      {/* ── TOP USP BAR ───────────────────────────────────────────            <span className="hidden lg:flex items-center space-x-1.5 transition hover:text-white cursor-default">
               <ShieldCheck className="h-3.5 w-3.5 text-slate-400" />
               <span className="font-bold">{language === 'en' ? '100% Secure' : 'ආරක්ෂිත'}</span>
             </span>
@@ -753,41 +738,86 @@ export const Storefront: React.FC<StorefrontProps> = ({
       </div>
 
       {/* ── MAIN HEADER ─────────────────────────────────────────────────────── */}
-      <div className={`${settings.onlineHeaderBgColor || 'bg-slate-900'} text-white shadow-lg border-b ${isHeaderDark ? 'border-slate-800/80' : 'border-slate-200'} py-4 px-4 transition-all duration-300`}>
-        <div className="max-w-7xl mx-auto flex items-center gap-4">
-          {/* Logo */}
-          <div className="flex items-center space-x-3 shrink-0">
-            {settings.onlineStoreLogoUrl ? (
-              <div className="relative group shrink-0">
-                <div className={`absolute -inset-0.5 rounded-xl bg-gradient-to-tr ${theme.gradientFrom} ${theme.gradientTo} opacity-30 blur group-hover:opacity-60 transition duration-500`}></div>
-                <img 
-                  src={settings.onlineStoreLogoUrl} 
-                  alt={settings.onlineStoreName || settings.shopName} 
-                  className="relative h-11 w-auto max-w-[130px] object-contain rounded-xl shadow-md bg-white border border-white/20 p-0.5 transition duration-300 group-hover:scale-105" 
-                />
+      <div className={`${settings.onlineHeaderBgColor || 'bg-slate-900'} text-white shadow-lg border-b ${isHeaderDark ? 'border-slate-800/80' : 'border-slate-205'} py-3 px-4 transition-all duration-300`}>
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center gap-3.5 md:gap-4">
+          
+          {/* Top Row: Logo & Right Controls on Mobile */}
+          <div className="flex items-center justify-between w-full md:w-auto gap-4">
+            {/* Logo */}
+            <div className="flex items-center space-x-3 shrink-0">
+              {settings.onlineStoreLogoUrl ? (
+                <div className="relative group shrink-0">
+                  <div className={`absolute -inset-0.5 rounded-xl bg-gradient-to-tr ${theme.gradientFrom} ${theme.gradientTo} opacity-30 blur group-hover:opacity-60 transition duration-500`}></div>
+                  <img 
+                    src={settings.onlineStoreLogoUrl} 
+                    alt={settings.onlineStoreName || settings.shopName} 
+                    className="relative h-10 md:h-11 w-auto max-w-[100px] md:max-w-[130px] object-contain rounded-xl shadow-md bg-white border border-white/20 p-0.5 transition duration-300 group-hover:scale-105" 
+                  />
+                </div>
+              ) : null}
+              <div className="text-left">
+                <div className={`text-base md:text-xl font-black leading-tight tracking-tight ${isHeaderDark ? 'text-white' : theme.text} font-outfit`}>
+                  {settings.onlineStoreName || settings.shopName}
+                </div>
+                <div className={`text-[9px] md:text-[10px] font-bold mt-0.5 tracking-wide ${isHeaderDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  {settings.onlineTagline || 'Best Prices · Trusted Quality'}
+                </div>
               </div>
-            ) : null}
-            <div className="text-left">
-              <div className={`text-xl font-black leading-tight tracking-tight ${isHeaderDark ? 'text-white' : theme.text} font-outfit`}>
-                {settings.onlineStoreName || settings.shopName}
-              </div>
-              <div className={`text-[10px] font-bold mt-0.5 tracking-wide ${isHeaderDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                {settings.onlineTagline || 'Best Prices · Trusted Quality'}
-              </div>
+            </div>
+
+            {/* Mobile Controls (Language & Cart & Account icon) */}
+            <div className="flex items-center space-x-2 shrink-0 md:hidden">
+              <button
+                onClick={() => setLanguage(language === 'en' ? 'si' : 'en')}
+                className={`flex items-center justify-center p-2 rounded-xl text-xs font-extrabold transition shadow-sm border ${
+                  isHeaderDark 
+                    ? 'bg-slate-900 border-slate-800/60 hover:bg-slate-850 text-slate-205 hover:text-white' 
+                    : 'bg-white border-slate-100 hover:bg-slate-50 text-slate-750'
+                }`}
+                title={language === 'en' ? 'සිංහල' : 'English'}
+              >
+                <Languages className={`h-4 w-4 ${isHeaderDark ? 'text-white' : theme.text}`} />
+              </button>
+              
+              <button
+                onClick={() => setShowCustomerPortal(true)}
+                className={`flex items-center justify-center p-2 rounded-xl text-xs font-extrabold border transition shadow-sm ${
+                  loggedInCustomer 
+                    ? 'bg-emerald-600 border-emerald-500 text-white shadow-emerald-500/10' 
+                    : isHeaderDark 
+                      ? 'bg-slate-900 text-slate-205 border-slate-800 hover:bg-slate-850 hover:text-white' 
+                      : 'bg-white border-slate-100 text-slate-750 hover:bg-slate-50'
+                }`}
+                title={loggedInCustomer ? loggedInCustomer.name : (language === 'en' ? 'Account' : 'ගිණුම')}
+              >
+                <User className="h-4 w-4 shrink-0" />
+              </button>
+
+              <button
+                onClick={() => setIsCartOpen(true)}
+                className={`relative flex items-center justify-center p-2 ${theme.bg} ${theme.hoverBg} text-white rounded-xl text-xs font-bold shadow-lg ${theme.shadow} hover:shadow-xl transition-all duration-300 active:scale-95 cursor-pointer`}
+              >
+                <ShoppingCart className="h-4.5 w-4.5" />
+                {cart.length > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[8px] font-black w-4.5 h-4.5 rounded-full flex items-center justify-center animate-bounce shadow-md border-2 border-white">
+                    {cart.length}
+                  </span>
+                )}
+              </button>
             </div>
           </div>
 
           {/* Search Bar */}
-          <div className="flex-1 max-w-2xl">
+          <div className="w-full md:flex-1 md:max-w-2xl">
             <div className={`flex items-center border ${isHeaderDark ? 'border-white/10' : 'border-slate-200'} focus-within:ring-2 focus-within:${theme.focusRing} focus-within:border-transparent rounded-2xl overflow-hidden shadow-sm transition duration-300 ${isHeaderDark ? 'bg-slate-900/60' : 'bg-slate-50/80'}`}>
               <select
                 value={selectedCategory}
                 onChange={e => setSelectedCategory(e.target.value as any)}
-                className={`px-4 py-2.5 text-xs font-bold ${
+                className={`px-2 md:px-4 py-2.5 text-[10px] md:text-xs font-bold ${
                   isHeaderDark 
                     ? 'text-slate-300 bg-slate-900 border-r border-white/10' 
                     : 'text-slate-700 bg-slate-100 border-r border-slate-200'
-                } focus:outline-none shrink-0 cursor-pointer hover:bg-opacity-80 transition`}
+                } focus:outline-none shrink-0 cursor-pointer hover:bg-opacity-80 transition max-w-[100px] md:max-w-none`}
               >
                 <option value="All" className={isHeaderDark ? 'bg-slate-950 text-slate-200' : 'bg-white text-slate-700'}>{t.allCategories}</option>
                 {categories.map(c => <option key={c} value={c} className={isHeaderDark ? 'bg-slate-950 text-slate-200' : 'bg-white text-slate-700'}>{c}</option>)}
@@ -797,18 +827,18 @@ export const Storefront: React.FC<StorefrontProps> = ({
                 placeholder={language === 'en' ? 'Search products, brands and categories...' : 'භාණ්ඩ, බ්‍රෑන්ඩ් සහ කාණ්ඩ සොයන්න...'}
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className={`flex-1 px-4 py-2.5 text-sm focus:outline-none ${
+                className={`flex-1 px-3 py-2 text-xs md:text-sm focus:outline-none min-w-0 ${
                   isHeaderDark ? 'bg-transparent text-white placeholder-slate-400' : 'bg-transparent text-slate-800 placeholder-slate-400'
                 }`}
               />
-              <button className={`${theme.bg} ${theme.hoverBg} text-white px-5 py-2.5 flex items-center justify-center transition duration-300 hover:scale-105 active:scale-95 shrink-0 cursor-pointer`}>
-                <Search className="h-4.5 w-4.5 font-bold" />
+              <button className={`${theme.bg} ${theme.hoverBg} text-white px-4 md:px-5 py-2.5 flex items-center justify-center transition duration-300 hover:scale-105 active:scale-95 shrink-0 cursor-pointer`}>
+                <Search className="h-4 w-4" />
               </button>
             </div>
           </div>
 
-          {/* Right Controls */}
-          <div className="flex items-center space-x-3 shrink-0">
+          {/* Desktop Controls (hidden on Mobile) */}
+          <div className="hidden md:flex items-center space-x-3 shrink-0">
             <button
               onClick={() => setLanguage(language === 'en' ? 'si' : 'en')}
               className={`flex items-center space-x-1.5 px-3.5 py-2.5 rounded-2xl text-xs font-extrabold transition shadow-sm border ${
@@ -822,11 +852,11 @@ export const Storefront: React.FC<StorefrontProps> = ({
             </button>
             <button
               onClick={() => setShowCustomerPortal(true)}
-              className={`hidden sm:flex items-center space-x-2 px-3.5 py-2.5 rounded-2xl text-xs font-extrabold border transition shadow-sm ${
+              className={`flex items-center space-x-2 px-3.5 py-2.5 rounded-2xl text-xs font-extrabold border transition shadow-sm ${
                 loggedInCustomer 
                   ? 'bg-emerald-600 border-emerald-500 text-white shadow-emerald-500/10' 
                   : isHeaderDark 
-                    ? 'bg-slate-900 text-slate-200 border-slate-800 hover:bg-slate-850 hover:text-white' 
+                    ? 'bg-slate-900 text-slate-205 border-slate-800 hover:bg-slate-850 hover:text-white' 
                     : 'bg-white border-slate-100 text-slate-750 hover:bg-slate-50'
               }`}
             >
@@ -841,7 +871,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
               className={`relative flex items-center space-x-2.5 px-4 py-2.5 ${theme.bg} ${theme.hoverBg} text-white rounded-2xl text-xs font-bold shadow-lg ${theme.shadow} hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300 active:scale-95 cursor-pointer`}
             >
               <ShoppingCart className="h-4.5 w-4.5" />
-              <div className="text-left hidden sm:block leading-none">
+              <div className="text-left leading-none">
                 <div className="text-[8px] opacity-80 uppercase font-semibold tracking-wider">{cart.length} {language === 'en' ? 'items' : 'ද්‍රව්‍ය'}</div>
                 <div className="font-black text-[11px] mt-0.5">Rs. {cartTotals.total.toLocaleString()}</div>
               </div>

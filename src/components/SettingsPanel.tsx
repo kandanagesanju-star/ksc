@@ -253,11 +253,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     if (!onGetCompleteDatabaseState) return;
     setBulkUploadStatus('loading');
     setBulkUploadMsg(language === 'en' ? 'Uploading database to cloud...' : 'දත්ත සමුදාය Cloud එකට අප්ලෝඩ් වෙමින් පවතී...');
+    window.dispatchEvent(new Event('shop-sync-start'));
     
     try {
       const state = onGetCompleteDatabaseState();
       // Add timestamp
-      state.lastUpdated = Date.now();
+      const newTimestamp = Date.now();
+      state.lastUpdated = newTimestamp;
       const res = await pushLocalStateToCloud(syncId, state);
       if (res.shopId && res.shopId !== syncId) {
         setSyncId(res.shopId);
@@ -265,12 +267,18 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       }
       setIsPrivateCloud(res.isPrivate);
       localStorage.setItem('shop_sync_private', res.isPrivate ? 'true' : 'false');
+      
+      localStorage.setItem('shop_last_updated', newTimestamp.toString());
+      localStorage.setItem('shop_last_sync_time', newTimestamp.toString());
+      
       setBulkUploadStatus('success');
       setBulkUploadMsg(language === 'en' ? 'All products and settings uploaded successfully!' : 'සියලුම භාණ්ඩ සහ සැකසුම් සාර්ථකව අප්ලෝඩ් කරන ලදී!');
+      window.dispatchEvent(new Event('shop-sync-end'));
     } catch (err: any) {
       console.error(err);
       setBulkUploadStatus('error');
       setBulkUploadMsg(language === 'en' ? `Upload failed: ${err.message}` : `අප්ලෝඩ් කිරීම අසාර්ථක විය: ${err.message}`);
+      window.dispatchEvent(new Event('shop-sync-end'));
     }
   };
 
@@ -1922,8 +1930,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                     }`}
                   >
                     {isSyncEnabled 
-                      ? (language === 'en' ? 'Disable Live Sync' : 'සමමුහුර්තකරණය අක්‍රිය කරන්න') 
-                      : (language === 'en' ? 'Enable Live Sync' : 'සමමුහුර්තකරණය සක්‍රිය කරන්න')}
+                      ? (language === 'en' ? 'Live Sync: ON' : 'Live Sync: ක්‍රියාත්මකයි') 
+                      : (language === 'en' ? 'Live Sync: OFF' : 'Live Sync: අක්‍රියයි')}
                   </button>
 
                   <button
@@ -1933,8 +1941,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                     className="flex-1 bg-slate-800 hover:bg-slate-900 text-white py-1.5 rounded-lg text-[10px] font-bold disabled:opacity-50 transition cursor-pointer"
                   >
                     {bulkUploadStatus === 'loading' 
-                      ? (language === 'en' ? 'Syncing...' : 'Sync වෙමින්...') 
-                      : (language === 'en' ? 'Force Sync Now' : 'දත්ත දැන්ම Sync කරන්න')}
+                      ? (language === 'en' ? 'Uploading...' : 'අප්ලෝඩ් වෙමින්...') 
+                      : (language === 'en' ? 'Upload Sync Now' : 'අප්ලෝඩ් Sync Now')}
                   </button>
                 </div>
               </form>

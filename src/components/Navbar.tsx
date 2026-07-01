@@ -90,6 +90,12 @@ export const Navbar: React.FC<NavbarProps> = ({
     window.dispatchEvent(new Event('trigger-shop-sync'));
   };
 
+  const handleUploadSyncNow = () => {
+    if (isSyncing || !isOnline) return;
+    setIsSyncing(true);
+    window.dispatchEvent(new Event('trigger-shop-upload'));
+  };
+
   // Customer Portal states (local form input states)
   const [customerMobile, setCustomerMobile] = useState('');
   const [customerName, setCustomerName] = useState('');
@@ -362,7 +368,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       onClick={handleManualSyncNow}
                       disabled={isSyncing || !isOnline}
                       className="p-0.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-blue-400 transition cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
-                      title={language === 'en' ? 'Sync Live Database Now' : 'දැන්ම සමමුහුර්ත කරන්න'}
+                      title={language === 'en' ? 'Live Sync (Check Cloud)' : 'Live Sync (Cloud පරීක්ෂා කරන්න)'}
                     >
                       <RefreshCw className={`h-3 w-3 ${isSyncing ? 'animate-spin text-blue-400' : ''}`} />
                     </button>
@@ -376,18 +382,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                         </div>
                         <div className="space-y-1">
                           <p className="text-[10px]"><span className="text-slate-500 font-bold">{language === 'en' ? 'Sync ID:' : 'ID අංකය:'}</span> <code className="bg-slate-950 px-1 py-0.5 rounded text-blue-400 select-all font-mono">{syncId ? `${syncId.slice(0, 8)}...` : 'N/A'}</code></p>
+                          <p className="text-[10px]"><span className="text-slate-500 font-bold">{language === 'en' ? 'Live Sync:' : 'Live Sync:'}</span> <span className={syncEnabled ? 'text-emerald-400' : 'text-rose-450'}>{syncEnabled ? (language === 'en' ? 'ON' : 'ක්‍රියාත්මකයි') : (language === 'en' ? 'OFF' : 'අක්‍රියයි')}</span></p>
                           <p className="text-[10px]"><span className="text-slate-500 font-bold">{language === 'en' ? 'Private Cloud:' : 'පෞද්ගලික වලාකුළු:'}</span> <span className={isPrivate ? 'text-emerald-400' : 'text-slate-400'}>{isPrivate ? (language === 'en' ? 'Yes' : 'ඔව්') : (language === 'en' ? 'No (Public)' : 'නැත (පොදු)')}</span></p>
                           <p className="text-[10px]"><span className="text-slate-500 font-bold">{language === 'en' ? 'Connection:' : 'සම්බන්ධතාවය:'}</span> <span className={isOnline ? 'text-emerald-400' : 'text-rose-500'}>{isOnline ? (language === 'en' ? 'Connected' : 'සම්බන්ධයි') : (language === 'en' ? 'Disconnected' : 'විසන්ධි වී ඇත')}</span></p>
                         </div>
                         <button
                           onClick={() => {
-                            handleManualSyncNow();
+                            handleUploadSyncNow();
                             setShowSyncPopover(false);
                           }}
                           disabled={isSyncing || !isOnline}
                           className="w-full mt-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-1.5 rounded-lg text-[10px] transition active:scale-95 text-center disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                         >
-                          {language === 'en' ? 'Force Sync Now' : 'දැන්ම සමමුහුර්ත කරන්න'}
+                          {language === 'en' ? 'Upload Sync Now' : 'අප්ලෝඩ් Sync Now'}
                         </button>
                       </div>
                     )}

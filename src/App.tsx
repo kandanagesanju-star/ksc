@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Navbar } from './components/Navbar';
 import { Storefront } from './components/Storefront';
 import { POS } from './components/POS';
@@ -466,18 +466,55 @@ function App() {
     localStorage.setItem('shop_admin_tab', adminTab);
   }, [adminTab]);
 
-  // Update local lastUpdated timestamp whenever the user performs an action in the UI
+  // Synchronizer refs to prevent loops and intervals re-registering
+  const isPullingRef = useRef(false);
+  const isFirstMountRef = useRef(true);
+  const lastCheckedCloudTime = useRef<number | null>(null);
+  
+  const productsRef = useRef(products);
+  const salesRef = useRef(sales);
+  
   useEffect(() => {
-    const handleUserAction = () => {
-      localStorage.setItem('shop_last_updated', Date.now().toString());
-    };
-    window.addEventListener('click', handleUserAction);
-    window.addEventListener('keydown', handleUserAction);
-    return () => {
-      window.removeEventListener('click', handleUserAction);
-      window.removeEventListener('keydown', handleUserAction);
-    };
+    productsRef.current = products;
+  }, [products]);
+  
+  useEffect(() => {
+    salesRef.current = sales;
+  }, [sales]);
+
+  // Initialize shop_last_sync_time if not set
+  useEffect(() => {
+    const lastSyncTimeStr = localStorage.getItem('shop_last_sync_time');
+    if (!lastSyncTimeStr) {
+      const currentUpdated = localStorage.getItem('shop_last_updated') || '0';
+      localStorage.setItem('shop_last_sync_time', currentUpdated);
+    }
   }, []);
+
+  // Monitor database state changes to update local modification timestamp
+  useEffect(() => {
+    if (isFirstMountRef.current) {
+      isFirstMountRef.current = false;
+      return;
+    }
+    if (isPullingRef.current) return;
+    localStorage.setItem('shop_last_updated', Date.now().toString());
+  }, [
+    products,
+    customers,
+    suppliers,
+    repairs,
+    sales,
+    employees,
+    attendance,
+    commissions,
+    specialOrders,
+    expenses,
+    stockAdjustments,
+    stockReturns,
+    quotations,
+    settings
+  ]);
 
   // Timestamp-Based Zero-Setup Cloud Synchronizer
   useEffect(() => {
@@ -496,6 +533,8 @@ function App() {
         const forcePull = localStorage.getItem('shop_sync_force_pull') === 'true';
         const localTimeStr = localStorage.getItem('shop_last_updated') || '0';
         const localTime = parseInt(localTimeStr, 10);
+        const lastSyncTimeStr = localStorage.getItem('shop_last_sync_time') || '0';
+        const lastSyncTime = parseInt(lastSyncTimeStr, 10);
 
         // 1. Fetch cloud metadata timestamp
         const cloudMeta = await getCloudSyncTimestamp(syncId);
@@ -514,26 +553,89 @@ function App() {
           localStorage.removeItem('shop_sync_force_pull');
         } else if (!cloudMeta.found) {
           // Cloud has no data yet (first time set up)
-          // Push local database state to cloud
-          const completeState: any = getCompleteDatabaseState();
-          completeState.lastUpdated = localTime || Date.now();
-          const res = await pushLocalStateToCloud(syncId, completeState);
-          if (res.shopId && res.shopId !== syncId) {
-            localStorage.setItem('shop_sync_id', res.shopId);
+          // Push local database state to cloud (only if initialization is needed)
+          if (lastSyncTime === 0) {
+            const completeState: any = getCompleteDatabaseState();
+            const newTime = Date.now();
+            completeState.lastUpdated = newTime;
+            const res = await pushLocalStateToCloud(syncId, completeState);
+            if (res.shopId && res.shopId !== syncId) {
+              localStorage.setItem('shop_sync_id', res.shopId);
+            }
+            localStorage.setItem('shop_last_updated', newTime.toString());
+            localStorage.setItem('shop_last_sync_time', newTime.toString());
           }
-        } else if (cloudMeta.lastUpdated > localTime) {
-          // Cloud is newer -> Download full state and restore locally
+        } else if (cloudMeta.lastUpdated > lastSyncTime) {
+          // Cloud has a newer update than this device last saw
+          const hasLocalUnsavedChanges = localTime > lastSyncTime;
+          
+          if (hasLocalUnsavedChanges) {
+            // Conflict! Both cloud and local have changes.
+            if (lastCheckedCloudTime.current === cloudMeta.lastUpdated) {
+              // Already prompted for this cloud version, skip to avoid prompt loop
+              return;
+            }
+            lastCheckedCloudTime.current = cloudMeta.lastUpdated;
+            
+            const cloudProducts = cloudMeta.productsCount || 0;
+            const cloudSales = cloudMeta.salesCount || 0;
+            const cloudSizeKb = cloudMeta.dataSize ? (cloudMeta.dataSize / 1024).toFixed(1) : 'N/A';
+            const cloudDate = new Date(cloudMeta.lastUpdated).toLocaleString(language === 'si' ? 'si-LK' : 'en-US');
+            
+            const localProducts = productsRef.current.length;
+            const localSales = salesRef.current.length;
+            const localJson = JSON.stringify(getCompleteDatabaseState());
+            const localSizeKb = (localJson.length / 1024).toFixed(1);
+            const localDate = new Date(localTime).toLocaleString(language === 'si' ? 'si-LK' : 'en-US');
+            
+            const confirmMessage = language === 'en'
+              ? `⚠️ Sync Conflict Detected!
+The cloud database has been updated by another device.
+
+Cloud Version:
+- Last Saved: ${cloudDate}
+- Products: ${cloudProducts}
+- Sales: ${cloudSales}
+- Size: ${cloudSizeKb} KB
+
+Your Local Version (with unsaved changes):
+- Last Modified: ${localDate}
+- Products: ${localProducts}
+- Sales: ${localSales}
+- Size: ${localSizeKb} KB
+
+Would you like to PULL the cloud version and OVERWRITE your local changes?
+Click 'OK' to replace local data with cloud data.
+Click 'Cancel' to keep your local changes (you can upload them manually using 'Upload Sync Now').`
+              : `⚠️ සමමුහුර්ත ගැටුමක් හඳුනා ගන්නා ලදී!
+Cloud දත්ත සමුදාය වෙනත් උපාංගයකින් යාවත්කාලීන කර ඇත.
+
+Cloud පිටපත (නවීන):
+- අවසන් වරට අප්ලෝඩ් කළේ: ${cloudDate}
+- භාණ්ඩ ගණන: ${cloudProducts}
+- විකුණුම් ගණන: ${cloudSales}
+- ධාරිතාව: ${cloudSizeKb} KB
+
+ඔබගේ උපාංගයේ පිටපත (සුරැකීමට නොහැකි වූ දත්ත සහිත):
+- අවසන් වරට වෙනස් කළේ: ${localDate}
+- භාණ්ඩ ගණන: ${localProducts}
+- විකුණුම් ගණන: ${localSales}
+- ධාරිතාව: ${localSizeKb} KB
+
+ඔබට Cloud පිටපත ලබාගෙන ඔබගේ දේශීය දත්ත වෙනස්කම් මකාදැමීමට අවශ්‍යද?
+Cloud පිටපත ලබා ගැනීමට 'OK' ඔබන්න (දේශීය දත්ත මකාදැමෙනු ඇත).
+දේශීය දත්ත තබා ගැනීමට 'Cancel' ඔබන්න (ඔබට 'Upload Sync Now' මඟින් ඒවා පසුව Cloud එකට යැවිය හැක).`;
+            
+            const pull = window.confirm(confirmMessage);
+            if (!pull) {
+              return;
+            }
+          }
+          
+          // Pull cloud state
           const cloudState = await getCloudSyncState(syncId);
           if (cloudState) {
             handleSyncPullUpdate(cloudState);
-          }
-        } else if (localTime > cloudMeta.lastUpdated) {
-          // Local is newer -> Upload full local state to cloud
-          const completeState: any = getCompleteDatabaseState();
-          completeState.lastUpdated = localTime;
-          const res = await pushLocalStateToCloud(syncId, completeState);
-          if (res.shopId && res.shopId !== syncId) {
-            localStorage.setItem('shop_sync_id', res.shopId);
           }
         }
       } catch (err) {
@@ -554,12 +656,39 @@ function App() {
       performSync();
     };
 
+    const handleManualUploadToCloud = async () => {
+      if (isSyncing) return;
+      isSyncing = true;
+      window.dispatchEvent(new Event('shop-sync-start'));
+      try {
+        const state = getCompleteDatabaseState();
+        const newTimestamp = Date.now();
+        state.lastUpdated = newTimestamp;
+        const res = await pushLocalStateToCloud(syncId, state);
+        if (res.shopId && res.shopId !== syncId) {
+          localStorage.setItem('shop_sync_id', res.shopId);
+        }
+        localStorage.setItem('shop_last_updated', newTimestamp.toString());
+        localStorage.setItem('shop_last_sync_time', newTimestamp.toString());
+        
+        alert(language === 'en' ? 'Successfully uploaded database to cloud!' : 'දත්ත සමුදාය සාර්ථකව Cloud එකට අප්ලෝඩ් කරන ලදී!');
+      } catch (err: any) {
+        console.error(err);
+        alert(language === 'en' ? `Upload failed: ${err.message}` : `අප්ලෝඩ් කිරීම අසාර්ථක විය: ${err.message}`);
+      } finally {
+        isSyncing = false;
+        window.dispatchEvent(new Event('shop-sync-end'));
+      }
+    };
+
     window.addEventListener('trigger-shop-sync', handleManualSync);
+    window.addEventListener('trigger-shop-upload', handleManualUploadToCloud);
     window.addEventListener('online', handleManualSync);
 
     return () => {
       clearInterval(interval);
       window.removeEventListener('trigger-shop-sync', handleManualSync);
+      window.removeEventListener('trigger-shop-upload', handleManualUploadToCloud);
       window.removeEventListener('online', handleManualSync);
     };
   }, []);
@@ -1257,6 +1386,7 @@ function App() {
   };
 
   const handleSyncPullUpdate = (data: any) => {
+    isPullingRef.current = true;
     if (data.products) setProducts(data.products);
     if (data.customers) setCustomers(data.customers);
     if (data.suppliers) setSuppliers(data.suppliers);
@@ -1271,9 +1401,14 @@ function App() {
     if (data.stockReturns) setStockReturns(data.stockReturns);
     if (data.quotations) setQuotations(data.quotations);
     if (data.settings) setSettings(data.settings);
-    if (data.lastUpdated) {
-      localStorage.setItem('shop_last_updated', data.lastUpdated.toString());
-    }
+    
+    const timestamp = data.lastUpdated ? data.lastUpdated.toString() : Date.now().toString();
+    localStorage.setItem('shop_last_updated', timestamp);
+    localStorage.setItem('shop_last_sync_time', timestamp);
+    
+    setTimeout(() => {
+      isPullingRef.current = false;
+    }, 200);
   };
 
   const handleExportBackup = () => {

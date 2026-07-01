@@ -9,6 +9,9 @@ export interface SyncResponse {
   found: boolean;
   lastUpdated: number;
   isPrivate: boolean;
+  dataSize?: number;
+  productsCount?: number;
+  salesCount?: number;
 }
 
 const CHUNK_CHAR_LIMIT = 50000; // 50KB string slice size to guarantee bypass of 413 Payload Too Large limits
@@ -147,7 +150,10 @@ export const pushLocalStateToCloud = async (shopId: string, state: any): Promise
     const metaData = {
       lastUpdated: cleanState.lastUpdated,
       chunks: newChunkIds,
-      isChunked: true
+      isChunked: true,
+      dataSize: jsonString.length,
+      productsCount: cleanState.products?.length || 0,
+      salesCount: cleanState.sales?.length || 0
     };
 
     const isMainNew = !shopId || shopId === 'undefined' || shopId === 'null' || shopId.startsWith('ksc-');

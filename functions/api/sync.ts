@@ -43,7 +43,17 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
     const parsed = JSON.parse(data);
     if (timestampOnly) {
-      return new Response(JSON.stringify({ found: true, lastUpdated: parsed.lastUpdated || 0, isPrivate }), {
+      const dataSize = parsed.dataSize !== undefined ? parsed.dataSize : data.length;
+      const productsCount = parsed.productsCount !== undefined ? parsed.productsCount : (parsed.products?.length || 0);
+      const salesCount = parsed.salesCount !== undefined ? parsed.salesCount : (parsed.sales?.length || 0);
+      return new Response(JSON.stringify({
+        found: true,
+        lastUpdated: parsed.lastUpdated || 0,
+        isPrivate,
+        dataSize,
+        productsCount,
+        salesCount
+      }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
     }
