@@ -6,7 +6,8 @@ import {
   BarChart3, DollarSign, TrendingUp, AlertTriangle, Download, 
   FileSpreadsheet, ClipboardList, PieChart, ShieldAlert, CheckCircle,
   Clock, Award, Layers, Percent, Calendar, Heart, Shield, Package, UserX, UserCheck,
-  Printer, Receipt, ChevronDown, Filter, RefreshCw, Eye, X, ArrowRightLeft, Plus, Search
+  Printer, Receipt, ChevronDown, Filter, RefreshCw, Eye, X, ArrowRightLeft, Plus, Search,
+  Edit, Trash2
 } from 'lucide-react';
 
 interface ReportsPanelProps {
@@ -24,6 +25,9 @@ interface ReportsPanelProps {
   onWarrantyReplacement?: (r: WarrantyReplacement) => void;
   onAddStockReturn?: (ret: StockReturn) => void;
   onUpdateSale?: (sale: Sale) => void;
+  onDeleteSale?: (saleId: string) => void;
+  onUpdateExpense?: (expense: Expense) => void;
+  onDeleteExpense?: (expenseId: string) => void;
 }
 
 export const ReportsPanel: React.FC<ReportsPanelProps> = ({
@@ -40,7 +44,10 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
   warrantyReplacements = [],
   onWarrantyReplacement,
   onAddStockReturn,
-  onUpdateSale
+  onUpdateSale,
+  onDeleteSale,
+  onUpdateExpense,
+  onDeleteExpense
 }) => {
   const t = translations[language];
 
@@ -62,6 +69,86 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
 
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
   const [qrScanInput, setQrScanInput] = useState('');
+
+  // View & Edit modals for Expenses & Sales
+  const [viewingExpense, setViewingExpense] = useState<Expense | null>(null);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [editingSale, setEditingSale] = useState<Sale | null>(null);
+
+  // Edit Expense form states
+  const [editExpCategory, setEditExpCategory] = useState<Expense['category']>('Other');
+  const [editExpDescription, setEditExpDescription] = useState('');
+  const [editExpAmount, setEditExpAmount] = useState<number>(0);
+  const [editExpRecordedBy, setEditExpRecordedBy] = useState('');
+  const [editExpCreatedAt, setEditExpCreatedAt] = useState('');
+
+  // Edit Sale form states
+  const [editSaleCustomerName, setEditSaleCustomerName] = useState('');
+  const [editSalePaymentMethod, setEditSalePaymentMethod] = useState<'Cash' | 'Card' | 'Online Transfer' | 'Pending'>('Cash');
+  const [editSaleCreatedAt, setEditSaleCreatedAt] = useState('');
+  const [editSaleVat, setEditSaleVat] = useState<number>(0);
+  const [editSaleSscl, setEditSaleSscl] = useState<number>(0);
+
+  const openEditExpense = (expense: Expense) => {
+    setEditingExpense(expense);
+    setEditExpCategory(expense.category);
+    setEditExpDescription(expense.description);
+    setEditExpAmount(expense.amount);
+    setEditExpRecordedBy(expense.recordedBy);
+    setEditExpCreatedAt(expense.createdAt.split('T')[0]);
+  };
+
+  const openEditSale = (sale: Sale) => {
+    setEditingSale(sale);
+    setEditSaleCustomerName(sale.customerName || '');
+    setEditSalePaymentMethod(sale.paymentMethod);
+    setEditSaleCreatedAt(sale.createdAt.split('T')[0]);
+    setEditSaleVat(sale.vatTotal || 0);
+    setEditSaleSscl(sale.ssclTotal || 0);
+  };
+
+  const handleEditExpenseSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingExpense || !onUpdateExpense) return;
+
+    const updated: Expense = {
+      ...editingExpense,
+      category: editExpCategory,
+      description: editExpDescription.trim(),
+      amount: Number(editExpAmount),
+      recordedBy: editExpRecordedBy.trim() || 'Admin',
+      createdAt: editExpCreatedAt ? new Date(editExpCreatedAt).toISOString() : editingExpense.createdAt
+    };
+
+    onUpdateExpense(updated);
+    setEditingExpense(null);
+  };
+
+  const handleEditSaleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSale || !onUpdateSale) return;
+
+    const vatTotal = Number(editSaleVat);
+    const ssclTotal = Number(editSaleSscl);
+    const totalTax = vatTotal + ssclTotal;
+    const total = editingSale.subtotal + totalTax - editingSale.discount;
+    const profit = total - totalTax - editingSale.totalCost;
+
+    const updated: Sale = {
+      ...editingSale,
+      customerName: editSaleCustomerName.trim() || 'Walk-In Customer',
+      paymentMethod: editSalePaymentMethod,
+      createdAt: editSaleCreatedAt ? new Date(editSaleCreatedAt).toISOString() : editingSale.createdAt,
+      vatTotal,
+      ssclTotal,
+      totalTax,
+      total,
+      profit
+    };
+
+    onUpdateSale(updated);
+    setEditingSale(null);
+  };
 
   // Stock Report Pagination
   const [stockPage, setStockPage] = useState(1);
@@ -1392,12 +1479,13 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
                     <th className="py-3 px-4 text-right">SSCL 2.5%</th>
                     <th className="py-3 px-4 text-right">TOTAL TAX</th>
                     <th className="py-3 px-4 text-right">INVOICE TOTAL</th>
+                    <th className="py-3 px-4 text-center">ACTIONS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs font-semibold text-slate-700">
                   {filteredTaxSales.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="py-10 text-center">
+                      <td colSpan={9} className="py-10 text-center">
                         <div className="flex flex-col items-center gap-2 text-slate-400">
                           <ShieldAlert className="h-8 w-8 opacity-30" />
                           <p className="font-medium">No taxable sales for the selected period.</p>
@@ -1418,6 +1506,37 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
                           <td className="py-3 px-4 text-right font-bold text-violet-700">Rs. {(sale.ssclTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                           <td className="py-3 px-4 text-right font-extrabold text-amber-700">Rs. {(sale.totalTax || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                           <td className="py-3 px-4 text-right font-extrabold text-slate-800">Rs. {sale.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td className="py-3 px-4 text-center">
+                            <div className="flex justify-center items-center gap-1.5">
+                              <button
+                                onClick={() => setSelectedSale(sale)}
+                                className="p-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition"
+                                title={language === 'en' ? 'View Details' : 'විස්තර බලන්න'}
+                              >
+                                <Eye className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() => openEditSale(sale)}
+                                className="p-1 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition"
+                                title={language === 'en' ? 'Edit Details & Taxes' : 'විස්තර සහ බදු වෙනස් කරන්න'}
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                              </button>
+                              {onDeleteSale && (
+                                <button
+                                  onClick={() => {
+                                    if (confirm(language === 'en' ? `Are you sure you want to delete sales transaction "${sale.id}"? This will also remove all its tax records.` : `ඔබට "${sale.id}" බිල්පත සහ එහි බදු වාර්තා ඉවත් කිරීමට අවශ්‍ය බව ස්ථිරද?`)) {
+                                      onDeleteSale(sale.id);
+                                    }
+                                  }}
+                                  className="p-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg transition"
+                                  title={language === 'en' ? 'Delete Transaction' : 'ගනුදෙනුව ඉවත් කරන්න'}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
                         </tr>
                       );
                     })
@@ -1432,6 +1551,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
                       <td className="py-3.5 px-4 text-right">Rs. {taxSummary.totalSSCL.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                       <td className="py-3.5 px-4 text-right">Rs. {taxSummary.totalTax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                       <td className="py-3.5 px-4 text-right">Rs. {taxSummary.taxableRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                      <td className="py-3.5 px-4"></td>
                     </tr>
                   </tfoot>
                 )}
@@ -1477,29 +1597,61 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
                     <th className="py-4 px-6 text-right">AMOUNT</th>
                     <th className="py-4 px-6 text-center">RECORDED BY</th>
                     <th className="py-4 px-6 text-center">DATE</th>
+                    <th className="py-4 px-6 text-center">ACTIONS</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-xs font-semibold text-slate-700">
                   {filteredExpensesList.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-400">No matching expenses found.</td>
+                      <td colSpan={7} className="py-8 text-center text-slate-400">No matching expenses found.</td>
                     </tr>
                   ) : (
                     filteredExpensesList.map(e => (
                       <tr key={e.id} className="hover:bg-slate-50/50">
                         <td className="py-4 px-6 text-slate-400 font-bold">{e.id}</td>
-                      <td className="py-4 px-6">
-                        <span className="bg-slate-100 px-2.5 py-1 rounded text-[10px] font-bold">
-                          {e.category}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6 text-slate-700 font-medium">{e.description}</td>
-                      <td className="py-4 px-6 text-right font-extrabold text-rose-600">Rs. {e.amount.toLocaleString()}</td>
-                      <td className="py-4 px-6 text-center text-slate-500 font-medium">{e.recordedBy}</td>
-                      <td className="py-4 px-6 text-center text-slate-400 font-medium">{new Date(e.createdAt).toLocaleDateString()}</td>
-                    </tr>
-                  ))
-                )}
+                        <td className="py-4 px-6">
+                          <span className="bg-slate-100 px-2.5 py-1 rounded text-[10px] font-bold">
+                            {e.category}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6 text-slate-700 font-medium">{e.description}</td>
+                        <td className="py-4 px-6 text-right font-extrabold text-rose-600">Rs. {e.amount.toLocaleString()}</td>
+                        <td className="py-4 px-6 text-center text-slate-500 font-medium">{e.recordedBy}</td>
+                        <td className="py-4 px-6 text-center text-slate-400 font-medium">{new Date(e.createdAt).toLocaleDateString()}</td>
+                        <td className="py-4 px-6 text-center">
+                          <div className="flex justify-center items-center gap-1.5">
+                            <button
+                              onClick={() => setViewingExpense(e)}
+                              className="p-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition"
+                              title={language === 'en' ? 'View Details' : 'විස්තර බලන්න'}
+                            >
+                              <Eye className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => openEditExpense(e)}
+                              className="p-1 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded-lg transition"
+                              title={language === 'en' ? 'Edit Details' : 'වියදම් විස්තර වෙනස් කරන්න'}
+                            >
+                              <Edit className="h-3.5 w-3.5" />
+                            </button>
+                            {onDeleteExpense && (
+                              <button
+                                onClick={() => {
+                                  if (confirm(language === 'en' ? `Are you sure you want to delete expense ID "${e.id}"?` : `ඔබට "${e.id}" වියදම ඉවත් කිරීමට අවශ්‍ය බව ස්ථිරද?`)) {
+                                    onDeleteExpense(e.id);
+                                  }
+                                }}
+                                className="p-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded-lg transition"
+                                title={language === 'en' ? 'Delete Expense' : 'වියදම ඉවත් කරන්න'}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -2226,6 +2378,235 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
               </table>
             </div>
           </div>
+        </div>
+      )}
+
+      {viewingExpense && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-slate-950 text-white p-5 flex justify-between items-center">
+              <h3 className="text-sm font-bold flex items-center gap-1.5">
+                <ClipboardList className="h-4.5 w-4.5 text-blue-400" />
+                <span>{language === 'en' ? `Expense Details - ${viewingExpense.id}` : `වියදම් විස්තර - ${viewingExpense.id}`}</span>
+              </h3>
+              <button onClick={() => setViewingExpense(null)} className="text-slate-400 hover:text-white">✕</button>
+            </div>
+            <div className="p-6 space-y-4 text-xs font-semibold text-slate-700">
+              <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-2xl border border-slate-150">
+                <div>
+                  <p className="text-[10px] text-slate-455 uppercase font-bold tracking-wider">{language === 'en' ? 'Category' : 'වර්ගීකරණය'}</p>
+                  <span className="inline-flex mt-1 bg-slate-200 text-slate-800 px-2 py-0.5 rounded text-[10px] font-bold">{viewingExpense.category}</span>
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-455 uppercase font-bold tracking-wider">{language === 'en' ? 'Amount' : 'මුදල'}</p>
+                  <p className="text-xs font-bold text-rose-600">Rs. {viewingExpense.amount.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-455 uppercase font-bold tracking-wider">{language === 'en' ? 'Recorded By' : 'ඇතුළත් කළේ'}</p>
+                  <p className="text-xs font-bold text-slate-800">{viewingExpense.recordedBy}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-slate-455 uppercase font-bold tracking-wider">{language === 'en' ? 'Date' : 'දිනය'}</p>
+                  <p className="text-xs font-bold text-slate-800">{new Date(viewingExpense.createdAt).toLocaleString()}</p>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <p className="text-[10px] text-slate-455 uppercase font-bold tracking-wider">{language === 'en' ? 'Description' : 'විස්තරය'}</p>
+                <p className="text-xs font-bold text-slate-800 bg-slate-50 p-3 rounded-2xl border border-slate-150 leading-relaxed min-h-[60px] whitespace-pre-wrap">{viewingExpense.description}</p>
+              </div>
+            </div>
+            <div className="bg-slate-50 p-4 border-t border-slate-150 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setViewingExpense(null)}
+                className="w-full bg-slate-200 hover:bg-slate-300 text-slate-750 font-bold py-2.5 rounded-xl transition active:scale-95"
+              >
+                {language === 'en' ? 'Close' : 'වසා දමන්න'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editingExpense && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <form onSubmit={handleEditExpenseSubmit} className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-slate-950 text-white p-5 flex justify-between items-center">
+              <h3 className="text-sm font-bold flex items-center gap-1.5">
+                <Edit className="h-4.5 w-4.5 text-blue-400" />
+                <span>{language === 'en' ? `Edit Expense - ${editingExpense.id}` : `වියදම සංස්කරණය - ${editingExpense.id}`}</span>
+              </h3>
+              <button type="button" onClick={() => setEditingExpense(null)} className="text-slate-400 hover:text-white">✕</button>
+            </div>
+            <div className="p-6 space-y-4 text-xs font-bold text-slate-500">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label>{language === 'en' ? 'Category *' : 'වර්ගය *'}</label>
+                  <select
+                    value={editExpCategory}
+                    onChange={(e) => setEditExpCategory(e.target.value as any)}
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-bold bg-white text-xs"
+                    required
+                  >
+                    {['Rent', 'Electricity', 'Water', 'Internet', 'Salaries', 'Supplier Payment', 'Marketing', 'Other'].map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label>{language === 'en' ? 'Amount (LKR) *' : 'මුදල (LKR) *'}</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editExpAmount}
+                    onChange={(e) => setEditExpAmount(Number(e.target.value))}
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-bold text-xs"
+                    required
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label>{language === 'en' ? 'Recorded By' : 'ඇතුළත් කළේ'}</label>
+                  <input
+                    type="text"
+                    value={editExpRecordedBy}
+                    onChange={(e) => setEditExpRecordedBy(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-bold text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label>{language === 'en' ? 'Date' : 'දිනය'}</label>
+                  <input
+                    type="date"
+                    value={editExpCreatedAt}
+                    onChange={(e) => setEditExpCreatedAt(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-bold text-xs"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label>{language === 'en' ? 'Description *' : 'විස්තරය *'}</label>
+                <textarea
+                  rows={3}
+                  value={editExpDescription}
+                  onChange={(e) => setEditExpDescription(e.target.value)}
+                  className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 text-xs font-semibold"
+                  required
+                />
+              </div>
+            </div>
+            <div className="bg-slate-50 p-4 border-t border-slate-150 flex gap-2">
+              <button
+                type="submit"
+                className="flex-1 bg-blue-600 hover:bg-blue-750 text-white font-bold py-2.5 rounded-xl transition active:scale-95 shadow"
+              >
+                {language === 'en' ? 'Save Changes' : 'සුරකින්න'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditingExpense(null)}
+                className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-750 font-bold py-2.5 rounded-xl transition active:scale-95"
+              >
+                {language === 'en' ? 'Cancel' : 'අවලංගු කරන්න'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {editingSale && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <form onSubmit={handleEditSaleSubmit} className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div className="bg-slate-950 text-white p-5 flex justify-between items-center">
+              <h3 className="text-sm font-bold flex items-center gap-1.5">
+                <Edit className="h-4.5 w-4.5 text-blue-400" />
+                <span>{language === 'en' ? `Edit Sale Invoice - ${editingSale.id}` : `බිල්පත සංස්කරණය - ${editingSale.id}`}</span>
+              </h3>
+              <button type="button" onClick={() => setEditingSale(null)} className="text-slate-400 hover:text-white">✕</button>
+            </div>
+            <div className="p-6 space-y-4 text-xs font-bold text-slate-500">
+              <div className="space-y-1">
+                <label>{language === 'en' ? 'Customer Name' : 'පාරිභෝගිකයාගේ නම'}</label>
+                <input
+                  type="text"
+                  value={editSaleCustomerName}
+                  onChange={(e) => setEditSaleCustomerName(e.target.value)}
+                  className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-bold text-xs"
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label>{language === 'en' ? 'Payment Method' : 'ගෙවූ ආකාරය'}</label>
+                  <select
+                    value={editSalePaymentMethod}
+                    onChange={(e) => setEditSalePaymentMethod(e.target.value as any)}
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-bold bg-white text-xs"
+                  >
+                    {['Cash', 'Card', 'Online Transfer', 'Pending'].map(method => (
+                      <option key={method} value={method}>{method}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label>{language === 'en' ? 'Sale Date' : 'දිනය'}</label>
+                  <input
+                    type="date"
+                    value={editSaleCreatedAt}
+                    onChange={(e) => setEditSaleCreatedAt(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-bold text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label>{language === 'en' ? 'VAT Collected (LKR)' : 'එකතු කළ VAT බද්ද (LKR)'}</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editSaleVat}
+                    onChange={(e) => setEditSaleVat(Number(e.target.value))}
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-bold text-xs"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label>{language === 'en' ? 'SSCL Collected (LKR)' : 'එකතු කළ SSCL බද්ද (LKR)'}</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={editSaleSscl}
+                    onChange={(e) => setEditSaleSscl(Number(e.target.value))}
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-bold text-xs"
+                  />
+                </div>
+              </div>
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-150 space-y-1 text-slate-650">
+                <div className="flex justify-between">
+                  <span>Subtotal:</span>
+                  <span className="font-semibold text-slate-800">Rs. {editingSale.subtotal.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Discount:</span>
+                  <span className="font-semibold text-slate-850">- Rs. {editingSale.discount.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between font-bold text-slate-800 pt-1 border-t border-slate-200">
+                  <span>Estimated Total:</span>
+                  <span className="text-blue-600">Rs. {(editingSale.subtotal + Number(editSaleVat) + Number(editSaleSscl) - editingSale.discount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+            </div>
+            <div className="bg-slate-50 p-4 border-t border-slate-150 flex gap-2">
+              <button
+                type="submit"
+                className="flex-1 bg-blue-600 hover:bg-blue-750 text-white font-bold py-2.5 rounded-xl transition active:scale-95 shadow"
+              >
+                {language === 'en' ? 'Save Changes' : 'සුරකින්න'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditingSale(null)}
+                className="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-750 font-bold py-2.5 rounded-xl transition active:scale-95"
+              >
+                {language === 'en' ? 'Cancel' : 'අවලංගු කරන්න'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 

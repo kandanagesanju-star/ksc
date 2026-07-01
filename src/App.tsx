@@ -657,6 +657,24 @@ function App() {
     saveCloudDoc('expenses', newExpense.id, newExpense);
   };
 
+  const handleUpdateExpense = (updatedExpense: Expense) => {
+    setExpenses(prev => prev.map(e => e.id === updatedExpense.id ? updatedExpense : e));
+    addAuditLog('EXPENSE_UPDATED', `Updated expense details for ${updatedExpense.category} (Rs. ${updatedExpense.amount})`);
+    saveCloudDoc('expenses', updatedExpense.id, updatedExpense);
+  };
+
+  const handleDeleteExpense = (expenseId: string) => {
+    setExpenses(prev => prev.filter(e => e.id !== expenseId));
+    addAuditLog('EXPENSE_DELETED', `Deleted expense ID ${expenseId}`);
+    deleteCloudDoc('expenses', expenseId);
+  };
+
+  const handleDeleteSale = (saleId: string) => {
+    setSales(prev => prev.filter(s => s.id !== saleId));
+    addAuditLog('SALE_DELETED', `Deleted sales transaction/invoice ID ${saleId}`);
+    deleteCloudDoc('sales', saleId);
+  };
+
   const handleAddSale = (newSale: Sale) => {
     if (!isOnline) {
       // Offline billing mode
@@ -1789,8 +1807,12 @@ function App() {
                   onAddStockReturn={handleAddStockReturn}
                   onUpdateSale={(updatedSale) => {
                     setSales(prev => prev.map(s => s.id === updatedSale.id ? updatedSale : s));
-                    addAuditLog('SALE_UPDATED', `Updated sale ID ${updatedSale.id} (Returned/Refunded items)`);
+                    addAuditLog('SALE_UPDATED', `Updated sale ID ${updatedSale.id}`);
+                    saveCloudDoc('sales', updatedSale.id, updatedSale);
                   }}
+                  onDeleteSale={handleDeleteSale}
+                  onUpdateExpense={handleUpdateExpense}
+                  onDeleteExpense={handleDeleteExpense}
                 />
               )}
 

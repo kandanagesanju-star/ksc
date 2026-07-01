@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef } from 'react';
 import { Product, Category, ProductSource, ShopSettings } from '../types';
 import { translations } from '../lib/translations';
 import { Plus, Search, Edit, Copy, Trash2, AlertTriangle, Check, RefreshCw, X, Laptop, ChevronLeft, ChevronRight, Upload, Download, FileText, QrCode, Image, Printer } from 'lucide-react';
+import { translateToSinhala } from '../lib/translate';
 
 interface InventoryProps {
   language: 'en' | 'si';
@@ -76,6 +77,12 @@ export const Inventory: React.FC<InventoryProps> = ({
   const imageFileRef = useRef<HTMLInputElement>(null);
   const csvImportRef = useRef<HTMLInputElement>(null);
 
+  // Auto-translation states
+  const [autoTranslateName, setAutoTranslateName] = useState(true);
+  const [autoTranslateDesc, setAutoTranslateDesc] = useState(true);
+  const [isTranslatingName, setIsTranslatingName] = useState(false);
+  const [isTranslatingDesc, setIsTranslatingDesc] = useState(false);
+
   // Generate LK tax-compliant product code: LK-{CAT_ABBR}-{5-digit random}
   const generateProductCode = (cat: string) => {
     const abbr = cat.replace(/[^A-Za-z]/g, '').toUpperCase().slice(0, 3).padEnd(3, 'X');
@@ -130,6 +137,54 @@ export const Inventory: React.FC<InventoryProps> = ({
     setCurrentPage(1);
   }, [searchQuery, selectedCategory, showLowStockOnly]);
 
+  // Auto-translate name when English name changes (with debounce)
+  React.useEffect(() => {
+    if (!autoTranslateName || !nameEn.trim()) {
+      if (!nameEn.trim()) setNameSi('');
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(async () => {
+      setIsTranslatingName(true);
+      try {
+        const translated = await translateToSinhala(nameEn);
+        if (translated) {
+          setNameSi(translated);
+        }
+      } catch (err) {
+        console.error('Auto translate name error:', err);
+      } finally {
+        setIsTranslatingName(false);
+      }
+    }, 600);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [nameEn, autoTranslateName]);
+
+  // Auto-translate description when English description changes (with debounce)
+  React.useEffect(() => {
+    if (!autoTranslateDesc || !descriptionEn.trim()) {
+      if (!descriptionEn.trim()) setDescriptionSi('');
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(async () => {
+      setIsTranslatingDesc(true);
+      try {
+        const translated = await translateToSinhala(descriptionEn);
+        if (translated) {
+          setDescriptionSi(translated);
+        }
+      } catch (err) {
+        console.error('Auto translate description error:', err);
+      } finally {
+        setIsTranslatingDesc(false);
+      }
+    }, 800);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [descriptionEn, autoTranslateDesc]);
+
   // Open modal for new product
   const openNewModal = () => {
     setEditingProduct(null);
@@ -138,6 +193,10 @@ export const Inventory: React.FC<InventoryProps> = ({
     setNameSi('');
     setDescriptionEn('');
     setDescriptionSi('');
+    setAutoTranslateName(true);
+    setAutoTranslateDesc(true);
+    setIsTranslatingName(false);
+    setIsTranslatingDesc(false);
     setCategory('Phone Accessories');
     setSource('Supplier Purchased');
     setCostPrice(0);
@@ -166,6 +225,10 @@ export const Inventory: React.FC<InventoryProps> = ({
     setNameSi(product.nameSi);
     setDescriptionEn(product.descriptionEn || '');
     setDescriptionSi(product.descriptionSi || '');
+    setAutoTranslateName(false);
+    setAutoTranslateDesc(false);
+    setIsTranslatingName(false);
+    setIsTranslatingDesc(false);
     setCategory(product.category);
     setSource(product.source);
     setCostPrice(product.costPrice);
@@ -198,6 +261,10 @@ export const Inventory: React.FC<InventoryProps> = ({
     setNameSi(`${product.nameSi} (පිටපත)`);
     setDescriptionEn(product.descriptionEn || '');
     setDescriptionSi(product.descriptionSi || '');
+    setAutoTranslateName(false);
+    setAutoTranslateDesc(false);
+    setIsTranslatingName(false);
+    setIsTranslatingDesc(false);
     setCategory(product.category);
     setSource(product.source);
     setCostPrice(product.costPrice);
@@ -864,15 +931,40 @@ export const Inventory: React.FC<InventoryProps> = ({
 
                 {/* Name SI */}
                 <div className="space-y-1 md:col-span-2">
-                  <label className="font-bold text-slate-500">{t.productNameSi} *</label>
-                  <input
-                    type="text"
-                    required
-                    value={nameSi}
-                    onChange={(e) => setNameSi(e.target.value)}
-                    placeholder="උදා: සැම්සුන්ග් වේගවත් චාජරය"
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-bold"
-                  />
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-slate-500">{t.productNameSi} *</label>
+                    <label className="inline-flex items-center gap-1.5 text-xs text-blue-600 cursor-pointer font-bold select-none bg-blue-50 hover:bg-blue-100/70 px-2 py-0.5 rounded-lg border border-blue-200 transition">
+                      <input
+                        type="checkbox"
+                        checked={autoTranslateName}
+                        onChange={(e) => setAutoTranslateName(e.target.checked)}
+                        className="rounded border-slate-350 text-blue-600 focus:ring-blue-500 h-3.5 w-3.5 cursor-pointer accent-blue-600"
+                      />
+                      <span>{language === 'en' ? 'Auto' : 'ඔටෝ'}</span>
+                    </label>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      value={nameSi}
+                      onChange={(e) => setNameSi(e.target.value)}
+                      placeholder={
+                        isTranslatingName 
+                          ? (language === 'en' ? "Translating..." : "පරිවර්තනය වෙමින් පවතී...") 
+                          : "උදා: සැම්සුන්ග් වේගවත් චාජරය"
+                      }
+                      disabled={autoTranslateName}
+                      className={`w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-bold ${
+                        autoTranslateName ? 'bg-slate-50 border-dashed text-slate-500 cursor-not-allowed' : ''
+                      }`}
+                    />
+                    {isTranslatingName && (
+                      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-[10px] text-blue-500 font-semibold bg-white pl-2">
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Description EN */}
@@ -889,14 +981,39 @@ export const Inventory: React.FC<InventoryProps> = ({
 
                 {/* Description SI */}
                 <div className="space-y-1 md:col-span-2">
-                  <label className="font-bold text-slate-500">Sinhala Description (for PDP storefront)</label>
-                  <textarea
-                    rows={2}
-                    value={descriptionSi}
-                    onChange={(e) => setDescriptionSi(e.target.value)}
-                    placeholder="භාණ්ඩය පිළිබඳ විස්තරය සිංහලෙන් ඇතුළත් කරන්න..."
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-medium text-xs font-sans"
-                  />
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-slate-500">Sinhala Description (for PDP storefront)</label>
+                    <label className="inline-flex items-center gap-1.5 text-xs text-blue-600 cursor-pointer font-bold select-none bg-blue-50 hover:bg-blue-100/70 px-2 py-0.5 rounded-lg border border-blue-200 transition">
+                      <input
+                        type="checkbox"
+                        checked={autoTranslateDesc}
+                        onChange={(e) => setAutoTranslateDesc(e.target.checked)}
+                        className="rounded border-slate-350 text-blue-600 focus:ring-blue-500 h-3.5 w-3.5 cursor-pointer accent-blue-600"
+                      />
+                      <span>{language === 'en' ? 'Auto' : 'ඔටෝ'}</span>
+                    </label>
+                  </div>
+                  <div className="relative">
+                    <textarea
+                      rows={2}
+                      value={descriptionSi}
+                      onChange={(e) => setDescriptionSi(e.target.value)}
+                      placeholder={
+                        isTranslatingDesc 
+                          ? (language === 'en' ? "Translating..." : "පරිවර්තනය වෙමින් පවතී...") 
+                          : "භාණ්ඩය පිළිබඳ විස්තරය සිංහලෙන් ඇතුළත් කරන්න..."
+                      }
+                      disabled={autoTranslateDesc}
+                      className={`w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-medium text-xs font-sans ${
+                        autoTranslateDesc ? 'bg-slate-50 border-dashed text-slate-500 cursor-not-allowed' : ''
+                      }`}
+                    />
+                    {isTranslatingDesc && (
+                      <div className="absolute right-3 bottom-3 flex items-center gap-1.5 text-[10px] text-blue-500 font-semibold bg-white pl-2">
+                        <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Brand */}

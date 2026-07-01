@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { generateQrCodeDataUrl } from '../lib/qr';
 import { Product, Category, Customer, Sale, SaleItem, Employee, RegisterShift, ShopSettings } from '../types';
 import { translations } from '../lib/translations';
+import { translateToSinhala } from '../lib/translate';
 import { 
   Search, ShoppingCart, Tag, AlertTriangle, CheckCircle, Clock, 
   Wrench, ChevronDown, Trash2, User, Phone, MapPin, CreditCard, X, Printer, ArrowRight, Laptop, RefreshCw, Plus, Mic,
@@ -109,6 +110,10 @@ export const POS: React.FC<POSProps> = ({
   const [quickAddWeighted, setQuickAddWeighted] = useState(false);
   const [quickAddTaxable, setQuickAddTaxable] = useState(false);
 
+  // Auto translate quick add name
+  const [autoTranslateQuickName, setAutoTranslateQuickName] = useState(true);
+  const [isTranslatingQuickName, setIsTranslatingQuickName] = useState(false);
+
   // Shift & Cashier state variables
   const [openingCashier, setOpeningCashier] = useState('');
   const [openingFloat, setOpeningFloat] = useState(1000);
@@ -134,6 +139,30 @@ export const POS: React.FC<POSProps> = ({
   const [isListening, setIsListening] = useState(false);
   const [voiceLog, setVoiceLog] = useState<string>('');
   const recognitionRef = React.useRef<any>(null);
+
+  // Auto translate quick add product name
+  useEffect(() => {
+    if (!autoTranslateQuickName || !quickAddNameEn.trim()) {
+      if (!quickAddNameEn.trim()) setQuickAddNameSi('');
+      return;
+    }
+
+    const delayDebounceFn = setTimeout(async () => {
+      setIsTranslatingQuickName(true);
+      try {
+        const translated = await translateToSinhala(quickAddNameEn);
+        if (translated) {
+          setQuickAddNameSi(translated);
+        }
+      } catch (err) {
+        console.error('Quick add auto translate error:', err);
+      } finally {
+        setIsTranslatingQuickName(false);
+      }
+    }, 600);
+
+    return () => clearTimeout(delayDebounceFn);
+  }, [quickAddNameEn, autoTranslateQuickName]);
 
   // Local Latency State (Architect)
   const [latencyMode, setLatencyMode] = useState<'online' | 'slow' | 'unstable' | 'offline'>('online');
@@ -707,6 +736,8 @@ export const POS: React.FC<POSProps> = ({
     setQuickAddSource('Supplier Purchased');
     setQuickAddWeighted(false);
     setQuickAddTaxable(false);
+    setAutoTranslateQuickName(true);
+    setIsTranslatingQuickName(false);
   };
 
   const handleQuickAddSubmit = (e: React.FormEvent) => {
@@ -2373,14 +2404,39 @@ export const POS: React.FC<POSProps> = ({
 
               {/* Sinhala Name */}
               <div className="space-y-1 text-xs">
-                <label className="font-bold text-slate-500">{language === 'en' ? 'Product Name (Sinhala) - Optional' : 'භාණ්ඩයේ නම (සිංහල) - අත්‍යවශ්‍ය නොවේ'}</label>
-                <input
-                  type="text"
-                  placeholder="e.g. කිංග්ස්ටන් රැම් එක"
-                  value={quickAddNameSi}
-                  onChange={(e) => setQuickAddNameSi(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
-                />
+                <div className="flex items-center justify-between">
+                  <label className="font-bold text-slate-500">{language === 'en' ? 'Product Name (Sinhala) - Optional' : 'භාණ්ඩයේ නම (සිංහල) - අත්‍යවශ්‍ය නොවේ'}</label>
+                  <label className="inline-flex items-center gap-1.5 text-xs text-blue-600 cursor-pointer font-bold select-none bg-blue-50 hover:bg-blue-100/70 px-2 py-0.5 rounded-lg border border-blue-200 transition">
+                    <input
+                      type="checkbox"
+                      checked={autoTranslateQuickName}
+                      onChange={(e) => setAutoTranslateQuickName(e.target.checked)}
+                      className="rounded border-slate-350 text-blue-600 focus:ring-blue-500 h-3.5 w-3.5 cursor-pointer accent-blue-600"
+                    />
+                    <span>{language === 'en' ? 'Auto' : 'ඔටෝ'}</span>
+                  </label>
+                </div>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder={
+                      isTranslatingQuickName 
+                        ? (language === 'en' ? "Translating..." : "පරිවර්තනය වෙමින් පවතී...") 
+                        : "e.g. කිංග්ස්ටන් රැම් එක"
+                    }
+                    value={quickAddNameSi}
+                    onChange={(e) => setQuickAddNameSi(e.target.value)}
+                    disabled={autoTranslateQuickName}
+                    className={`w-full px-3 py-2 border border-slate-200 rounded-xl text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold ${
+                      autoTranslateQuickName ? 'bg-slate-50 border-dashed text-slate-500 cursor-not-allowed' : ''
+                    }`}
+                  />
+                  {isTranslatingQuickName && (
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1.5 text-[10px] text-blue-500 font-semibold bg-white pl-2">
+                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Cost & Prices Row */}
