@@ -1423,16 +1423,19 @@ export const POS: React.FC<POSProps> = ({
                     {/* Right: Controls & Pricing */}
                     <div className="flex items-center space-x-1.5 shrink-0">
                       {/* Price Edit Box */}
-                      <div className="flex flex-col items-center">
-                        <input
-                          type="number"
-                          min="0"
-                          value={activePrice}
-                          onChange={(e) => updateCustomPrice(p.id, Number(e.target.value))}
-                          className="w-12 px-1 py-0.5 bg-white border border-slate-200 rounded text-center text-[10px] font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          title="Edit Unit Price"
-                        />
-                        <span className="text-[7.5px] text-slate-400 font-extrabold mt-0.5">Rs. / {p.isWeighted ? 'kg' : 'unit'}</span>
+                      <div className="flex flex-col items-end shrink-0">
+                        <div className="flex items-center bg-white border border-slate-200 rounded-lg px-1.5 py-0.5 shadow-sm focus-within:ring-1 focus-within:ring-blue-500 focus-within:border-blue-500 transition">
+                          <span className="text-[9px] text-slate-400 font-bold mr-0.5">Rs.</span>
+                          <input
+                            type="number"
+                            min="0"
+                            value={activePrice}
+                            onChange={(e) => updateCustomPrice(p.id, Number(e.target.value))}
+                            className="w-16 bg-transparent text-right text-[11px] font-black text-slate-850 focus:outline-none"
+                            title="Edit Unit Price"
+                          />
+                        </div>
+                        <span className="text-[8px] text-slate-400 font-extrabold mt-0.5">per {p.isWeighted ? 'kg' : 'item'}</span>
                       </div>
 
                       {/* Quantity Selector: [-] Qty [+] */}
