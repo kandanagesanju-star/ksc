@@ -278,7 +278,7 @@ export interface SmsLog {
   phone: string;
   message: string;
   direction: 'Incoming' | 'Outgoing';
-  status: 'Sent' | 'Failed' | 'Received';
+  status: 'Sent' | 'Failed' | 'Received' | 'Pending';
   timestamp: string;
 }
 
@@ -361,6 +361,13 @@ export interface ShopSettings {
       allowInventory: boolean;
     };
   };
+
+  // CLOUD SMS GATEWAY SETTINGS
+  smsProvider?: 'Twilio' | 'Alert.lk' | 'Notify.lk' | 'Custom';
+  smsApiKey?: string;
+  smsSenderId?: string;
+  smsUsername?: string; // Twilio Account SID or other username
+  smsCustomUrlTemplate?: string;
 }
 
 export interface Review {

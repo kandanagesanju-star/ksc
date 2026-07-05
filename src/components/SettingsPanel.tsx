@@ -3,7 +3,7 @@ import { ShopSettings, SystemAuditLog, Product, Customer, RepairJob, Sale, BankT
 import { translations } from '../lib/translations';
 import { 
   Settings, User, Key, Printer, Database, Award, 
-  CreditCard, Activity, Save, RefreshCw, AlertCircle, Layout, Eye, EyeOff, ShieldAlert, ShieldCheck, Check, History, Trash, Download, Upload, Lock, Unlock, Image, X
+  CreditCard, Activity, Save, RefreshCw, AlertCircle, Layout, Eye, EyeOff, ShieldAlert, ShieldCheck, Check, History, Trash, Download, Upload, Lock, Unlock, Image, X, MessageSquare
 } from 'lucide-react';
 
 import { pushLocalStateToCloud, getCloudSyncTimestamp } from '../lib/syncService';
@@ -105,7 +105,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const t = translations[language];
 
   // Sub tabs
-  const [subTab, setSubTab] = useState<'shop' | 'online-store' | 'users' | 'pos' | 'loyalty' | 'bank' | 'database' | 'logs' | 'features'>('shop');
+  const [subTab, setSubTab] = useState<'shop' | 'online-store' | 'users' | 'pos' | 'loyalty' | 'bank' | 'database' | 'logs' | 'features' | 'sms'>('shop');
+
+  // Cloud SMS Gateway configuration states
+  const [smsProvider, setSmsProvider] = useState<'Twilio' | 'Alert.lk' | 'Notify.lk' | 'Custom'>(settings.smsProvider || 'Alert.lk');
+  const [smsApiKey, setSmsApiKey] = useState(settings.smsApiKey || '');
+  const [smsSenderId, setSmsSenderId] = useState(settings.smsSenderId || '');
+  const [smsUsername, setSmsUsername] = useState(settings.smsUsername || '');
+  const [smsCustomUrlTemplate, setSmsCustomUrlTemplate] = useState(settings.smsCustomUrlTemplate || '');
 
   // Form states
   const [shopName, setShopName] = useState(settings.shopName);
@@ -335,6 +342,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     setEnableSpecialOrders(!!settings.enableSpecialOrders);
     setEnableHp(!!settings.enableHP);
     setEnableBatches(!!settings.enableBatches);
+
+    setSmsProvider(settings.smsProvider || 'Alert.lk');
+    setSmsApiKey(settings.smsApiKey || '');
+    setSmsSenderId(settings.smsSenderId || '');
+    setSmsUsername(settings.smsUsername || '');
+    setSmsCustomUrlTemplate(settings.smsCustomUrlTemplate || '');
   }, [settings]);
 
   // Database Health check helper (Database Engineer)
@@ -606,6 +619,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       enableSpecialOrders,
       enableHP: enableHp,
       enableBatches,
+      smsProvider,
+      smsApiKey,
+      smsSenderId,
+      smsUsername,
+      smsCustomUrlTemplate,
       rolePermissions: {
         cashier: {
           allowPOS: cashierAllowPOS,
@@ -638,7 +656,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           { key: 'loyalty' as const, label: 'Loyalty Settings', icon: Award },
           { key: 'bank' as const, label: 'Bank & QR', icon: CreditCard },
           { key: 'database' as const, label: 'Database & Security', icon: Database },
-          { key: 'logs' as const, label: 'Register Logs', icon: Activity }
+          { key: 'logs' as const, label: 'Register Logs', icon: Activity },
+          { key: 'sms' as const, label: 'Cloud SMS Config', icon: MessageSquare }
         ].map(tab => {
           const Icon = tab.icon;
           return (
@@ -2171,6 +2190,179 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           </div>
         </div>
       )}
+
+      {/* CLOUD SMS GATEWAY TAB */}
+      {subTab === 'sms' && (
+        <form onSubmit={handleSave} className="grid grid-cols-1 lg:grid-cols-12 gap-6 text-xs font-semibold">
+          <div className="lg:col-span-6 bg-white rounded-2xl shadow-sm border border-slate-100 p-5 space-y-4 text-slate-800 animate-in fade-in slide-in-from-top-4 duration-200">
+            <div className="border-b border-slate-100 pb-3 text-left">
+              <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center">
+                <MessageSquare className="h-4.5 w-4.5 mr-1.5 text-blue-600 animate-pulse" />
+                Cloud SMS Gateway Integration
+              </h3>
+              <p className="text-[10px] text-slate-400 font-medium leading-relaxed mt-0.5">
+                Configure a cloud SMS gateway to send real automated receipts and HP notifications.
+              </p>
+             </div>
+
+             <div className="space-y-3 text-left">
+               <div className="space-y-1">
+                 <label className="font-bold text-slate-500 text-[10px]">SMS Gateway Provider</label>
+                 <select
+                   value={smsProvider}
+                   onChange={(e) => setSmsProvider(e.target.value as any)}
+                   className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-white font-bold text-slate-800 focus:outline-none"
+                 >
+                   <option value="Alert.lk">Alert.lk (Sri Lanka)</option>
+                   <option value="Twilio">Twilio (Global)</option>
+                   <option value="Notify.lk">Notify.lk (Sri Lanka)</option>
+                   <option value="Custom">Custom HTTP GET API</option>
+                 </select>
+               </div>
+
+               {smsProvider === 'Twilio' && (
+                 <>
+                   <div className="space-y-1">
+                     <label className="font-bold text-slate-500 text-[10px]">Twilio Account SID</label>
+                     <input
+                       type="text"
+                       value={smsUsername}
+                       onChange={(e) => setSmsUsername(e.target.value)}
+                       placeholder="e.g. ACXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                       className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-medium bg-slate-50 focus:bg-white focus:outline-none"
+                     />
+                   </div>
+                   <div className="space-y-1">
+                     <label className="font-bold text-slate-500 text-[10px]">Twilio Auth Token</label>
+                     <input
+                       type="password"
+                       value={smsApiKey}
+                       onChange={(e) => setSmsApiKey(e.target.value)}
+                       placeholder="Your Auth Token"
+                       className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-medium bg-slate-50 focus:bg-white focus:outline-none"
+                     />
+                   </div>
+                   <div className="space-y-1">
+                     <label className="font-bold text-slate-500 text-[10px]">Twilio From Phone Number</label>
+                     <input
+                       type="text"
+                       value={smsSenderId}
+                       onChange={(e) => setSmsSenderId(e.target.value)}
+                       placeholder="e.g. +1234567890"
+                       className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-medium bg-slate-50 focus:bg-white focus:outline-none"
+                     />
+                   </div>
+                 </>
+               )}
+
+               {(smsProvider === 'Alert.lk' || smsProvider === 'Notify.lk') && (
+                 <>
+                   <div className="space-y-1">
+                     <label className="font-bold text-slate-500 text-[10px]">API Key / Token</label>
+                     <input
+                       type="password"
+                       value={smsApiKey}
+                       onChange={(e) => setSmsApiKey(e.target.value)}
+                       placeholder="Your API Key"
+                       className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-medium bg-slate-50 focus:bg-white focus:outline-none"
+                     />
+                   </div>
+                   <div className="space-y-1">
+                     <label className="font-bold text-slate-500 text-[10px]">Sender ID</label>
+                     <input
+                       type="text"
+                       value={smsSenderId}
+                       onChange={(e) => setSmsSenderId(e.target.value)}
+                       placeholder="e.g. SmartShop"
+                       className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-medium bg-slate-50 focus:bg-white focus:outline-none"
+                     />
+                   </div>
+                 </>
+               )}
+
+               {smsProvider === 'Custom' && (
+                 <>
+                   <div className="space-y-1">
+                     <label className="font-bold text-slate-500 text-[10px]">Custom HTTP GET URL Template</label>
+                     <textarea
+                       value={smsCustomUrlTemplate}
+                       onChange={(e) => setSmsCustomUrlTemplate(e.target.value)}
+                       placeholder="https://smsapi.com/send?key=YOUR_API_KEY&to=[PHONE]&text=[MESSAGE]"
+                       rows={3}
+                       className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-medium bg-slate-50 focus:bg-white focus:outline-none text-[11px]"
+                     />
+                     <p className="text-[9px] text-slate-400 font-medium leading-tight mt-0.5">
+                       Use `[PHONE]` and `[MESSAGE]` as placeholders. The app will replace these with the recipient phone number and URL-encoded message text.
+                     </p>
+                   </div>
+                 </>
+               )}
+             </div>
+
+             <div className="flex justify-end pt-3">
+               <button
+                 type="submit"
+                 className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition shadow-md flex items-center space-x-1.5"
+               >
+                 <Save className="h-4 w-4" />
+                 <span>Save Cloud SMS Settings</span>
+               </button>
+             </div>
+           </div>
+
+           <div className="lg:col-span-6 bg-white rounded-2xl shadow-sm border border-slate-100 p-5 space-y-4 text-slate-850 text-left animate-in fade-in slide-in-from-top-4 duration-250">
+             <div className="border-b border-slate-100 pb-3">
+               <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">SMS Gateway Configuration Guide</h3>
+               <p className="text-[10px] text-slate-400 font-medium leading-relaxed">Instructions on setting up your selected SMS provider.</p>
+             </div>
+
+             <div className="space-y-3 text-[11px] font-medium leading-relaxed text-slate-650">
+               {smsProvider === 'Alert.lk' && (
+                 <>
+                   <h4 className="font-extrabold text-blue-600">🔌 Alert.lk Setup:</h4>
+                   <ul className="list-disc pl-4 space-y-1 text-[10px] text-slate-500">
+                     <li>Sign up at <a href="https://alert.lk" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">Alert.lk</a>.</li>
+                     <li>Go to API Settings and copy your **API Key**.</li>
+                     <li>Enter your approved **Sender ID** (or leave default `Alert` if not registered).</li>
+                     <li>Numbers are automatically formatted to local format `947xxxxxxxx`.</li>
+                   </ul>
+                 </>
+               )}
+               {smsProvider === 'Twilio' && (
+                 <>
+                   <h4 className="font-extrabold text-blue-600">🔌 Twilio Setup:</h4>
+                   <ul className="list-disc pl-4 space-y-1 text-[10px] text-slate-500">
+                     <li>Register at <a href="https://twilio.com" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">Twilio</a>.</li>
+                     <li>Copy your **Account SID** and **Auth Token** from your console.</li>
+                     <li>Purchase/configure a **Twilio Phone Number** (From) in international format (e.g. `+1234567890`).</li>
+                     <li>Recipient numbers are formatted with a leading `+`.</li>
+                   </ul>
+                 </>
+               )}
+               {smsProvider === 'Notify.lk' && (
+                 <>
+                   <h4 className="font-extrabold text-blue-600">🔌 Notify.lk Setup:</h4>
+                   <ul className="list-disc pl-4 space-y-1 text-[10px] text-slate-500">
+                     <li>Register at <a href="https://notify.lk" target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">Notify.lk</a>.</li>
+                     <li>Create an API Token and copy it into the **API Key** field.</li>
+                     <li>Configure your approved **Sender ID**.</li>
+                   </ul>
+                 </>
+               )}
+               {smsProvider === 'Custom' && (
+                 <>
+                   <h4 className="font-extrabold text-blue-600">🔌 Custom HTTP Gateway Setup:</h4>
+                   <ul className="list-disc pl-4 space-y-1 text-[10px] text-slate-500">
+                     <li>Ideal if using local SMS gateways (e.g. Dialog SMS, Mobitel, textware.lk).</li>
+                     <li>Paste the exact GET URL. Make sure it contains `[PHONE]` and `[MESSAGE]` placeholders.</li>
+                     <li>Example URL template: <code className="bg-slate-100 px-1 py-0.5 rounded text-[9px]">https://gateway.lk/send?user=shop&pass=123&recipient=[PHONE]&msg=[MESSAGE]&sender=MYSHOP</code></li>
+                   </ul>
+                 </>
+               )}
+             </div>
+           </div>
+         </form>
+       )}
     </div>
   );
 };

@@ -748,17 +748,104 @@ Cloud පිටපත ලබා ගැනීමට 'OK' ඔබන්න (දේ�
     addAuditLog('SHIFT_CLOSED', `Register shift closed. Actual cash in drawer: Rs. ${actualCash}`);
   };
 
-  const handleSendSms = (phone: string, message: string) => {
+  const handleSendSms = async (phone: string, message: string) => {
+    // 1. Create a log entry with "Pending" status
+    const logId = `SMS-${Date.now()}`;
     const newLog: SmsLog = {
-      id: `SMS-${Date.now()}`,
+      id: logId,
       phone,
       message,
       direction: 'Outgoing',
-      status: 'Sent',
+      status: 'Pending',
       timestamp: new Date().toISOString()
     };
+    
+    // Add to state immediately
     setSmsLogs(prev => [newLog, ...prev]);
-    addAuditLog('SMS_SENT', `Sent SMS to ${phone}: "${message.slice(0, 35)}..."`);
+
+    // 2. If SMS is disabled, mark as "Sent" (fallback simulator) and return
+    if (!settings.enableSms) {
+      setSmsLogs(prev => prev.map(log => log.id === logId ? { ...log, status: 'Sent' } : log));
+      addAuditLog('SMS_SENT', `Simulated SMS to ${phone}: "${message.slice(0, 35)}..."`);
+      return;
+    }
+
+    // 3. Clean and format the phone number
+    const cleanPhone = phone.replace(/[^0-9+]/g, '');
+    let formattedPhone = cleanPhone;
+
+    // Convert local format (e.g. 0771234567) to international
+    if (settings.smsProvider === 'Twilio') {
+      if (cleanPhone.startsWith('0')) {
+        formattedPhone = '+94' + cleanPhone.slice(1);
+      } else if (!cleanPhone.startsWith('+') && cleanPhone.startsWith('7')) {
+        formattedPhone = '+94' + cleanPhone;
+      }
+    } else {
+      // Alert.lk / Notify.lk / Custom Sri Lankan gateways usually want 947xxxxxxxx format
+      if (cleanPhone.startsWith('0')) {
+        formattedPhone = '94' + cleanPhone.slice(1);
+      } else if (cleanPhone.startsWith('+')) {
+        formattedPhone = cleanPhone.slice(1);
+      } else if (cleanPhone.startsWith('7')) {
+        formattedPhone = '94' + cleanPhone;
+      }
+    }
+
+    try {
+      let responseStatus = false;
+      let errorMsg = '';
+
+      if (settings.smsProvider === 'Twilio') {
+        const auth = btoa(`${settings.smsUsername}:${settings.smsApiKey}`);
+        const res = await fetch(
+          `https://api.twilio.com/2010-04-01/Accounts/${settings.smsUsername}/Messages.json`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Basic ${auth}`,
+              'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: `To=${encodeURIComponent(formattedPhone)}&From=${encodeURIComponent(settings.smsSenderId || '')}&Body=${encodeURIComponent(message)}`
+          }
+        );
+        responseStatus = res.ok;
+        if (!res.ok) {
+          const errData = await res.json();
+          errorMsg = errData.message || 'Twilio API Error';
+        }
+      } else if (settings.smsProvider === 'Alert.lk') {
+        const url = `https://alert.lk/api/v1/send?apikey=${encodeURIComponent(settings.smsApiKey || '')}&sender=${encodeURIComponent(settings.smsSenderId || '')}&to=${formattedPhone}&message=${encodeURIComponent(message)}`;
+        const res = await fetch(url, { method: 'GET' });
+        responseStatus = res.ok;
+        if (!res.ok) errorMsg = `Alert.lk returned status ${res.status}`;
+      } else if (settings.smsProvider === 'Notify.lk') {
+        const url = `https://api.notify.lk/api/v1/send?api_key=${encodeURIComponent(settings.smsApiKey || '')}&to=${formattedPhone}&message=${encodeURIComponent(message)}&sender_id=${encodeURIComponent(settings.smsSenderId || '')}`;
+        const res = await fetch(url, { method: 'GET' });
+        responseStatus = res.ok;
+        if (!res.ok) errorMsg = `Notify.lk returned status ${res.status}`;
+      } else if (settings.smsProvider === 'Custom' && settings.smsCustomUrlTemplate) {
+        let url = settings.smsCustomUrlTemplate;
+        url = url.replace('[PHONE]', encodeURIComponent(formattedPhone));
+        url = url.replace('[MESSAGE]', encodeURIComponent(message));
+        const res = await fetch(url, { method: 'GET' });
+        responseStatus = res.ok;
+        if (!res.ok) errorMsg = `Custom gateway returned status ${res.status}`;
+      } else {
+        errorMsg = 'Gateway not configured';
+      }
+
+      if (responseStatus) {
+        setSmsLogs(prev => prev.map(log => log.id === logId ? { ...log, status: 'Sent' } : log));
+        addAuditLog('SMS_SENT', `Real SMS sent to ${phone} via ${settings.smsProvider}: "${message.slice(0, 35)}..."`);
+      } else {
+        throw new Error(errorMsg || 'Failed to dispatch SMS');
+      }
+    } catch (err: any) {
+      console.error('SMS Gateway Error:', err);
+      setSmsLogs(prev => prev.map(log => log.id === logId ? { ...log, status: 'Failed' } : log));
+      addAuditLog('SMS_FAILED', `Failed to send SMS to ${phone} via ${settings.smsProvider || 'Unknown'}: ${err.message || err}`);
+    }
   };
 
   const handlePayoutStaff = (employeeId: string, amount: number) => {
