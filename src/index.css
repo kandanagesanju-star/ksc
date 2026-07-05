@@ -179,4 +179,27 @@
   .border-purple-500\/30 { border-color: rgba(168, 85, 247, 0.3) !important; }
 }
 
+/* Custom sleek scrollbar for settings tab bar and general scrolling containers */
+.custom-scrollbar::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(241, 245, 249, 0.6);
+  border-radius: 9999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.45) !important;
+  border-radius: 9999px;
+  border: 1px solid rgba(241, 245, 249, 0.6);
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.75) !important;
+}
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(59, 130, 246, 0.45) rgba(241, 245, 249, 0.6);
+}
+
+
 

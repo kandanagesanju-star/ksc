@@ -3,7 +3,7 @@ import { ShopSettings, SystemAuditLog, Product, Customer, RepairJob, Sale, BankT
 import { translations } from '../lib/translations';
 import { 
   Settings, User, Key, Printer, Database, Award, 
-  CreditCard, Activity, Save, RefreshCw, AlertCircle, Layout, Eye, EyeOff, ShieldAlert, ShieldCheck, Check, History, Trash, Download, Upload, Lock, Unlock, Image, X, MessageSquare
+  CreditCard, Activity, Save, RefreshCw, AlertCircle, Layout, Eye, EyeOff, ShieldAlert, ShieldCheck, Check, History, Trash, Download, Upload, Lock, Unlock, Image, X, MessageSquare, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 import { pushLocalStateToCloud, getCloudSyncTimestamp } from '../lib/syncService';
@@ -106,6 +106,15 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
   // Sub tabs
   const [subTab, setSubTab] = useState<'shop' | 'online-store' | 'users' | 'pos' | 'loyalty' | 'bank' | 'database' | 'logs' | 'features' | 'sms'>('shop');
+
+  const tabsRef = React.useRef<HTMLDivElement>(null);
+  
+  const scrollTabs = (direction: 'left' | 'right') => {
+    if (tabsRef.current) {
+      const scrollAmount = direction === 'left' ? -200 : 200;
+      tabsRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
 
   // Cloud SMS Gateway configuration states
   const [smsProvider, setSmsProvider] = useState<'Twilio' | 'Alert.lk' | 'Notify.lk' | 'Custom'>(settings.smsProvider || 'Alert.lk');
@@ -649,33 +658,56 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   return (
     <div className="space-y-6">
       {/* Sub-tabs Toggle */}
-      <div className="flex border-b border-slate-200 bg-white p-2 rounded-xl shadow-sm space-x-2 overflow-x-auto scrollbar-none">
-        {[
-          { key: 'shop' as const, label: 'Shop Profile', icon: Settings },
-          { key: 'features' as const, label: 'Feature Toggles', icon: Settings },
-          { key: 'online-store' as const, label: 'Online Store Customizer', icon: Layout },
-          { key: 'users' as const, label: 'Users & Roles', icon: User },
-          { key: 'pos' as const, label: 'POS & Hardware', icon: Printer },
-          { key: 'loyalty' as const, label: 'Loyalty Settings', icon: Award },
-          { key: 'bank' as const, label: 'Bank & QR', icon: CreditCard },
-          { key: 'database' as const, label: 'Database & Security', icon: Database },
-          { key: 'logs' as const, label: 'Register Logs', icon: Activity },
-          { key: 'sms' as const, label: 'Cloud SMS Config', icon: MessageSquare }
-        ].map(tab => {
-          const Icon = tab.icon;
-          return (
-            <button
-              key={tab.key}
-              onClick={() => setSubTab(tab.key)}
-              className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center whitespace-nowrap ${
-                subTab === tab.key ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
-              }`}
-            >
-              <Icon className="h-4 w-4 mr-1.5" />
-              {tab.label}
-            </button>
-          );
-        })}
+      <div className="relative flex items-center bg-white rounded-2xl shadow-sm border border-slate-100 p-1">
+        <button
+          type="button"
+          onClick={() => scrollTabs('left')}
+          className="p-2 hover:bg-slate-100 hover:text-blue-600 text-slate-400 rounded-xl transition shrink-0 focus:outline-none"
+          title="Scroll Left"
+        >
+          <ChevronLeft className="h-4.5 w-4.5" />
+        </button>
+
+        <div 
+          ref={tabsRef}
+          className="flex flex-1 items-center space-x-2 overflow-x-auto py-1 px-2 scroll-smooth custom-scrollbar"
+        >
+          {[
+            { key: 'shop' as const, label: 'Shop Profile', icon: Settings },
+            { key: 'features' as const, label: 'Feature Toggles', icon: Settings },
+            { key: 'online-store' as const, label: 'Online Store Customizer', icon: Layout },
+            { key: 'users' as const, label: 'Users & Roles', icon: User },
+            { key: 'pos' as const, label: 'POS & Hardware', icon: Printer },
+            { key: 'loyalty' as const, label: 'Loyalty Settings', icon: Award },
+            { key: 'bank' as const, label: 'Bank & QR', icon: CreditCard },
+            { key: 'database' as const, label: 'Database & Security', icon: Database },
+            { key: 'logs' as const, label: 'Register Logs', icon: Activity },
+            { key: 'sms' as const, label: 'Cloud SMS Config', icon: MessageSquare }
+          ].map(tab => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.key}
+                onClick={() => setSubTab(tab.key)}
+                className={`px-4 py-1.5 rounded-lg text-xs font-bold transition flex items-center whitespace-nowrap ${
+                  subTab === tab.key ? 'bg-blue-600 text-white shadow-md' : 'text-slate-650 hover:bg-slate-100'
+                }`}
+              >
+                <Icon className="h-4 w-4 mr-1.5" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => scrollTabs('right')}
+          className="p-2 hover:bg-slate-100 hover:text-blue-600 text-slate-400 rounded-xl transition shrink-0 focus:outline-none"
+          title="Scroll Right"
+        >
+          <ChevronRight className="h-4.5 w-4.5" />
+        </button>
       </div>
 
       {/* ONLINE STOREFRONT CUSTOMIZER */}
