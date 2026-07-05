@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Employee, AttendanceRecord, CommissionRecord, ShopSettings } from '../types';
 import { translations } from '../lib/translations';
 import { 
@@ -20,6 +20,8 @@ interface AttendanceStaffProps {
   onDeleteEmployee: (id: string) => void;
   onUpdateAttendance: (rec: AttendanceRecord) => void;
   onDeleteAttendance: (id: string) => void;
+  activeSubTab?: string;
+  onSubTabChange?: (tab: any) => void;
 }
 
 export const AttendanceStaff: React.FC<AttendanceStaffProps> = ({
@@ -35,12 +37,20 @@ export const AttendanceStaff: React.FC<AttendanceStaffProps> = ({
   onUpdateEmployee,
   onDeleteEmployee,
   onUpdateAttendance,
-  onDeleteAttendance
+  onDeleteAttendance,
+  activeSubTab,
+  onSubTabChange
 }) => {
   const t = translations[language];
 
   // Primary Sub-tabs Toggle
   const [activeTab, setActiveTab] = useState<'profiles' | 'attendance' | 'commissions'>('profiles');
+
+  useEffect(() => {
+    if (activeSubTab && (activeSubTab === 'profiles' || activeSubTab === 'attendance' || activeSubTab === 'commissions')) {
+      setActiveTab(activeSubTab as any);
+    }
+  }, [activeSubTab]);
 
   // Modals
   const [isEmpModalOpen, setIsEmpModalOpen] = useState(false);
@@ -189,27 +199,27 @@ export const AttendanceStaff: React.FC<AttendanceStaffProps> = ({
       {/* Sub-tabs Toggle */}
       <div className="flex border-b border-slate-200 bg-white p-2 rounded-xl shadow-sm space-x-2">
         <button
-          onClick={() => setActiveTab('profiles')}
+          onClick={() => { setActiveTab('profiles'); if (onSubTabChange) onSubTabChange('profiles'); }}
           className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center ${
-            activeTab === 'profiles' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
+            activeTab === 'profiles' ? 'bg-blue-600 text-white shadow' : 'text-slate-650 hover:bg-slate-100'
           }`}
         >
           <User className="h-4 w-4 mr-1.5" />
           {language === 'en' ? 'Employee Profiles' : 'සේවක පැතිකඩ'}
         </button>
         <button
-          onClick={() => setActiveTab('attendance')}
+          onClick={() => { setActiveTab('attendance'); if (onSubTabChange) onSubTabChange('attendance'); }}
           className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center ${
-            activeTab === 'attendance' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
+            activeTab === 'attendance' ? 'bg-blue-600 text-white shadow' : 'text-slate-655 hover:bg-slate-100'
           }`}
         >
           <Calendar className="h-4 w-4 mr-1.5" />
           {language === 'en' ? 'Attendance & Salary' : 'පැමිණීම සහ වැටුප්'}
         </button>
         <button
-          onClick={() => setActiveTab('commissions')}
+          onClick={() => { setActiveTab('commissions'); if (onSubTabChange) onSubTabChange('commissions'); }}
           className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center ${
-            activeTab === 'commissions' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
+            activeTab === 'commissions' ? 'bg-blue-600 text-white shadow' : 'text-slate-655 hover:bg-slate-100'
           }`}
         >
           <Award className="h-4 w-4 mr-1.5" />

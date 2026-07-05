@@ -20,6 +20,8 @@ interface ContactsLoyaltyProps {
   onDeleteCustomer: (id: string) => void;
   onUpdateSupplier: (supplier: Supplier) => void;
   onDeleteSupplier: (id: string) => void;
+  activeSubTab?: string;
+  onSubTabChange?: (tab: any) => void;
 }
 
 export const ContactsLoyalty: React.FC<ContactsLoyaltyProps> = ({
@@ -35,12 +37,20 @@ export const ContactsLoyalty: React.FC<ContactsLoyaltyProps> = ({
   onUpdateCustomerPoints,
   loyaltyPointValue,
   smsLogs,
-  onSendSms
+  onSendSms,
+  activeSubTab,
+  onSubTabChange
 }) => {
   const t = translations[language];
 
   // Tabs
   const [activeTab, setActiveTab] = useState<'customers' | 'suppliers' | 'loyalty' | 'debtors' | 'sms-gateway'>('customers');
+
+  useEffect(() => {
+    if (activeSubTab && (activeSubTab === 'customers' || activeSubTab === 'suppliers' || activeSubTab === 'loyalty' || activeSubTab === 'debtors' || activeSubTab === 'sms-gateway')) {
+      setActiveTab(activeSubTab as any);
+    }
+  }, [activeSubTab]);
 
   // Search states
   const [custSearch, setCustSearch] = useState('');
@@ -232,45 +242,45 @@ export const ContactsLoyalty: React.FC<ContactsLoyaltyProps> = ({
       {/* Sub-tabs Toggle */}
       <div className="flex border-b border-slate-200 bg-white p-2 rounded-xl shadow-sm space-x-2 overflow-x-auto scrollbar-none">
         <button
-          onClick={() => setActiveTab('customers')}
+          onClick={() => { setActiveTab('customers'); if (onSubTabChange) onSubTabChange('customers'); }}
           className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center ${
-            activeTab === 'customers' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
+            activeTab === 'customers' ? 'bg-blue-600 text-white shadow' : 'text-slate-650 hover:bg-slate-100'
           }`}
         >
           <User className="h-4 w-4 mr-1.5" />
           {language === 'en' ? 'Customers' : 'ගැනුම්කරුවන්'}
         </button>
         <button
-          onClick={() => setActiveTab('suppliers')}
+          onClick={() => { setActiveTab('suppliers'); if (onSubTabChange) onSubTabChange('suppliers'); }}
           className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center ${
-            activeTab === 'suppliers' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
+            activeTab === 'suppliers' ? 'bg-blue-600 text-white shadow' : 'text-slate-655 hover:bg-slate-100'
           }`}
         >
           <Users className="h-4 w-4 mr-1.5" />
           {language === 'en' ? 'Suppliers' : 'විකුණුම්කරුවන් (Suppliers)'}
         </button>
         <button
-          onClick={() => setActiveTab('loyalty')}
+          onClick={() => { setActiveTab('loyalty'); if (onSubTabChange) onSubTabChange('loyalty'); }}
           className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center ${
-            activeTab === 'loyalty' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
+            activeTab === 'loyalty' ? 'bg-blue-600 text-white shadow' : 'text-slate-655 hover:bg-slate-100'
           }`}
         >
           <Award className="h-4 w-4 mr-1.5" />
           {language === 'en' ? 'Loyalty Program' : 'ලෝයල්ටි වැඩසටහන'}
         </button>
         <button
-          onClick={() => setActiveTab('debtors')}
+          onClick={() => { setActiveTab('debtors'); if (onSubTabChange) onSubTabChange('debtors'); }}
           className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center ${
-            activeTab === 'debtors' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
+            activeTab === 'debtors' ? 'bg-blue-600 text-white shadow' : 'text-slate-655 hover:bg-slate-100'
           }`}
         >
           <Notebook className="h-4 w-4 mr-1.5" />
           {language === 'en' ? 'Debtors & HP Reminders' : 'ණයගැතියන් සහ HP මතක් කිරීම්'}
         </button>
         <button
-          onClick={() => setActiveTab('sms-gateway')}
+          onClick={() => { setActiveTab('sms-gateway'); if (onSubTabChange) onSubTabChange('sms-gateway'); }}
           className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center ${
-            activeTab === 'sms-gateway' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
+            activeTab === 'sms-gateway' ? 'bg-blue-600 text-white shadow' : 'text-slate-655 hover:bg-slate-100'
           }`}
         >
           <Phone className="h-4 w-4 mr-1.5" />

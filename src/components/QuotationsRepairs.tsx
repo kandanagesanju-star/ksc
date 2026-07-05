@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { RepairJob, Quotation, Customer, RepairStatus, Product } from '../types';
 import { translations } from '../lib/translations';
 import { 
@@ -21,6 +21,8 @@ interface QuotationsRepairsProps {
   onDeleteQuotation: (id: string) => void;
   onUpdateRepair: (repair: RepairJob) => void;
   onDeleteRepair: (id: string) => void;
+  activeSubTab?: string;
+  onSubTabChange?: (tab: any) => void;
 }
 
 export const QuotationsRepairs: React.FC<QuotationsRepairsProps> = ({
@@ -37,12 +39,20 @@ export const QuotationsRepairs: React.FC<QuotationsRepairsProps> = ({
   onUpdateQuotation,
   onDeleteQuotation,
   onUpdateRepair,
-  onDeleteRepair
+  onDeleteRepair,
+  activeSubTab,
+  onSubTabChange
 }) => {
   const t = translations[language];
 
   // Primary Tabs
   const [activeTab, setActiveTab] = useState<'repairs' | 'quotations'>('repairs');
+
+  useEffect(() => {
+    if (activeSubTab && (activeSubTab === 'repairs' || activeSubTab === 'quotations')) {
+      setActiveTab(activeSubTab as any);
+    }
+  }, [activeSubTab]);
 
   // Search
   const [repairSearch, setRepairSearch] = useState('');
@@ -276,18 +286,18 @@ export const QuotationsRepairs: React.FC<QuotationsRepairsProps> = ({
       {/* Sub-tabs Toggle */}
       <div className="flex border-b border-slate-200 bg-white p-2 rounded-xl shadow-sm space-x-2">
         <button
-          onClick={() => setActiveTab('repairs')}
+          onClick={() => { setActiveTab('repairs'); if (onSubTabChange) onSubTabChange('repairs'); }}
           className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center ${
-            activeTab === 'repairs' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
+            activeTab === 'repairs' ? 'bg-blue-600 text-white shadow' : 'text-slate-650 hover:bg-slate-100'
           }`}
         >
           <Wrench className="h-4 w-4 mr-1.5" />
           {language === 'en' ? 'Repairs Tracking' : 'පරිගණක සහ දුරකථන රෙපෙයාර්'}
         </button>
         <button
-          onClick={() => setActiveTab('quotations')}
+          onClick={() => { setActiveTab('quotations'); if (onSubTabChange) onSubTabChange('quotations'); }}
           className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center ${
-            activeTab === 'quotations' ? 'bg-blue-600 text-white shadow' : 'text-slate-600 hover:bg-slate-100'
+            activeTab === 'quotations' ? 'bg-blue-600 text-white shadow' : 'text-slate-655 hover:bg-slate-100'
           }`}
         >
           <FileText className="h-4 w-4 mr-1.5" />

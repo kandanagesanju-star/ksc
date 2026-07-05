@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { translations } from '../lib/translations';
 import { ShopSettings, Customer, Employee } from '../types';
 import { ShoppingBag, ShieldAlert, Laptop, Languages, Layers, Wifi, WifiOff, Key, Lock, User, Award, X, LogOut, ChevronDown, RefreshCw } from 'lucide-react';
@@ -59,6 +59,34 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [lockoutTime, setLockoutTime] = useState(0);
   const [showRecovery, setShowRecovery] = useState(false);
   const [recoveryCode, setRecoveryCode] = useState('');
+
+  // Inactivity auto-logout timer (30 min)
+  const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
+
+  const resetInactivityTimer = () => {
+    if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+    if (viewMode === 'admin') {
+      inactivityTimer.current = setTimeout(() => {
+        if (onLogoutUser) onLogoutUser();
+        alert(language === 'en'
+          ? '🔒 Auto-logout: Session expired after 30 minutes of inactivity.'
+          : '🔒 ස්වයංක්‍රිය නික්මීම: විනාඩි 30ක අකාර්යක්ෂමතාවයෙන් පසු ඔබව ඉවත් කරන ලදී.');
+      }, INACTIVITY_TIMEOUT);
+    }
+  };
+
+  useEffect(() => {
+    if (viewMode !== 'admin') return;
+    const events = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+    const reset = () => resetInactivityTimer();
+    events.forEach(e => window.addEventListener(e, reset));
+    resetInactivityTimer();
+    return () => {
+      events.forEach(e => window.removeEventListener(e, reset));
+      if (inactivityTimer.current) clearTimeout(inactivityTimer.current);
+    };
+  }, [viewMode]);
 
   const [syncEnabled, setSyncEnabled] = useState(() => localStorage.getItem('shop_sync_enabled') === 'true');
   const [syncId, setSyncId] = useState(() => localStorage.getItem('shop_sync_id') || '');
@@ -260,8 +288,8 @@ export const Navbar: React.FC<NavbarProps> = ({
       localStorage.setItem('shop_settings', JSON.stringify(updatedSettings));
       
       alert(language === 'en' 
-        ? 'Passcode PIN reset successful! The admin PIN has been set back to default: 8892' 
-        : 'පින් අංකය සාර්ථකව යථා තත්ත්වයට පත් කරන ලදී! පද්ධතියේ පින් අංකය පෙරනිමි PIN අංකය (8892) ලෙස සකසා ඇත.');
+        ? '✅ Passcode PIN reset successfully! Please set a new secure PIN in Settings.'
+        : '✅ PIN අංකය සාර්ථකව යථා තත්ත්වයට පත් කරන ලදී! Settings හි නව ආරක්ෂිත PIN අංකයක් සකසන්න.');
       
       setShowRecovery(false);
       setRecoveryCode('');
@@ -550,9 +578,9 @@ export const Navbar: React.FC<NavbarProps> = ({
                     {language === 'en' ? 'Emergency PIN Reset' : 'හදිසි පින් අංකය නැවත පිහිටුවීම'}
                   </h3>
                   <p className="text-[10px] text-slate-400 leading-normal">
-                    {language === 'en' 
-                      ? 'Enter the Master Recovery PIN to reset the admin passcode back to default: 8892'
-                      : 'පින් අංකය 8892 ලෙස නැවත පිහිටුවීමට ප්‍රධාන පින් අංකය (Master PIN) ඇතුළත් කරන්න.'}
+                  {language === 'en' 
+                      ? 'Enter your Master Recovery Code to reset the admin passcode.'
+                      : 'කළමනාකරු PIN නැවත සකසීමට ඔබගේ ප්‍රධාන ප්‍රතිසාධන කේතය ඇතුළත් කරන්න.'}
                   </p>
                 </div>
 
@@ -607,7 +635,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <p className="text-[11px] text-slate-400">
                     {lockoutTime > 0 
                       ? (language === 'en' ? `Please wait ${lockoutTime}s before trying again.` : `නැවත උත්සාහ කිරීමට පෙර තත්පර ${lockoutTime}ක් රැඳී සිටින්න.`)
-                      : (language === 'en' ? 'Enter Admin or Employee Passcode PIN (Default Admin: 8892)' : 'කළමනාකරු හෝ සේවකයාගේ පින් (PIN) අංකය ඇතුළත් කරන්න (Default Admin: 8892)')}
+                      : (language === 'en' ? 'Enter your Staff or Admin Passcode PIN to continue.' : 'ඉදිරියට යාමට ඔබගේ Staff හෝ Admin PIN ඇතුළත් කරන්න.')}
                   </p>
                 </div>
 

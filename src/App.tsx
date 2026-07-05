@@ -46,7 +46,7 @@ import {
   ShoppingCart, Laptop, UserCheck, BarChart3, Layers, 
   TrendingUp, Users, Truck, ShoppingBag, FileText, Award, 
   Activity, Settings, Menu, X, ChevronRight, Maximize2, Minimize2, ShieldAlert,
-  Download, Upload
+  Download, Upload, ChevronDown
 } from 'lucide-react';
 
 function App() {
@@ -226,6 +226,74 @@ function App() {
     const saved = localStorage.getItem('shop_admin_tab');
     return saved ? (saved as any) : 'dashboard';
   });
+
+  const [adminSubTab, setAdminSubTab] = useState<string>(() => {
+    return localStorage.getItem('shop_admin_sub_tab') || '';
+  });
+
+  const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>(() => {
+    const saved = localStorage.getItem('shop_expanded_menus');
+    return saved ? JSON.parse(saved) : {
+      contacts: false,
+      purchases: false,
+      quotations: false,
+      attendance: false,
+      reports: false,
+      settings: false
+    };
+  });
+
+  useEffect(() => {
+    localStorage.setItem('shop_admin_sub_tab', adminSubTab);
+  }, [adminSubTab]);
+
+  useEffect(() => {
+    localStorage.setItem('shop_expanded_menus', JSON.stringify(expandedMenus));
+  }, [expandedMenus]);
+
+  const toggleMenu = (menuKey: string) => {
+    setExpandedMenus(prev => ({
+      ...prev,
+      [menuKey]: !prev[menuKey]
+    }));
+  };
+
+  useEffect(() => {
+    // Sync sub-tabs on main tab changes if subtab is invalid for the new tab
+    if (adminTab === 'contacts') {
+      if (!['customers', 'suppliers', 'loyalty', 'debtors', 'sms-gateway'].includes(adminSubTab)) {
+        setAdminSubTab('customers');
+      }
+      setExpandedMenus(prev => ({ ...prev, contacts: true }));
+    } else if (adminTab === 'purchases') {
+      if (!['purchases', 'adjustments', 'returns'].includes(adminSubTab)) {
+        setAdminSubTab('purchases');
+      }
+      setExpandedMenus(prev => ({ ...prev, purchases: true }));
+    } else if (adminTab === 'quotations') {
+      if (!['repairs', 'quotations'].includes(adminSubTab)) {
+        setAdminSubTab('repairs');
+      }
+      setExpandedMenus(prev => ({ ...prev, quotations: true }));
+    } else if (adminTab === 'attendance') {
+      if (!['profiles', 'attendance', 'commissions'].includes(adminSubTab)) {
+        setAdminSubTab('profiles');
+      }
+      setExpandedMenus(prev => ({ ...prev, attendance: true }));
+    } else if (adminTab === 'reports') {
+      if (!['sales', 'tax', 'expenses', 'profit-loss', 'stock', 'dues', 'estimates', 'warranty', 'turnover', 'shifts', 'wastage'].includes(adminSubTab)) {
+        setAdminSubTab('sales');
+      }
+      setExpandedMenus(prev => ({ ...prev, reports: true }));
+    } else if (adminTab === 'settings') {
+      if (!['shop', 'features', 'online-store', 'users', 'pos', 'loyalty', 'bank', 'database', 'logs', 'sms'].includes(adminSubTab)) {
+        setAdminSubTab('shop');
+      }
+      setExpandedMenus(prev => ({ ...prev, settings: true }));
+    } else {
+      setAdminSubTab('');
+    }
+  }, [adminTab]);
 
   const [isPosFullScreen, setIsPosFullScreen] = useState(false);
   const [showPasscodeModal, setShowPasscodeModal] = useState(false);
@@ -1683,12 +1751,12 @@ Cloud පිටපත ලබා ගැනීමට 'OK' ඔබන්න (දේ�
                 </button>
               </div>
 
-              {/* Dashboard */}
+                {/* Dashboard */}
               {isTabAllowed('dashboard') && (
                 <button
-                  onClick={() => setAdminTab('dashboard')}
+                  onClick={() => { setAdminTab('dashboard'); setAdminSubTab(''); }}
                   className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
-                    adminTab === 'dashboard' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
+                    adminTab === 'dashboard' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-650 hover:bg-slate-50'
                   }`}
                   title={language === 'en' ? 'Dashboard' : 'ප්‍රධාන පුවරුව'}
                 >
@@ -1700,9 +1768,9 @@ Cloud පිටපත ලබා ගැනීමට 'OK' ඔබන්න (දේ�
               {/* POS Terminal */}
               {isTabAllowed('pos') && (
                 <button
-                  onClick={() => setAdminTab('pos')}
+                  onClick={() => { setAdminTab('pos'); setAdminSubTab(''); }}
                   className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
-                    adminTab === 'pos' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
+                    adminTab === 'pos' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-655 hover:bg-slate-50'
                   }`}
                   title={t.posTerminal}
                 >
@@ -1714,9 +1782,9 @@ Cloud පිටපත ලබා ගැනීමට 'OK' ඔබන්න (දේ�
               {/* Central Inventory */}
               {isTabAllowed('inventory') && (
                 <button
-                  onClick={() => setAdminTab('inventory')}
+                  onClick={() => { setAdminTab('inventory'); setAdminSubTab(''); }}
                   className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
-                    adminTab === 'inventory' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
+                    adminTab === 'inventory' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-655 hover:bg-slate-50'
                   }`}
                   title={t.inventoryTitle}
                 >
@@ -1725,40 +1793,124 @@ Cloud පිටපත ලබා ගැනීමට 'OK' ඔබන්න (දේ�
                 </button>
               )}
 
-              {/* Contacts & Loyalty */}
+              {/* Contacts & Loyalty (Collapsible Folder) */}
               {isTabAllowed('contacts') && (
-                <button
-                  onClick={() => setAdminTab('contacts')}
-                  className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
-                    adminTab === 'contacts' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
-                  }`}
-                  title={language === 'en' ? 'Contacts & Loyalty' : 'ගැනුම්කරුවන් සහ ලෝයල්ටි'}
-                >
-                  <Users className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
-                  {!isPosFullScreen && (language === 'en' ? 'Contacts & Loyalty' : 'ගැනුම්කරුවන් සහ ලෝයල්ටි')}
-                </button>
+                <div className="space-y-1">
+                  <button
+                    onClick={() => {
+                      if (isPosFullScreen) {
+                        setAdminTab('contacts');
+                        setAdminSubTab('customers');
+                      } else {
+                        toggleMenu('contacts');
+                        if (adminTab !== 'contacts') {
+                          setAdminTab('contacts');
+                          setAdminSubTab('customers');
+                        }
+                      }
+                    }}
+                    className={`w-full flex items-center justify-between ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
+                      adminTab === 'contacts' ? 'bg-slate-100 text-slate-800' : 'text-slate-655 hover:bg-slate-50'
+                    }`}
+                    title={language === 'en' ? 'Contacts & Loyalty' : 'ගැනුම්කරුවන් සහ ලෝයල්ටි'}
+                  >
+                    <div className="flex items-center">
+                      <Users className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
+                      {!isPosFullScreen && (language === 'en' ? 'Contacts & Loyalty' : 'ගැනුම්කරුවන් & ලෝයල්ටි')}
+                    </div>
+                    {!isPosFullScreen && (
+                      expandedMenus.contacts ? <ChevronDown className="h-3.5 w-3.5 text-slate-400" /> : <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                    )}
+                  </button>
+
+                  {!isPosFullScreen && expandedMenus.contacts && (
+                    <div className="border-l border-slate-150 ml-5 pl-2 space-y-1 mt-0.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                      {[
+                        { key: 'customers', label: language === 'en' ? 'Customers List' : 'ගැනුම්කරුවන්' },
+                        { key: 'suppliers', label: language === 'en' ? 'Suppliers' : 'විකුණුම්කරුවන්' },
+                        { key: 'loyalty', label: language === 'en' ? 'Loyalty Settings' : 'ලෝයල්ටි රූල්ස්' },
+                        { key: 'debtors', label: language === 'en' ? 'Debtors & Dues' : 'ණයගැතියන්' },
+                        { key: 'sms-gateway', label: language === 'en' ? 'SIM Gateway' : 'SIM ගේට්වේ' }
+                      ].map(sub => (
+                        <button
+                          key={sub.key}
+                          onClick={() => { setAdminTab('contacts'); setAdminSubTab(sub.key); }}
+                          className={`w-full flex items-center px-3 py-1.5 rounded-lg text-[11px] font-bold transition text-left ${
+                            adminTab === 'contacts' && adminSubTab === sub.key
+                              ? 'text-blue-600 bg-blue-50/50'
+                              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className={`w-1.5 h-1.5 rounded-full mr-2 shrink-0 ${adminTab === 'contacts' && adminSubTab === sub.key ? 'bg-blue-600' : 'bg-slate-300'}`} />
+                          <span>{sub.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
 
-              {/* Purchases & Adjustments */}
+              {/* Purchases & Stock (Collapsible Folder) */}
               {isTabAllowed('purchases') && (
-                <button
-                  onClick={() => setAdminTab('purchases')}
-                  className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
-                    adminTab === 'purchases' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
-                  }`}
-                  title={language === 'en' ? 'Purchases & Adjusts' : 'මිලදී ගැනීම් සහ තොග'}
-                >
-                  <Truck className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
-                  {!isPosFullScreen && (language === 'en' ? 'Purchases & Adjusts' : 'මිලදී ගැනීම් සහ තොග')}
-                </button>
+                <div className="space-y-1">
+                  <button
+                    onClick={() => {
+                      if (isPosFullScreen) {
+                        setAdminTab('purchases');
+                        setAdminSubTab('purchases');
+                      } else {
+                        toggleMenu('purchases');
+                        if (adminTab !== 'purchases') {
+                          setAdminTab('purchases');
+                          setAdminSubTab('purchases');
+                        }
+                      }
+                    }}
+                    className={`w-full flex items-center justify-between ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
+                      adminTab === 'purchases' ? 'bg-slate-100 text-slate-800' : 'text-slate-655 hover:bg-slate-50'
+                    }`}
+                    title={language === 'en' ? 'Purchases & Stock' : 'මිලදී ගැනීම් සහ තොග'}
+                  >
+                    <div className="flex items-center">
+                      <Truck className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
+                      {!isPosFullScreen && (language === 'en' ? 'Purchases & Stock' : 'මිලදී ගැනීම් & තොග')}
+                    </div>
+                    {!isPosFullScreen && (
+                      expandedMenus.purchases ? <ChevronDown className="h-3.5 w-3.5 text-slate-400" /> : <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                    )}
+                  </button>
+
+                  {!isPosFullScreen && expandedMenus.purchases && (
+                    <div className="border-l border-slate-150 ml-5 pl-2 space-y-1 mt-0.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                      {[
+                        { key: 'purchases', label: language === 'en' ? 'Supplier Orders' : 'මිලදී ගැනීමේ ඇණවුම්' },
+                        { key: 'adjustments', label: language === 'en' ? 'Stock Adjusts' : 'තොග වෙනස් කිරීම්' },
+                        { key: 'returns', label: language === 'en' ? 'Supplier Returns' : 'භාණ්ඩ ආපසු යැවීම්' }
+                      ].map(sub => (
+                        <button
+                          key={sub.key}
+                          onClick={() => { setAdminTab('purchases'); setAdminSubTab(sub.key); }}
+                          className={`w-full flex items-center px-3 py-1.5 rounded-lg text-[11px] font-bold transition text-left ${
+                            adminTab === 'purchases' && adminSubTab === sub.key
+                              ? 'text-blue-600 bg-blue-50/50'
+                              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className={`w-1.5 h-1.5 rounded-full mr-2 shrink-0 ${adminTab === 'purchases' && adminSubTab === sub.key ? 'bg-blue-600' : 'bg-slate-300'}`} />
+                          <span>{sub.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* Special Custom Orders */}
               {isTabAllowed('special-orders') && (
                 <button
-                  onClick={() => setAdminTab('special-orders')}
+                  onClick={() => { setAdminTab('special-orders'); setAdminSubTab(''); }}
                   className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
-                    adminTab === 'special-orders' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
+                    adminTab === 'special-orders' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-655 hover:bg-slate-50'
                   }`}
                   title={language === 'en' ? 'Special Custom Orders' : 'විශේෂ ඇණවුම්'}
                 >
@@ -1767,68 +1919,245 @@ Cloud පිටපත ලබා ගැනීමට 'OK' ඔබන්න (දේ�
                 </button>
               )}
 
-              {/* Quotations & Repairs */}
+              {/* Quotations & Repairs (Collapsible Folder) */}
               {isTabAllowed('quotations') && (
-                <button
-                  onClick={() => setAdminTab('quotations')}
-                  className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
-                    adminTab === 'quotations' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
-                  }`}
-                  title={language === 'en' ? 'Quotations & Repairs' : 'කොටේෂන් සහ රෙපෙයාර්'}
-                >
-                  <FileText className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
-                  {!isPosFullScreen && (language === 'en' ? 'Quotations & Repairs' : 'කොටේෂන් සහ රෙපෙයාර්')}
-                </button>
+                <div className="space-y-1">
+                  <button
+                    onClick={() => {
+                      if (isPosFullScreen) {
+                        setAdminTab('quotations');
+                        setAdminSubTab('repairs');
+                      } else {
+                        toggleMenu('quotations');
+                        if (adminTab !== 'quotations') {
+                          setAdminTab('quotations');
+                          setAdminSubTab('repairs');
+                        }
+                      }
+                    }}
+                    className={`w-full flex items-center justify-between ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
+                      adminTab === 'quotations' ? 'bg-slate-100 text-slate-800' : 'text-slate-655 hover:bg-slate-50'
+                    }`}
+                    title={language === 'en' ? 'Quotations & Repairs' : 'කොටේෂන් සහ රෙපෙයාර්'}
+                  >
+                    <div className="flex items-center">
+                      <FileText className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
+                      {!isPosFullScreen && (language === 'en' ? 'Quotations & Repairs' : 'කොටේෂන් & රෙපෙයාර්')}
+                    </div>
+                    {!isPosFullScreen && (
+                      expandedMenus.quotations ? <ChevronDown className="h-3.5 w-3.5 text-slate-400" /> : <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                    )}
+                  </button>
+
+                  {!isPosFullScreen && expandedMenus.quotations && (
+                    <div className="border-l border-slate-150 ml-5 pl-2 space-y-1 mt-0.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                      {[
+                        { key: 'repairs', label: language === 'en' ? 'Repairs Tracker' : 'රෙපෙයාර් ට්‍රැකර්' },
+                        { key: 'quotations', label: language === 'en' ? 'Quotations List' : 'මිල ගණන් ලේඛන' }
+                      ].map(sub => (
+                        <button
+                          key={sub.key}
+                          onClick={() => { setAdminTab('quotations'); setAdminSubTab(sub.key); }}
+                          className={`w-full flex items-center px-3 py-1.5 rounded-lg text-[11px] font-bold transition text-left ${
+                            adminTab === 'quotations' && adminSubTab === sub.key
+                              ? 'text-blue-600 bg-blue-50/50'
+                              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className={`w-1.5 h-1.5 rounded-full mr-2 shrink-0 ${adminTab === 'quotations' && adminSubTab === sub.key ? 'bg-blue-600' : 'bg-slate-300'}`} />
+                          <span>{sub.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
 
-              {/* Attendance & Staff Profiles */}
+              {/* Attendance & Staff Profiles (Collapsible Folder) */}
               {isTabAllowed('attendance') && (
-                <button
-                  onClick={() => setAdminTab('attendance')}
-                  className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
-                    adminTab === 'attendance' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
-                  }`}
-                  title={language === 'en' ? 'Attendance & Profiles' : 'පැමිණීම සහ සේවක පැතිකඩ'}
-                >
-                  <UserCheck className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
-                  {!isPosFullScreen && (language === 'en' ? 'Attendance & Profiles' : 'පැමිණීම සහ සේවක පැතිකඩ')}
-                </button>
+                <div className="space-y-1">
+                  <button
+                    onClick={() => {
+                      if (isPosFullScreen) {
+                        setAdminTab('attendance');
+                        setAdminSubTab('profiles');
+                      } else {
+                        toggleMenu('attendance');
+                        if (adminTab !== 'attendance') {
+                          setAdminTab('attendance');
+                          setAdminSubTab('profiles');
+                        }
+                      }
+                    }}
+                    className={`w-full flex items-center justify-between ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
+                      adminTab === 'attendance' ? 'bg-slate-100 text-slate-800' : 'text-slate-655 hover:bg-slate-50'
+                    }`}
+                    title={language === 'en' ? 'Staff & HR' : 'සේවකයින් සහ HR'}
+                  >
+                    <div className="flex items-center">
+                      <UserCheck className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
+                      {!isPosFullScreen && (language === 'en' ? 'Staff & HR' : 'සේවකයින් & HR')}
+                    </div>
+                    {!isPosFullScreen && (
+                      expandedMenus.attendance ? <ChevronDown className="h-3.5 w-3.5 text-slate-400" /> : <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                    )}
+                  </button>
+
+                  {!isPosFullScreen && expandedMenus.attendance && (
+                    <div className="border-l border-slate-150 ml-5 pl-2 space-y-1 mt-0.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                      {[
+                        { key: 'profiles', label: language === 'en' ? 'Staff Profiles' : 'සේවක පැතිකඩ' },
+                        { key: 'attendance', label: language === 'en' ? 'Attendance log' : 'පැමිණීමේ සටහන්' },
+                        { key: 'commissions', label: language === 'en' ? 'Commissions List' : 'කොමිස් ගෙවීම්' }
+                      ].map(sub => (
+                        <button
+                          key={sub.key}
+                          onClick={() => { setAdminTab('attendance'); setAdminSubTab(sub.key); }}
+                          className={`w-full flex items-center px-3 py-1.5 rounded-lg text-[11px] font-bold transition text-left ${
+                            adminTab === 'attendance' && adminSubTab === sub.key
+                              ? 'text-blue-600 bg-blue-50/50'
+                              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className={`w-1.5 h-1.5 rounded-full mr-2 shrink-0 ${adminTab === 'attendance' && adminSubTab === sub.key ? 'bg-blue-600' : 'bg-slate-300'}`} />
+                          <span>{sub.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
 
-              {/* Reports Panel */}
+              {/* Reports Panel (Collapsible Folder) */}
               {isTabAllowed('reports') && (
-                <button
-                  onClick={() => setAdminTab('reports')}
-                  className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
-                    adminTab === 'reports' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
-                  }`}
-                  title={language === 'en' ? 'Reports' : 'වාර්තා (Reports)'}
-                >
-                  <BarChart3 className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
-                  {!isPosFullScreen && (language === 'en' ? 'Reports' : 'වාර්තා (Reports)')}
-                </button>
+                <div className="space-y-1">
+                  <button
+                    onClick={() => {
+                      if (isPosFullScreen) {
+                        setAdminTab('reports');
+                        setAdminSubTab('sales');
+                      } else {
+                        toggleMenu('reports');
+                        if (adminTab !== 'reports') {
+                          setAdminTab('reports');
+                          setAdminSubTab('sales');
+                        }
+                      }
+                    }}
+                    className={`w-full flex items-center justify-between ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
+                      adminTab === 'reports' ? 'bg-slate-100 text-slate-800' : 'text-slate-655 hover:bg-slate-50'
+                    }`}
+                    title={language === 'en' ? 'Reports & Taxes' : 'වාර්තා සහ බදු'}
+                  >
+                    <div className="flex items-center">
+                      <BarChart3 className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
+                      {!isPosFullScreen && (language === 'en' ? 'Reports & Taxes' : 'වාර්තා & බදු')}
+                    </div>
+                    {!isPosFullScreen && (
+                      expandedMenus.reports ? <ChevronDown className="h-3.5 w-3.5 text-slate-400" /> : <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                    )}
+                  </button>
+
+                  {!isPosFullScreen && expandedMenus.reports && (
+                    <div className="border-l border-slate-150 ml-5 pl-2 space-y-1 mt-0.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                      {[
+                        { key: 'sales', label: language === 'en' ? 'Sales Report' : 'විකුණුම් වාර්තා' },
+                        { key: 'tax', label: language === 'en' ? 'VAT & SSCL Taxes' : 'බදු වාර්තා' },
+                        { key: 'expenses', label: language === 'en' ? 'Expenses List' : 'වියදම් ලේඛනය' },
+                        { key: 'profit-loss', label: language === 'en' ? 'Profit & Loss' : 'ලාභ අලාභ' },
+                        { key: 'stock', label: language === 'en' ? 'Stock Audit' : 'තොග ගණන් බැලීම' },
+                        { key: 'dues', label: language === 'en' ? 'Customer Dues' : 'ණය බිල්පත්' },
+                        { key: 'estimates', label: language === 'en' ? 'Estimates history' : 'ඇස්තමේන්තු' },
+                        { key: 'warranty', label: language === 'en' ? 'Warranty replacements' : 'වගකීම් මාරු කිරීම්' },
+                        { key: 'shifts', label: language === 'en' ? 'Register Shifts' : 'මුදල් ලාච්චු මාරු' },
+                        { key: 'wastage', label: language === 'en' ? 'Wastage report' : 'අපතේ යාම්' }
+                      ].map(sub => (
+                        <button
+                          key={sub.key}
+                          onClick={() => { setAdminTab('reports'); setAdminSubTab(sub.key); }}
+                          className={`w-full flex items-center px-3 py-1.5 rounded-lg text-[10px] font-bold transition text-left ${
+                            adminTab === 'reports' && adminSubTab === sub.key
+                              ? 'text-blue-600 bg-blue-50/50'
+                              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className={`w-1.5 h-1.5 rounded-full mr-2 shrink-0 ${adminTab === 'reports' && adminSubTab === sub.key ? 'bg-blue-600' : 'bg-slate-300'}`} />
+                          <span>{sub.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
 
-              {/* Settings Panel */}
+              {/* Settings Panel (Collapsible Folder) */}
               {isTabAllowed('settings') && (
-                <button
-                  onClick={() => setAdminTab('settings')}
-                  className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
-                    adminTab === 'settings' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
-                  }`}
-                  title={language === 'en' ? 'Settings' : 'සිටින්ස් (Settings)'}
-                >
-                  <Settings className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
-                  {!isPosFullScreen && (language === 'en' ? 'Settings' : 'සිටින්ස් (Settings)')}
-                </button>
+                <div className="space-y-1">
+                  <button
+                    onClick={() => {
+                      if (isPosFullScreen) {
+                        setAdminTab('settings');
+                        setAdminSubTab('shop');
+                      } else {
+                        toggleMenu('settings');
+                        if (adminTab !== 'settings') {
+                          setAdminTab('settings');
+                          setAdminSubTab('shop');
+                        }
+                      }
+                    }}
+                    className={`w-full flex items-center justify-between ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
+                      adminTab === 'settings' ? 'bg-slate-100 text-slate-800' : 'text-slate-655 hover:bg-slate-50'
+                    }`}
+                    title={language === 'en' ? 'System Settings' : 'සිටින්ස් (Settings)'}
+                  >
+                    <div className="flex items-center">
+                      <Settings className={`h-4 w-4 shrink-0 ${isPosFullScreen ? '' : 'mr-2.5'}`} />
+                      {!isPosFullScreen && (language === 'en' ? 'System Settings' : 'සිටින්ස් (Settings)')}
+                    </div>
+                    {!isPosFullScreen && (
+                      expandedMenus.settings ? <ChevronDown className="h-3.5 w-3.5 text-slate-400" /> : <ChevronRight className="h-3.5 w-3.5 text-slate-400" />
+                    )}
+                  </button>
+
+                  {!isPosFullScreen && expandedMenus.settings && (
+                    <div className="border-l border-slate-150 ml-5 pl-2 space-y-1 mt-0.5 animate-in fade-in slide-in-from-top-1 duration-150">
+                      {[
+                        { key: 'shop', label: language === 'en' ? 'Shop Profile' : 'ව්‍යාපාරික පැතිකඩ' },
+                        { key: 'features', label: language === 'en' ? 'Feature Toggles' : 'මොඩියුල ක්‍රියාත්මක' },
+                        { key: 'online-store', label: language === 'en' ? 'Online Store' : 'ඔන්ලයින් ෂොප් එක' },
+                        { key: 'users', label: language === 'en' ? 'Users & Roles' : 'පරිශීලකයින් සහ භූමිකා' },
+                        { key: 'pos', label: language === 'en' ? 'POS Hardware' : 'POS යන්ත්‍ර සැකසුම්' },
+                        { key: 'loyalty', label: language === 'en' ? 'Loyalty Settings' : 'ලෝයල්ටි සැකසුම්' },
+                        { key: 'bank', label: language === 'en' ? 'Bank & LankaQR' : 'බැංකු සහ LankaQR' },
+                        { key: 'database', label: language === 'en' ? 'Database Backup' : 'දත්ත ගබඩා ආරක්ෂාව' },
+                        { key: 'logs', label: language === 'en' ? 'Register Logs' : 'පරිශීලන සටහන් (Logs)' },
+                        { key: 'sms', label: language === 'en' ? 'Cloud SMS gateway' : 'Cloud SMS ගේට්වේ' }
+                      ].map(sub => (
+                        <button
+                          key={sub.key}
+                          onClick={() => { setAdminTab('settings'); setAdminSubTab(sub.key); }}
+                          className={`w-full flex items-center px-3 py-1.5 rounded-lg text-[10px] font-bold transition text-left ${
+                            adminTab === 'settings' && adminSubTab === sub.key
+                              ? 'text-blue-600 bg-blue-50/50'
+                              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className={`w-1.5 h-1.5 rounded-full mr-2 shrink-0 ${adminTab === 'settings' && adminSubTab === sub.key ? 'bg-blue-600' : 'bg-slate-300'}`} />
+                          <span>{sub.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               )}
 
               {/* Expert Insights */}
               {isTabAllowed('insights') && (
                 <button
-                  onClick={() => setAdminTab('insights')}
+                  onClick={() => { setAdminTab('insights'); setAdminSubTab(''); }}
                   className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
-                    adminTab === 'insights' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
+                    adminTab === 'insights' ? 'bg-indigo-650 text-white shadow-md' : 'text-slate-655 hover:bg-slate-50'
                   }`}
                   title={language === 'en' ? 'Architect Insights' : 'නිර්මාණ සැලසුම්'}
                 >
@@ -1840,9 +2169,9 @@ Cloud පිටපත ලබා ගැනීමට 'OK' ඔබන්න (දේ�
               {/* System Backup & Restore */}
               {isTabAllowed('backup') && (
                 <button
-                  onClick={() => setAdminTab('backup')}
+                  onClick={() => { setAdminTab('backup'); setAdminSubTab(''); }}
                   className={`w-full flex items-center ${isPosFullScreen ? 'justify-center p-2.5' : 'px-4 py-2.5'} rounded-xl text-xs font-bold transition ${
-                    adminTab === 'backup' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-600 hover:bg-slate-50'
+                    adminTab === 'backup' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-655 hover:bg-slate-50'
                   }`}
                   title={language === 'en' ? 'Database Backup' : 'පද්ධති උපස්ථය (Backup)'}
                 >
@@ -1854,6 +2183,28 @@ Cloud පිටපත ලබා ගැනීමට 'OK' ඔබන්න (දේ�
 
             {/* Admin Content Area */}
             <div className={`col-span-1 ${isPosFullScreen ? 'lg:col-span-11' : 'lg:col-span-9'} transition-all duration-300`}>
+
+              {/* ⚠️ Default PIN Security Warning Banner */}
+              {(settings.adminPin === '8892' || !settings.adminPin) && !isPosFullScreen && (
+                <div className="mb-4 flex items-center gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3 text-amber-700 text-xs font-bold animate-in fade-in duration-300">
+                  <span className="text-base shrink-0">⚠️</span>
+                  <div>
+                    <span className="font-extrabold">{language === 'en' ? 'Security Alert:' : 'ආරක්ෂක අවවාදයයි:'} </span>
+                    <span className="font-semibold">
+                      {language === 'en'
+                        ? 'You are using the factory default admin PIN. Please change it in Settings → System Settings → Users & Roles to secure your system.'
+                        : 'ඔබ දැනට කර්මාන්ත ශාලා Default PIN එක භාවිතා කරයි. Settings → System Settings → Users & Roles හි ගොස් ඔබගේ PIN අංකය වෙනස් කරන්න.'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => { setAdminTab('settings'); setAdminSubTab('users'); }}
+                    className="ml-auto shrink-0 px-3 py-1 bg-amber-500 text-white rounded-lg text-[10px] font-extrabold hover:bg-amber-600 transition whitespace-nowrap"
+                  >
+                    {language === 'en' ? 'Fix Now' : 'දැන් නිවැරදි කරන්න'}
+                  </button>
+                </div>
+              )}
+
               {adminTab === 'dashboard' && (
                 <Dashboard
                   language={language}
@@ -1927,6 +2278,8 @@ Cloud පිටපත ලබා ගැනීමට 'OK' ඔබන්න (දේ�
                   loyaltyPointValue={settings.loyaltyPointValue}
                   smsLogs={smsLogs}
                   onSendSms={handleSendSms}
+                  activeSubTab={adminSubTab}
+                  onSubTabChange={setAdminSubTab}
                 />
               )}
 
@@ -1958,6 +2311,8 @@ Cloud පිටපත ලබා ගැනීමට 'OK' ඔබන්න (දේ�
                   onDeleteStockReturn={handleDeleteStockReturn}
                   categories={categories}
                   onAddCategory={handleAddCategory}
+                  activeSubTab={adminSubTab}
+                  onSubTabChange={setAdminSubTab}
                 />
               )}
 
@@ -1991,6 +2346,8 @@ Cloud පිටපත ලබා ගැනීමට 'OK' ඔබන්න (දේ�
                   onDeleteQuotation={handleDeleteQuotation}
                   onUpdateRepair={handleUpdateRepair}
                   onDeleteRepair={handleDeleteRepair}
+                  activeSubTab={adminSubTab}
+                  onSubTabChange={setAdminSubTab}
                 />
               )}
 

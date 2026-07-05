@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { ShopSettings, SystemAuditLog, Product, Customer, RepairJob, Sale, BankTransaction } from '../types';
 import { translations } from '../lib/translations';
 import { 
@@ -27,6 +27,8 @@ interface SettingsPanelProps {
   bankTransactions?: BankTransaction[];
   bankBalance?: number;
   onGetCompleteDatabaseState?: () => any;
+  activeSubTab?: string;
+  onSubTabChange?: (tab: any) => void;
 }
 
 const compressImage = (file: File, maxWidth: number, maxHeight: number): Promise<string> => {
@@ -100,12 +102,20 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   onDeleteSnapshot,
   bankTransactions = [],
   bankBalance = 125000,
-  onGetCompleteDatabaseState
+  onGetCompleteDatabaseState,
+  activeSubTab,
+  onSubTabChange
 }) => {
   const t = translations[language];
 
   // Sub tabs
   const [subTab, setSubTab] = useState<'shop' | 'online-store' | 'users' | 'pos' | 'loyalty' | 'bank' | 'database' | 'logs' | 'features' | 'sms'>('shop');
+
+  useEffect(() => {
+    if (activeSubTab && (activeSubTab === 'shop' || activeSubTab === 'online-store' || activeSubTab === 'users' || activeSubTab === 'pos' || activeSubTab === 'loyalty' || activeSubTab === 'bank' || activeSubTab === 'database' || activeSubTab === 'logs' || activeSubTab === 'features' || activeSubTab === 'sms')) {
+      setSubTab(activeSubTab as any);
+    }
+  }, [activeSubTab]);
 
   const tabsRef = React.useRef<HTMLDivElement>(null);
   
@@ -688,7 +698,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             return (
               <button
                 key={tab.key}
-                onClick={() => setSubTab(tab.key)}
+                onClick={() => { setSubTab(tab.key); if (onSubTabChange) onSubTabChange(tab.key); }}
                 className={`px-4 py-1.5 rounded-lg text-xs font-bold transition flex items-center whitespace-nowrap ${
                   subTab === tab.key ? 'bg-blue-600 text-white shadow-md' : 'text-slate-650 hover:bg-slate-100'
                 }`}
@@ -1177,9 +1187,15 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                   maxLength={4}
                   value={adminPin}
                   onChange={(e) => setAdminPin(e.target.value.replace(/\D/g, ''))}
-                  placeholder="8892"
+                  placeholder="••••"
                   className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-center font-extrabold tracking-widest bg-white"
                 />
+                {(settings.adminPin === '8892' || !settings.adminPin) && (
+                  <p className="text-[10px] text-amber-600 font-bold flex items-center gap-1 mt-1">
+                    <span>⚠️</span>
+                    <span>Default PIN in use. Please change it for security.</span>
+                  </p>
+                )}
               </div>
             </div>
             <div className="grid grid-cols-2 gap-3 md:col-span-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200">

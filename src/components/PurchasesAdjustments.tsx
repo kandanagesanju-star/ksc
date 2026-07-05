@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Product, Supplier, PurchaseOrder, StockAdjustment, StockReturn, Sale } from '../types';
 import { translations } from '../lib/translations';
 import { 
@@ -25,6 +25,8 @@ interface PurchasesAdjustmentsProps {
   onDeleteStockReturn: (id: string) => void;
   categories: string[];
   onAddCategory: (cat: string) => void;
+  activeSubTab?: string;
+  onSubTabChange?: (tab: any) => void;
 }
 
 export const PurchasesAdjustments: React.FC<PurchasesAdjustmentsProps> = ({
@@ -45,12 +47,20 @@ export const PurchasesAdjustments: React.FC<PurchasesAdjustmentsProps> = ({
   onDeleteStockAdjustment,
   onDeleteStockReturn,
   categories,
-  onAddCategory
+  onAddCategory,
+  activeSubTab,
+  onSubTabChange
 }) => {
   const t = translations[language];
 
   // Primary Tabs
   const [activeTab, setActiveTab] = useState<'purchases' | 'adjustments' | 'returns'>('purchases');
+
+  useEffect(() => {
+    if (activeSubTab && (activeSubTab === 'purchases' || activeSubTab === 'adjustments' || activeSubTab === 'returns')) {
+      setActiveTab(activeSubTab as any);
+    }
+  }, [activeSubTab]);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
@@ -60,6 +70,7 @@ export const PurchasesAdjustments: React.FC<PurchasesAdjustmentsProps> = ({
     setSearchTerm('');
     setFilterStartDate('');
     setFilterEndDate('');
+    if (onSubTabChange) onSubTabChange(tab);
   };
 
   // Filtered lists

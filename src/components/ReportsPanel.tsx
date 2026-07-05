@@ -28,6 +28,8 @@ interface ReportsPanelProps {
   onDeleteSale?: (saleId: string) => void;
   onUpdateExpense?: (expense: Expense) => void;
   onDeleteExpense?: (expenseId: string) => void;
+  activeSubTab?: string;
+  onSubTabChange?: (tab: any) => void;
 }
 
 export const ReportsPanel: React.FC<ReportsPanelProps> = ({
@@ -47,7 +49,9 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
   onUpdateSale,
   onDeleteSale,
   onUpdateExpense,
-  onDeleteExpense
+  onDeleteExpense,
+  activeSubTab,
+  onSubTabChange
 }) => {
   const t = translations[language];
 
@@ -55,6 +59,12 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
   const [reportType, setReportType] = useState<
     'sales' | 'tax' | 'expenses' | 'profit-loss' | 'stock' | 'dues' | 'estimates' | 'warranty' | 'turnover' | 'shifts' | 'wastage'
   >('sales');
+
+  useEffect(() => {
+    if (activeSubTab && (activeSubTab === 'sales' || activeSubTab === 'tax' || activeSubTab === 'expenses' || activeSubTab === 'profit-loss' || activeSubTab === 'stock' || activeSubTab === 'dues' || activeSubTab === 'estimates' || activeSubTab === 'warranty' || activeSubTab === 'turnover' || activeSubTab === 'shifts' || activeSubTab === 'wastage')) {
+      setReportType(activeSubTab as any);
+    }
+  }, [activeSubTab]);
 
   const [globalSearchTerm, setGlobalSearchTerm] = useState('');
   const [globalStartDate, setGlobalStartDate] = useState('');
@@ -65,6 +75,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
     setGlobalSearchTerm('');
     setGlobalStartDate('');
     setGlobalEndDate('');
+    if (onSubTabChange) onSubTabChange(key);
   };
 
   const [selectedSale, setSelectedSale] = useState<Sale | null>(null);
