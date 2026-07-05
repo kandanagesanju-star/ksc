@@ -143,6 +143,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [bankName, setBankName] = useState(settings.bankName);
   const [accNo, setAccNo] = useState(settings.bankAccountNo);
   const [accName, setAccName] = useState(settings.bankAccountName);
+  const [qrCodeUrl, setQrCodeUrl] = useState(settings.qrCodeUrl || '');
 
   // Online Storefront Customizer states
   const [onlineStoreName, setOnlineStoreName] = useState(settings.onlineStoreName || 'My Online Shop');
@@ -348,6 +349,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     setSmsSenderId(settings.smsSenderId || '');
     setSmsUsername(settings.smsUsername || '');
     setSmsCustomUrlTemplate(settings.smsCustomUrlTemplate || '');
+    setQrCodeUrl(settings.qrCodeUrl || '');
   }, [settings]);
 
   // Database Health check helper (Database Engineer)
@@ -598,6 +600,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       bankName: bankName.trim(),
       bankAccountNo: accNo.trim(),
       bankAccountName: accName.trim(),
+      qrCodeUrl: qrCodeUrl.trim(),
       vatRate,
       ssclRate,
       onlineStoreName: onlineStoreName.trim(),
@@ -1719,6 +1722,44 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 />
               </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-100 pt-4">
+              <div className="space-y-1">
+                <label className="font-bold text-slate-500">LankaQR Code Image URL / Base64</label>
+                <input
+                  type="text" value={qrCodeUrl} onChange={(e) => setQrCodeUrl(e.target.value)}
+                  placeholder="Paste direct image URL or upload below"
+                  className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-bold focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="space-y-1 text-left">
+                <label className="font-bold text-slate-500">Upload LankaQR Image</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      try {
+                        const base64 = await compressImage(file, 400, 400);
+                        setQrCodeUrl(base64);
+                      } catch (err) {
+                        alert('Image compression failed!');
+                      }
+                    }
+                  }}
+                  className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-[10px] font-bold focus:outline-none bg-slate-50 cursor-pointer"
+                />
+              </div>
+            </div>
+
+            {qrCodeUrl && (
+              <div className="flex flex-col items-start space-y-1 border-t border-slate-100 pt-4">
+                <label className="font-bold text-slate-500">LankaQR Code Preview</label>
+                <img src={qrCodeUrl} alt="LankaQR Preview" className="h-28 w-28 border border-slate-200 p-2 bg-white rounded-xl shadow-sm" />
+              </div>
+            )}
 
             <div className="flex justify-end pt-3">
               <button

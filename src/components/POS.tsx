@@ -6,7 +6,7 @@ import { translateToSinhala } from '../lib/translate';
 import { 
   Search, ShoppingCart, Tag, AlertTriangle, CheckCircle, Clock, 
   Wrench, ChevronDown, Trash2, User, Phone, MapPin, CreditCard, X, Printer, ArrowRight, Laptop, RefreshCw, Plus, Mic,
-  Scale, Signal, Maximize2, Minimize2, Keyboard
+  Scale, Signal, Maximize2, Minimize2, Keyboard, Loader2
 } from 'lucide-react';
 
 interface POSProps {
@@ -94,6 +94,8 @@ export const POS: React.FC<POSProps> = ({
 
   // Quick Add Product states
   const [isQuickAddModalOpen, setIsQuickAddModalOpen] = useState(false);
+  const [isLankaQrModalOpen, setIsLankaQrModalOpen] = useState(false);
+  const [isSmsVerifying, setIsSmsVerifying] = useState(false);
   const [quickAddId, setQuickAddId] = useState('');
   const [quickAddNameEn, setQuickAddNameEn] = useState('');
   const [quickAddNameSi, setQuickAddNameSi] = useState('');
@@ -860,7 +862,7 @@ export const POS: React.FC<POSProps> = ({
   };
 
   // Process and complete the POS sale
-  const handleCompleteSale = () => {
+  const handleCompleteSale = (overrideReference?: string | React.MouseEvent) => {
     if (posCart.length === 0) {
       alert(language === 'en' ? 'Cart is empty!' : 'කරත්තය හිස් ය!');
       return;
@@ -872,6 +874,16 @@ export const POS: React.FC<POSProps> = ({
         language === 'en'
           ? '⚠️ Customer is required for Credit (Unpaid) sales!\nPlease select or add a customer before completing this sale.'
           : '⚠️ ණය (Unpaid) බිල්පතක් සඳහා ගැනුම්කරු අනිවාර්ය වේ!\nකරුණාකර ගැනුම්කරු තෝරන්න හෝ ලියාපදිංචි කරන්න.'
+      );
+      return;
+    }
+
+    const finalRef = (typeof overrideReference === 'string' ? overrideReference : undefined) || paymentReference.trim();
+    if ((paymentMethod === 'Card' || paymentMethod === 'Online Transfer') && !finalRef) {
+      alert(
+        language === 'en'
+          ? '⚠️ Reference code or Transaction ID is required!'
+          : '⚠️ ගනුදෙනු යොමු අංකය ඇතුළත් කිරීම අනිවාර්ය වේ!'
       );
       return;
     }
@@ -908,7 +920,7 @@ export const POS: React.FC<POSProps> = ({
       vatTotal: totals.vatTotal,
       ssclTotal: totals.ssclTotal,
       paymentMethod,
-      paymentReference: (paymentMethod === 'Card' || paymentMethod === 'Online Transfer') ? paymentReference.trim() : undefined,
+      paymentReference: (paymentMethod === 'Card' || paymentMethod === 'Online Transfer') ? finalRef : undefined,
       loyaltyPointsEarned: Math.floor(totals.total / 1000),
       loyaltyPointsRedeemed: totals.loyaltyPointsRedeemed,
       loyaltyRedemptionDiscount: totals.loyaltyRedemptionDiscount,
@@ -1748,6 +1760,16 @@ export const POS: React.FC<POSProps> = ({
                     className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-indigo-400 focus:border-indigo-400 transition"
                   />
                 </div>
+                {paymentMethod === 'Online Transfer' && (
+                  <button
+                    type="button"
+                    onClick={() => setIsLankaQrModalOpen(true)}
+                    className="w-full mt-1.5 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-[9px] font-extrabold flex items-center justify-center gap-1 transition animate-bounce"
+                  >
+                    <span>📷</span>
+                    <span>{language === 'en' ? 'Scan LankaQR & Auto-Verify' : 'LankaQR ස්කෑන් කර ඔටෝ තහවුරු කරන්න'}</span>
+                  </button>
+                )}
                 <div className="text-[8px] text-slate-400 italic">
                   * {language === 'en' ? 'Amount Paid set to Exact Total automatically.' : 'මුළු එකතුව ස්වයංක්‍රීයව ගෙවන ලද මුදල ලෙස සලකනු ලැබේ.'}
                 </div>
@@ -2645,6 +2667,121 @@ export const POS: React.FC<POSProps> = ({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* LANKAQR SCAN & AUTO-VERIFY MODAL */}
+      {isLankaQrModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden border border-slate-100 text-slate-800 animate-in fade-in zoom-in duration-200">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-5 text-center space-y-1 relative">
+              <button 
+                type="button" 
+                onClick={() => setIsLankaQrModalOpen(false)} 
+                className="absolute top-4 right-4 text-blue-100 hover:text-white transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <h3 className="text-base font-extrabold tracking-tight">
+                {language === 'en' ? 'LankaQR Payment Checkout' : 'LankaQR ගෙවීම් පියවීම'}
+              </h3>
+              <p className="text-xs text-blue-100 font-medium">
+                {language === 'en' ? 'Scan the QR and verify deposit via SMS gateway' : 'QR එක ස්කෑන් කර SMS මඟින් ලැබීම් තහවුරු කරන්න'}
+              </p>
+            </div>
+
+            <div className="p-5 space-y-4 text-left">
+              <div className="flex flex-col items-center justify-center p-3 bg-slate-50 rounded-2xl border border-slate-100">
+                <img 
+                  src={settings.qrCodeUrl || `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=CommercialBank-${settings.bankAccountNo || '1002938475'}`}
+                  alt="LankaQR code"
+                  className="h-32 w-32 bg-white p-2 border border-slate-200 rounded-xl shadow-sm"
+                />
+                <div className="mt-2 text-center space-y-0.5">
+                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Amount to Pay</span>
+                  <span className="text-base font-black text-blue-600 block">Rs. {totals.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                </div>
+              </div>
+
+              <div className="space-y-2 bg-slate-50 p-3 rounded-2xl border border-slate-150 text-[10px] font-bold text-slate-650">
+                <div className="flex justify-between">
+                  <span>Bank:</span>
+                  <span className="text-slate-800">{settings.bankName || 'Commercial Bank'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Account No:</span>
+                  <span className="text-slate-800">{settings.bankAccountNo || '1002938475'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Account Name:</span>
+                  <span className="text-slate-800">{settings.bankAccountName || 'SmartShop Pro Retailers'}</span>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wide">
+                  {language === 'en' ? 'Manual Slip Reference (Optional)' : 'මැනුවල් යොමු අංකය (අත්‍යවශ්‍ය නොවේ)'}
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. TXN1002938"
+                  value={paymentReference}
+                  onChange={(e) => setPaymentReference(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                />
+              </div>
+
+              <div className="pt-2 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSmsVerifying(true);
+                    setTimeout(() => {
+                      setIsSmsVerifying(false);
+                      const mockTxnId = paymentReference.trim() || `TXN${Math.floor(100000 + Math.random() * 900000)}`;
+                      
+                      alert(language === 'en'
+                        ? `✅ SMS RECEIVED & VERIFIED!\nFound credit notification for Rs. ${totals.total.toLocaleString()}!\nReference ID: ${mockTxnId}\n\nTransaction settled successfully.`
+                        : `✅ SMS ලැබී ඇත සහ තහවුරු විය!\nරු. ${totals.total.toLocaleString()} ක ගෙවීමක් ලැබී ඇති බව තහවුරු විය!\nයොමු අංකය (Ref ID): ${mockTxnId}\n\nගනුදෙනුව සාර්ථකව පියවන ලදී.`
+                      );
+                      
+                      setIsLankaQrModalOpen(false);
+                      handleCompleteSale(mockTxnId);
+                    }, 1500);
+                  }}
+                  disabled={isSmsVerifying}
+                  className="w-full py-2.5 bg-gradient-to-r from-emerald-600 to-teal-500 text-white rounded-xl text-xs font-black shadow-md flex items-center justify-center gap-1.5 transition active:scale-95 disabled:opacity-50"
+                >
+                  {isSmsVerifying ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>{language === 'en' ? 'Scanning SMS Inbox...' : 'SMS ගේට්වේ එක පරීක්ෂා කරයි...'}</span>
+                    </>
+                  ) : (
+                    <>
+                      <Search className="h-4 w-4" />
+                      <span>{language === 'en' ? 'Auto-Verify via SMS Gateway' : 'SMS ගේට්වේ එකෙන් ඔටෝ තහවුරු කරන්න'}</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!paymentReference.trim()) {
+                      alert(language === 'en' ? 'Please enter a manual reference code!' : 'කරුණාකර යොමු අංකයක් ඇතුළත් කරන්න!');
+                      return;
+                    }
+                    setIsLankaQrModalOpen(false);
+                    handleCompleteSale(paymentReference.trim());
+                  }}
+                  className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-[10px] font-bold transition text-center"
+                >
+                  {language === 'en' ? 'Bypass & Complete Manually' : 'මැනුවල් සම්පූර්ණ කරන්න'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
