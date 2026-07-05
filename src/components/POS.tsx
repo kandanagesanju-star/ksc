@@ -616,6 +616,64 @@ export const POS: React.FC<POSProps> = ({
     });
   };
 
+  // Global Barcode Scanner Listener Hook
+  useEffect(() => {
+    let barcodeBuffer = '';
+    let lastKeyTime = Date.now();
+
+    const handleGlobalBarcode = (e: KeyboardEvent) => {
+      // Ignore if keyboard event target is a text input, textarea, or contentEditable
+      const target = e.target as HTMLElement;
+      const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
+      
+      // Allow capturing barcode if it's the POS search input specifically, but ignore for others (e.g. price change, discount inputs)
+      if (isInput && target.id !== 'pos-search-input') {
+        return;
+      }
+
+      const key = e.key;
+
+      // Barcode scanner detection: keys typed rapidly (interval < 100ms)
+      const currentTime = Date.now();
+      const timeDiff = currentTime - lastKeyTime;
+      lastKeyTime = currentTime;
+
+      // If the delay between keys is long, reset buffer (only if buffer is not empty and it's not the final Enter key)
+      if (timeDiff > 100 && barcodeBuffer.length > 0 && key !== 'Enter') {
+        barcodeBuffer = '';
+      }
+
+      // Process key
+      if (key === 'Enter') {
+        const scannedCode = barcodeBuffer.trim();
+        if (scannedCode.length > 2) {
+          // Search for product matching code (case-insensitive id)
+          const matched = products.find(p => p.id.toLowerCase() === scannedCode.toLowerCase());
+          if (matched) {
+            addToCart(matched);
+            
+            // Clear input if target is pos-search-input
+            if (target && target.id === 'pos-search-input') {
+              setSearchQuery('');
+            }
+            
+            barcodeBuffer = '';
+            e.preventDefault();
+            e.stopPropagation();
+          }
+        }
+      } else if (key.length === 1) {
+        // Accumulate alphanumeric characters
+        barcodeBuffer += key;
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalBarcode, true);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalBarcode, true);
+    };
+  }, [products, language]);
+
   const handleConfirmWeight = (e: React.FormEvent) => {
     e.preventDefault();
     if (!weightModalProduct) return;

@@ -126,3 +126,57 @@
   scrollbar-width: none;
 }
 
+/* ==========================================================================
+   OLDER BROWSER COMPATIBILITY FALLBACKS (WINDOWS 7/8 COMPATIBILITY)
+   ========================================================================== */
+
+/* Fallbacks for Tailwind v4 opacity utility class names (which use modern rgb(r g b / alpha) syntax) */
+@supports not (color: rgb(0 0 0 / 0.5)) {
+  /* Slate & Dark background transparency fallbacks */
+  .bg-slate-900\/60 { background-color: rgba(15, 23, 42, 0.6) !important; }
+  .bg-slate-950\/60 { background-color: rgba(2, 6, 23, 0.6) !important; }
+  .bg-slate-950\/70 { background-color: rgba(2, 6, 23, 0.7) !important; }
+  .bg-slate-950\/40 { background-color: rgba(2, 6, 23, 0.4) !important; }
+  .bg-slate-950\/90 { background-color: rgba(2, 6, 23, 0.9) !important; }
+  
+  /* Slate Light backgrounds */
+  .bg-slate-50\/50 { background-color: rgba(248, 250, 252, 0.5) !important; }
+  .bg-slate-50\/30 { background-color: rgba(248, 250, 252, 0.3) !important; }
+  .bg-slate-50\/20 { background-color: rgba(248, 250, 252, 0.2) !important; }
+  .bg-slate-100\/60 { background-color: rgba(241, 245, 249, 0.6) !important; }
+  
+  /* Blue opacity */
+  .bg-blue-600\/10 { background-color: rgba(37, 99, 235, 0.1) !important; }
+  .bg-blue-500\/15 { background-color: rgba(59, 130, 246, 0.15) !important; }
+  .bg-blue-500\/20 { background-color: rgba(59, 130, 246, 0.2) !important; }
+  
+  /* Emerald opacity */
+  .bg-emerald-600\/10 { background-color: rgba(5, 150, 105, 0.1) !important; }
+  .bg-emerald-500\/15 { background-color: rgba(16, 185, 129, 0.15) !important; }
+  .bg-emerald-500\/20 { background-color: rgba(16, 185, 129, 0.2) !important; }
+
+  /* Rose opacity */
+  .bg-rose-600\/10 { background-color: rgba(225, 29, 72, 0.1) !important; }
+  .bg-rose-500\/15 { background-color: rgba(244, 63, 94, 0.15) !important; }
+  .bg-rose-500\/20 { background-color: rgba(244, 63, 94, 0.2) !important; }
+
+  /* Amber opacity */
+  .bg-amber-600\/10 { background-color: rgba(217, 119, 6, 0.1) !important; }
+  .bg-amber-500\/15 { background-color: rgba(245, 158, 11, 0.15) !important; }
+  .bg-amber-500\/20 { background-color: rgba(245, 158, 11, 0.2) !important; }
+
+  /* Purple/Indigo opacity */
+  .bg-purple-500\/15 { background-color: rgba(168, 85, 247, 0.15) !important; }
+  .bg-indigo-50\/40 { background-color: rgba(238, 242, 255, 0.4) !important; }
+  .bg-indigo-600\/10 { background-color: rgba(79, 70, 229, 0.1) !important; }
+
+  /* Borders */
+  .border-white\/10 { border-color: rgba(255, 255, 255, 0.1) !important; }
+  .border-blue-500\/30 { border-color: rgba(59, 130, 246, 0.3) !important; }
+  .border-emerald-500\/30 { border-color: rgba(16, 185, 129, 0.3) !important; }
+  .border-rose-500\/30 { border-color: rgba(244, 63, 94, 0.3) !important; }
+  .border-amber-500\/30 { border-color: rgba(245, 158, 11, 0.3) !important; }
+  .border-purple-500\/30 { border-color: rgba(168, 85, 247, 0.3) !important; }
+}
+
+
