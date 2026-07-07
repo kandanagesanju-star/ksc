@@ -14,6 +14,7 @@ interface ContactsLoyaltyProps {
   onAddSupplier: (supplier: Supplier) => void;
   onUpdateCustomerPoints: (customerId: string, points: number) => void;
   loyaltyPointValue: number; // e.g. 1000
+  pointRedemptionValue?: number; // e.g. 10
   smsLogs: SmsLog[];
   onSendSms: (phone: string, message: string) => void;
   onUpdateCustomer: (customer: Customer) => void;
@@ -36,6 +37,7 @@ export const ContactsLoyalty: React.FC<ContactsLoyaltyProps> = ({
   onDeleteSupplier,
   onUpdateCustomerPoints,
   loyaltyPointValue,
+  pointRedemptionValue = 10,
   smsLogs,
   onSendSms,
   activeSubTab,
@@ -504,7 +506,7 @@ export const ContactsLoyalty: React.FC<ContactsLoyaltyProps> = ({
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">{language === 'en' ? 'Point Value' : 'පොයින්ට් එකක වටිනාකම'}:</span>
-                <span className="font-bold text-emerald-400">1 Point = Rs. 10.00</span>
+                <span className="font-bold text-emerald-400">1 Point = Rs. {pointRedemptionValue.toFixed(2)}</span>
               </div>
             </div>
           </div>

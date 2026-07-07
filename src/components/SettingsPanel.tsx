@@ -148,6 +148,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
   // Loyalty Config
   const [loyaltyValue, setLoyaltyValue] = useState(settings.loyaltyPointValue);
+  const [pointRedeemValue, setPointRedeemValue] = useState(settings.pointRedemptionValue ?? 10);
 
   // POS Shortcuts
   const [shortcutComplete, setShortcutComplete] = useState(settings.posShortcuts.completeSale || 'F8');
@@ -321,6 +322,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     setVatRate(settings.vatRate ?? 15);
     setSsclRate(settings.ssclRate ?? 2.5);
     setLoyaltyValue(settings.loyaltyPointValue ?? 100);
+    setPointRedeemValue(settings.pointRedemptionValue ?? 10);
     setShortcutComplete(settings.posShortcuts.completeSale || 'F8');
     setShortcutClear(settings.posShortcuts.clearCart || 'F9');
     setShortcutSearch(settings.posShortcuts.focusSearch || 'F1');
@@ -606,6 +608,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       taxRegistrationNo: taxNo.trim(),
       receiptFooterMessage: footerMsg.trim(),
       loyaltyPointValue: loyaltyValue,
+      pointRedemptionValue: pointRedeemValue,
       posShortcuts: {
         completeSale: shortcutComplete,
         clearCart: shortcutClear,
@@ -1712,12 +1715,26 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             <p className="text-xs text-slate-400 font-medium">Configure how many rupees spent earn 1 loyalty point.</p>
           </div>
 
-          <div className="max-w-xs space-y-1">
-            <label className="font-bold text-slate-500">Rupees spent per 1 point *</label>
-            <input
-              type="number" min="1" required value={loyaltyValue} onChange={(e) => setLoyaltyValue(Number(e.target.value))}
-              className="w-full px-3 py-1.5 border border-slate-200 rounded-lg font-bold"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-lg">
+            <div className="space-y-1">
+              <label className="font-bold text-slate-500">
+                {language === 'en' ? 'Rupees spent per 1 point *' : 'ලකුණු 1ක් උපයා ගැනීමට අවශ්‍ය රුපියල් ප්‍රමාණය *'}
+              </label>
+              <input
+                type="number" min="1" required value={loyaltyValue} onChange={(e) => setLoyaltyValue(Number(e.target.value))}
+                className="w-full px-3 py-1.5 border border-slate-200 rounded-lg font-bold"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="font-bold text-slate-500">
+                {language === 'en' ? 'Rupee value of 1 point (Redemption) *' : 'ලකුණු 1ක රුපියල් වටිනාකම (භාවිතා කිරීමේදී) *'}
+              </label>
+              <input
+                type="number" min="0.1" step="any" required value={pointRedeemValue} onChange={(e) => setPointRedeemValue(Number(e.target.value))}
+                className="w-full px-3 py-1.5 border border-slate-200 rounded-lg font-bold"
+              />
+            </div>
           </div>
 
           <div className="flex justify-end pt-3">

@@ -489,10 +489,11 @@ export const POS: React.FC<POSProps> = ({
     let loyaltyRedemptionDiscount = 0;
     
     if (redeemPoints && selectedCustomer && selectedCustomer.loyaltyPoints > 0) {
-      const maxDiscountFromPoints = selectedCustomer.loyaltyPoints * 10;
+      const redemptionRate = settings.pointRedemptionValue || 10;
+      const maxDiscountFromPoints = selectedCustomer.loyaltyPoints * redemptionRate;
       const potentialDiscount = Math.min(rawTotal, maxDiscountFromPoints);
-      pointsRedeemed = Math.ceil(potentialDiscount / 10);
-      loyaltyRedemptionDiscount = pointsRedeemed * 10;
+      pointsRedeemed = Math.ceil(potentialDiscount / redemptionRate);
+      loyaltyRedemptionDiscount = pointsRedeemed * redemptionRate;
     }
 
     const total = Math.max(0, rawTotal - loyaltyRedemptionDiscount);
@@ -921,7 +922,7 @@ export const POS: React.FC<POSProps> = ({
       ssclTotal: totals.ssclTotal,
       paymentMethod,
       paymentReference: (paymentMethod === 'Card' || paymentMethod === 'Online Transfer') ? finalRef : undefined,
-      loyaltyPointsEarned: Math.floor(totals.total / 1000),
+      loyaltyPointsEarned: Math.floor(totals.total / (settings.loyaltyPointValue || 1000)),
       loyaltyPointsRedeemed: totals.loyaltyPointsRedeemed,
       loyaltyRedemptionDiscount: totals.loyaltyRedemptionDiscount,
       createdAt: new Date().toISOString()

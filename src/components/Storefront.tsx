@@ -540,7 +540,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
       vatTotal: cartTotals.vatTotal,
       ssclTotal: cartTotals.ssclTotal,
       paymentMethod,
-      loyaltyPointsEarned: Math.floor(cartTotals.total / 1000),
+      loyaltyPointsEarned: Math.floor(cartTotals.total / (settings.loyaltyPointValue || 1000)),
       createdAt: new Date().toISOString()
     };
     cart.forEach(item => {
