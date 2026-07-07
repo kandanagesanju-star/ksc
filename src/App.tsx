@@ -624,16 +624,50 @@ function App() {
       const currentUpdated = localStorage.getItem('shop_last_updated') || '0';
       localStorage.setItem('shop_last_sync_time', currentUpdated);
     }
-  }, []);
-
-  // Monitor database state changes to update local modification timestamp
+  }, []);  // Debounced Silent Cloud Push & State Monitor
   useEffect(() => {
     if (isFirstMountRef.current) {
       isFirstMountRef.current = false;
       return;
     }
     if (isPullingRef.current) return;
-    localStorage.setItem('shop_last_updated', Date.now().toString());
+
+    const newTimestamp = Date.now();
+    localStorage.setItem('shop_last_updated', newTimestamp.toString());
+
+    const isSyncEnabled = localStorage.getItem('shop_sync_enabled') === 'true';
+    const syncId = localStorage.getItem('shop_sync_id');
+    if (!isSyncEnabled || !syncId) return;
+
+    const delayDebounce = setTimeout(async () => {
+      try {
+        const state: any = {
+          products: productsRef.current,
+          customers,
+          suppliers,
+          repairs,
+          sales: salesRef.current,
+          employees,
+          attendance,
+          commissions,
+          specialOrders,
+          expenses,
+          stockAdjustments,
+          stockReturns,
+          quotations,
+          settings,
+          lastUpdated: newTimestamp
+        };
+        
+        await pushLocalStateToCloud(syncId, state);
+        localStorage.setItem('shop_last_sync_time', newTimestamp.toString());
+        console.log('Silent sync push successful at:', new Date(newTimestamp).toLocaleTimeString());
+      } catch (err) {
+        console.error('Silent sync push failed:', err);
+      }
+    }, 1500); // 1.5 second debounce
+
+    return () => clearTimeout(delayDebounce);
   }, [
     products,
     customers,
@@ -651,7 +685,7 @@ function App() {
     settings
   ]);
 
-  // Timestamp-Based Zero-Setup Cloud Synchronizer
+  // Silent Real-Time Cloud Synchronizer
   useEffect(() => {
     const isSyncEnabled = localStorage.getItem('shop_sync_enabled') === 'true';
     const syncId = localStorage.getItem('shop_sync_id');
@@ -688,7 +722,6 @@ function App() {
           localStorage.removeItem('shop_sync_force_pull');
         } else if (!cloudMeta.found) {
           // Cloud has no data yet (first time set up)
-          // Push local database state to cloud (only if initialization is needed)
           if (lastSyncTime === 0) {
             const completeState: any = getCompleteDatabaseState();
             const newTime = Date.now();
@@ -701,76 +734,24 @@ function App() {
             localStorage.setItem('shop_last_sync_time', newTime.toString());
           }
         } else if (cloudMeta.lastUpdated > lastSyncTime) {
-          // Cloud has a newer update than this device last saw
-          const hasLocalUnsavedChanges = localTime > lastSyncTime;
-          
-          if (hasLocalUnsavedChanges) {
-            // Conflict! Both cloud and local have changes.
-            if (lastCheckedCloudTime.current === cloudMeta.lastUpdated) {
-              // Already prompted for this cloud version, skip to avoid prompt loop
-              return;
+          // Cloud is newer than what we last synced.
+          // Decide conflict using Last-Write-Wins (LWW) silently:
+          if (localTime > cloudMeta.lastUpdated) {
+            // Local changes are actually newer than the cloud version! Silently upload local.
+            const completeState: any = getCompleteDatabaseState();
+            completeState.lastUpdated = localTime;
+            await pushLocalStateToCloud(syncId, completeState);
+            localStorage.setItem('shop_last_sync_time', localTime.toString());
+            console.log('Silent push performed to resolve conflict (LWW).');
+          } else {
+            // Cloud has a newer update than our local database. Silently pull and apply.
+            const cloudState = await getCloudSyncState(syncId);
+            if (cloudState) {
+              handleSyncPullUpdate(cloudState);
+              localStorage.setItem('shop_last_sync_time', cloudMeta.lastUpdated.toString());
+              localStorage.setItem('shop_last_updated', cloudMeta.lastUpdated.toString());
+              console.log('Silent pull performed to update local database (LWW).');
             }
-            lastCheckedCloudTime.current = cloudMeta.lastUpdated;
-            
-            const cloudProducts = cloudMeta.productsCount || 0;
-            const cloudSales = cloudMeta.salesCount || 0;
-            const cloudSizeKb = cloudMeta.dataSize ? (cloudMeta.dataSize / 1024).toFixed(1) : 'N/A';
-            const cloudDate = new Date(cloudMeta.lastUpdated).toLocaleString(language === 'si' ? 'si-LK' : 'en-US');
-            
-            const localProducts = productsRef.current.length;
-            const localSales = salesRef.current.length;
-            const localJson = JSON.stringify(getCompleteDatabaseState());
-            const localSizeKb = (localJson.length / 1024).toFixed(1);
-            const localDate = new Date(localTime).toLocaleString(language === 'si' ? 'si-LK' : 'en-US');
-            
-            const confirmMessage = language === 'en'
-              ? `⚠️ Sync Conflict Detected!
-The cloud database has been updated by another device.
-
-Cloud Version:
-- Last Saved: ${cloudDate}
-- Products: ${cloudProducts}
-- Sales: ${cloudSales}
-- Size: ${cloudSizeKb} KB
-
-Your Local Version (with unsaved changes):
-- Last Modified: ${localDate}
-- Products: ${localProducts}
-- Sales: ${localSales}
-- Size: ${localSizeKb} KB
-
-Would you like to PULL the cloud version and OVERWRITE your local changes?
-Click 'OK' to replace local data with cloud data.
-Click 'Cancel' to keep your local changes (you can upload them manually using 'Upload Sync Now').`
-              : `⚠️ සමමුහුර්ත ගැටුමක් හඳුනා ගන්නා ලදී!
-Cloud දත්ත සමුදාය වෙනත් උපාංගයකින් යාවත්කාලීන කර ඇත.
-
-Cloud පිටපත (නවීන):
-- අවසන් වරට අප්ලෝඩ් කළේ: ${cloudDate}
-- භාණ්ඩ ගණන: ${cloudProducts}
-- විකුණුම් ගණන: ${cloudSales}
-- ධාරිතාව: ${cloudSizeKb} KB
-
-ඔබගේ උපාංගයේ පිටපත (සුරැකීමට නොහැකි වූ දත්ත සහිත):
-- අවසන් වරට වෙනස් කළේ: ${localDate}
-- භාණ්ඩ ගණන: ${localProducts}
-- විකුණුම් ගණන: ${localSales}
-- ධාරිතාව: ${localSizeKb} KB
-
-ඔබට Cloud පිටපත ලබාගෙන ඔබගේ දේශීය දත්ත වෙනස්කම් මකාදැමීමට අවශ්‍යද?
-Cloud පිටපත ලබා ගැනීමට 'OK' ඔබන්න (දේශීය දත්ත මකාදැමෙනු ඇත).
-දේශීය දත්ත තබා ගැනීමට 'Cancel' ඔබන්න (ඔබට 'Upload Sync Now' මඟින් ඒවා පසුව Cloud එකට යැවිය හැක).`;
-            
-            const pull = window.confirm(confirmMessage);
-            if (!pull) {
-              return;
-            }
-          }
-          
-          // Pull cloud state
-          const cloudState = await getCloudSyncState(syncId);
-          if (cloudState) {
-            handleSyncPullUpdate(cloudState);
           }
         }
       } catch (err) {
@@ -784,8 +765,8 @@ Cloud පිටපත ලබා ගැනීමට 'OK' ඔබන්න (දේ�
     // Run sync instantly on start
     performSync();
 
-    // Poll every 15 seconds
-    const interval = setInterval(performSync, 15000);
+    // Poll every 4 seconds for real-time responsiveness
+    const interval = setInterval(performSync, 4000);
 
     const handleManualSync = () => {
       performSync();
