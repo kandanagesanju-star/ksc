@@ -528,13 +528,13 @@ export const AttendanceStaff: React.FC<AttendanceStaffProps> = ({
                 </div>
               </div>
               <div className="space-y-1">
-                <label className="font-bold text-slate-500">Employee Login Passcode PIN (4 digits)</label>
+                <label className="font-bold text-slate-500">Employee Login Passcode (PIN/Alphanumeric)</label>
                 <input
                   type="password"
-                  maxLength={4}
+                  maxLength={12}
                   value={ePasscode}
-                  onChange={(e) => setEPasscode(e.target.value.replace(/\D/g, ''))}
-                  placeholder="e.g. 1111"
+                  onChange={(e) => setEPasscode(e.target.value)}
+                  placeholder="e.g. passcode"
                   className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-center font-extrabold tracking-widest text-slate-800 focus:bg-slate-50"
                 />
               </div>

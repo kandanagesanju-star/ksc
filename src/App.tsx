@@ -46,7 +46,7 @@ import {
   ShoppingCart, Laptop, UserCheck, BarChart3, Layers, 
   TrendingUp, Users, Truck, ShoppingBag, FileText, Award, 
   Activity, Settings, Menu, X, ChevronRight, Maximize2, Minimize2, ShieldAlert,
-  Download, Upload, ChevronDown
+  Download, Upload, ChevronDown, ClipboardList, DollarSign, Package, UserX, FileSpreadsheet, Shield, PieChart, Clock, AlertTriangle, Key, User, Printer, Database, History, AlertCircle, ToggleLeft, CreditCard, MessageSquare, Wrench, RefreshCw, Sliders, Calendar
 } from 'lucide-react';
 
 function App() {
@@ -1950,23 +1950,27 @@ Cloud පිටපත ලබා ගැනීමට 'OK' ඔබන්න (දේ�
                   {!isPosFullScreen && expandedMenus.purchases && (
                     <div className="border-l border-slate-150 ml-5 pl-2 space-y-1 mt-0.5 animate-in fade-in slide-in-from-top-1 duration-150">
                       {[
-                        { key: 'purchases', label: language === 'en' ? 'Supplier Orders' : 'මිලදී ගැනීමේ ඇණවුම්' },
-                        { key: 'adjustments', label: language === 'en' ? 'Stock Adjusts' : 'තොග වෙනස් කිරීම්' },
-                        { key: 'returns', label: language === 'en' ? 'Supplier Returns' : 'භාණ්ඩ ආපසු යැවීම්' }
-                      ].map(sub => (
-                        <button
-                          key={sub.key}
-                          onClick={() => { setAdminTab('purchases'); setAdminSubTab(sub.key); }}
-                          className={`w-full flex items-center px-3 py-1.5 rounded-lg text-[11px] font-bold transition text-left ${
-                            adminTab === 'purchases' && adminSubTab === sub.key
-                              ? 'text-blue-600 bg-blue-50/50'
-                              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-                          }`}
-                        >
-                          <div className={`w-1.5 h-1.5 rounded-full mr-2 shrink-0 ${adminTab === 'purchases' && adminSubTab === sub.key ? 'bg-blue-600' : 'bg-slate-300'}`} />
-                          <span>{sub.label}</span>
-                        </button>
-                      ))}
+                        { key: 'purchases', label: language === 'en' ? 'Supplier Orders' : 'මිලදී ගැනීමේ ඇණවුම්', icon: ClipboardList },
+                        { key: 'adjustments', label: language === 'en' ? 'Stock Adjusts' : 'තොග වෙනස් කිරීම්', icon: Sliders },
+                        { key: 'returns', label: language === 'en' ? 'Supplier Returns' : 'භාණ්ඩ ආපසු යැවීම්', icon: RefreshCw }
+                      ].map(sub => {
+                        const Icon = sub.icon;
+                        const isActive = adminTab === 'purchases' && adminSubTab === sub.key;
+                        return (
+                          <button
+                            key={sub.key}
+                            onClick={() => { setAdminTab('purchases'); setAdminSubTab(sub.key); }}
+                            className={`w-full flex items-center px-3 py-1.5 rounded-lg text-[11px] font-bold transition text-left ${
+                              isActive
+                                ? 'text-blue-600 bg-blue-50/50'
+                                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                            }`}
+                          >
+                            <Icon className={`h-3.5 w-3.5 mr-2 shrink-0 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
+                            <span>{sub.label}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -2019,22 +2023,26 @@ Cloud පිටපත ලබා ගැනීමට 'OK' ඔබන්න (දේ�
                   {!isPosFullScreen && expandedMenus.quotations && (
                     <div className="border-l border-slate-150 ml-5 pl-2 space-y-1 mt-0.5 animate-in fade-in slide-in-from-top-1 duration-150">
                       {[
-                        { key: 'repairs', label: language === 'en' ? 'Repairs Tracker' : 'රෙපෙයාර් ට්‍රැකර්' },
-                        { key: 'quotations', label: language === 'en' ? 'Quotations List' : 'මිල ගණන් ලේඛන' }
-                      ].map(sub => (
-                        <button
-                          key={sub.key}
-                          onClick={() => { setAdminTab('quotations'); setAdminSubTab(sub.key); }}
-                          className={`w-full flex items-center px-3 py-1.5 rounded-lg text-[11px] font-bold transition text-left ${
-                            adminTab === 'quotations' && adminSubTab === sub.key
-                              ? 'text-blue-600 bg-blue-50/50'
-                              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-                          }`}
-                        >
-                          <div className={`w-1.5 h-1.5 rounded-full mr-2 shrink-0 ${adminTab === 'quotations' && adminSubTab === sub.key ? 'bg-blue-600' : 'bg-slate-300'}`} />
-                          <span>{sub.label}</span>
-                        </button>
-                      ))}
+                        { key: 'repairs', label: language === 'en' ? 'Repairs Tracker' : 'රෙපෙයාර් ට්‍රැකර්', icon: Wrench },
+                        { key: 'quotations', label: language === 'en' ? 'Quotations List' : 'මිල ගණන් ලේඛන', icon: FileText }
+                      ].map(sub => {
+                        const Icon = sub.icon;
+                        const isActive = adminTab === 'quotations' && adminSubTab === sub.key;
+                        return (
+                          <button
+                            key={sub.key}
+                            onClick={() => { setAdminTab('quotations'); setAdminSubTab(sub.key); }}
+                            className={`w-full flex items-center px-3 py-1.5 rounded-lg text-[11px] font-bold transition text-left ${
+                              isActive
+                                ? 'text-blue-600 bg-blue-50/50'
+                                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                            }`}
+                          >
+                            <Icon className={`h-3.5 w-3.5 mr-2 shrink-0 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
+                            <span>{sub.label}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -2073,23 +2081,27 @@ Cloud පිටපත ලබා ගැනීමට 'OK' ඔබන්න (දේ�
                   {!isPosFullScreen && expandedMenus.attendance && (
                     <div className="border-l border-slate-150 ml-5 pl-2 space-y-1 mt-0.5 animate-in fade-in slide-in-from-top-1 duration-150">
                       {[
-                        { key: 'profiles', label: language === 'en' ? 'Staff Profiles' : 'සේවක පැතිකඩ' },
-                        { key: 'attendance', label: language === 'en' ? 'Attendance log' : 'පැමිණීමේ සටහන්' },
-                        { key: 'commissions', label: language === 'en' ? 'Commissions List' : 'කොමිස් ගෙවීම්' }
-                      ].map(sub => (
-                        <button
-                          key={sub.key}
-                          onClick={() => { setAdminTab('attendance'); setAdminSubTab(sub.key); }}
-                          className={`w-full flex items-center px-3 py-1.5 rounded-lg text-[11px] font-bold transition text-left ${
-                            adminTab === 'attendance' && adminSubTab === sub.key
-                              ? 'text-blue-600 bg-blue-50/50'
-                              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-                          }`}
-                        >
-                          <div className={`w-1.5 h-1.5 rounded-full mr-2 shrink-0 ${adminTab === 'attendance' && adminSubTab === sub.key ? 'bg-blue-600' : 'bg-slate-300'}`} />
-                          <span>{sub.label}</span>
-                        </button>
-                      ))}
+                        { key: 'profiles', label: language === 'en' ? 'Staff Profiles' : 'සේවක පැතිකඩ', icon: User },
+                        { key: 'attendance', label: language === 'en' ? 'Attendance log' : 'පැමිණීමේ සටහන්', icon: Calendar },
+                        { key: 'commissions', label: language === 'en' ? 'Commissions List' : 'කොමිස් ගෙවීම්', icon: DollarSign }
+                      ].map(sub => {
+                        const Icon = sub.icon;
+                        const isActive = adminTab === 'attendance' && adminSubTab === sub.key;
+                        return (
+                          <button
+                            key={sub.key}
+                            onClick={() => { setAdminTab('attendance'); setAdminSubTab(sub.key); }}
+                            className={`w-full flex items-center px-3 py-1.5 rounded-lg text-[11px] font-bold transition text-left ${
+                              isActive
+                                ? 'text-blue-600 bg-blue-50/50'
+                                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                            }`}
+                          >
+                            <Icon className={`h-3.5 w-3.5 mr-2 shrink-0 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
+                            <span>{sub.label}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -2128,30 +2140,35 @@ Cloud පිටපත ලබා ගැනීමට 'OK' ඔබන්න (දේ�
                   {!isPosFullScreen && expandedMenus.reports && (
                     <div className="border-l border-slate-150 ml-5 pl-2 space-y-1 mt-0.5 animate-in fade-in slide-in-from-top-1 duration-150">
                       {[
-                        { key: 'sales', label: language === 'en' ? 'Sales Report' : 'විකුණුම් වාර්තා' },
-                        { key: 'tax', label: language === 'en' ? 'VAT & SSCL Taxes' : 'බදු වාර්තා' },
-                        { key: 'expenses', label: language === 'en' ? 'Expenses List' : 'වියදම් ලේඛනය' },
-                        { key: 'profit-loss', label: language === 'en' ? 'Profit & Loss' : 'ලාභ අලාභ' },
-                        { key: 'stock', label: language === 'en' ? 'Stock Audit' : 'තොග ගණන් බැලීම' },
-                        { key: 'dues', label: language === 'en' ? 'Customer Dues' : 'ණය බිල්පත්' },
-                        { key: 'estimates', label: language === 'en' ? 'Estimates history' : 'ඇස්තමේන්තු' },
-                        { key: 'warranty', label: language === 'en' ? 'Warranty replacements' : 'වගකීම් මාරු කිරීම්' },
-                        { key: 'shifts', label: language === 'en' ? 'Register Shifts' : 'මුදල් ලාච්චු මාරු' },
-                        { key: 'wastage', label: language === 'en' ? 'Wastage report' : 'අපතේ යාම්' }
-                      ].map(sub => (
-                        <button
-                          key={sub.key}
-                          onClick={() => { setAdminTab('reports'); setAdminSubTab(sub.key); }}
-                          className={`w-full flex items-center px-3 py-1.5 rounded-lg text-[10px] font-bold transition text-left ${
-                            adminTab === 'reports' && adminSubTab === sub.key
-                              ? 'text-blue-600 bg-blue-50/50'
-                              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-                          }`}
-                        >
-                          <div className={`w-1.5 h-1.5 rounded-full mr-2 shrink-0 ${adminTab === 'reports' && adminSubTab === sub.key ? 'bg-blue-600' : 'bg-slate-300'}`} />
-                          <span>{sub.label}</span>
-                        </button>
-                      ))}
+                        { key: 'sales', label: language === 'en' ? 'Sales Report' : 'විකුණුම් වාර්තා', icon: TrendingUp },
+                        { key: 'tax', label: language === 'en' ? 'VAT & SSCL Taxes' : 'බදු වාර්තා', icon: ShieldAlert },
+                        { key: 'expenses', label: language === 'en' ? 'Expenses List' : 'වියදම් ලේඛනය', icon: ClipboardList },
+                        { key: 'profit-loss', label: language === 'en' ? 'Profit & Loss' : 'ලාභ අලාභ', icon: DollarSign },
+                        { key: 'stock', label: language === 'en' ? 'Stock Audit' : 'තොග ගණන් බැලීම', icon: Package },
+                        { key: 'dues', label: language === 'en' ? 'Customer Dues' : 'ණය බිල්පත්', icon: UserX },
+                        { key: 'estimates', label: language === 'en' ? 'Estimates history' : 'ඇස්තමේන්තු', icon: FileSpreadsheet },
+                        { key: 'warranty', label: language === 'en' ? 'Warranty replacements' : 'වගකීම් මාරු කිරීම්', icon: Shield },
+                        { key: 'turnover', label: language === 'en' ? 'Turnover Analysis' : 'පිරිවැටුම් විශ්ලේෂණය', icon: PieChart },
+                        { key: 'shifts', label: language === 'en' ? 'Register Shifts' : 'මුදල් ලාච්චු මාරු', icon: Clock },
+                        { key: 'wastage', label: language === 'en' ? 'Wastage report' : 'අපතේ යාම්', icon: AlertTriangle }
+                      ].map(sub => {
+                        const Icon = sub.icon;
+                        const isActive = adminTab === 'reports' && adminSubTab === sub.key;
+                        return (
+                          <button
+                            key={sub.key}
+                            onClick={() => { setAdminTab('reports'); setAdminSubTab(sub.key); }}
+                            className={`w-full flex items-center px-3 py-1.5 rounded-lg text-[10px] font-bold transition text-left ${
+                              isActive
+                                ? 'text-blue-600 bg-blue-50/50'
+                                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                            }`}
+                          >
+                            <Icon className={`h-3.5 w-3.5 mr-2 shrink-0 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
+                            <span>{sub.label}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -2190,30 +2207,34 @@ Cloud පිටපත ලබා ගැනීමට 'OK' ඔබන්න (දේ�
                   {!isPosFullScreen && expandedMenus.settings && (
                     <div className="border-l border-slate-150 ml-5 pl-2 space-y-1 mt-0.5 animate-in fade-in slide-in-from-top-1 duration-150">
                       {[
-                        { key: 'shop', label: language === 'en' ? 'Shop Profile' : 'ව්‍යාපාරික පැතිකඩ' },
-                        { key: 'features', label: language === 'en' ? 'Feature Toggles' : 'මොඩියුල ක්‍රියාත්මක' },
-                        { key: 'online-store', label: language === 'en' ? 'Online Store' : 'ඔන්ලයින් ෂොප් එක' },
-                        { key: 'users', label: language === 'en' ? 'Users & Roles' : 'පරිශීලකයින් සහ භූමිකා' },
-                        { key: 'pos', label: language === 'en' ? 'POS Hardware' : 'POS යන්ත්‍ර සැකසුම්' },
-                        { key: 'loyalty', label: language === 'en' ? 'Loyalty Settings' : 'ලෝයල්ටි සැකසුම්' },
-                        { key: 'bank', label: language === 'en' ? 'Bank & LankaQR' : 'බැංකු සහ LankaQR' },
-                        { key: 'database', label: language === 'en' ? 'Database Backup' : 'දත්ත ගබඩා ආරක්ෂාව' },
-                        { key: 'logs', label: language === 'en' ? 'Register Logs' : 'පරිශීලන සටහන් (Logs)' },
-                        { key: 'sms', label: language === 'en' ? 'Cloud SMS gateway' : 'Cloud SMS ගේට්වේ' }
-                      ].map(sub => (
-                        <button
-                          key={sub.key}
-                          onClick={() => { setAdminTab('settings'); setAdminSubTab(sub.key); }}
-                          className={`w-full flex items-center px-3 py-1.5 rounded-lg text-[10px] font-bold transition text-left ${
-                            adminTab === 'settings' && adminSubTab === sub.key
-                              ? 'text-blue-600 bg-blue-50/50'
-                              : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
-                          }`}
-                        >
-                          <div className={`w-1.5 h-1.5 rounded-full mr-2 shrink-0 ${adminTab === 'settings' && adminSubTab === sub.key ? 'bg-blue-600' : 'bg-slate-300'}`} />
-                          <span>{sub.label}</span>
-                        </button>
-                      ))}
+                        { key: 'shop', label: language === 'en' ? 'Shop Profile' : 'ව්‍යාපාරික පැතිකඩ', icon: User },
+                        { key: 'features', label: language === 'en' ? 'Feature Toggles' : 'මොඩියුල ක්‍රියාත්මක', icon: ToggleLeft },
+                        { key: 'online-store', label: language === 'en' ? 'Online Store' : 'ඔන්ලයින් ෂොප් එක', icon: ShoppingCart },
+                        { key: 'users', label: language === 'en' ? 'Users & Roles' : 'පරිශීලකයින් සහ භූමිකා', icon: Users },
+                        { key: 'pos', label: language === 'en' ? 'POS Hardware' : 'POS යන්ත්‍ර සැකසුම්', icon: Printer },
+                        { key: 'loyalty', label: language === 'en' ? 'Loyalty Settings' : 'ලෝයල්ටි සැකසුම්', icon: Award },
+                        { key: 'bank', label: language === 'en' ? 'Bank & LankaQR' : 'බැංකු සහ LankaQR', icon: CreditCard },
+                        { key: 'database', label: language === 'en' ? 'Database Backup' : 'දත්ත ගබඩා ආරක්ෂාව', icon: Database },
+                        { key: 'logs', label: language === 'en' ? 'Register Logs' : 'පරිශීලන සටහන් (Logs)', icon: History },
+                        { key: 'sms', label: language === 'en' ? 'Cloud SMS gateway' : 'Cloud SMS ගේට්වේ', icon: MessageSquare }
+                      ].map(sub => {
+                        const Icon = sub.icon;
+                        const isActive = adminTab === 'settings' && adminSubTab === sub.key;
+                        return (
+                          <button
+                            key={sub.key}
+                            onClick={() => { setAdminTab('settings'); setAdminSubTab(sub.key); }}
+                            className={`w-full flex items-center px-3 py-1.5 rounded-lg text-[10px] font-bold transition text-left ${
+                              isActive
+                                ? 'text-blue-600 bg-blue-50/50'
+                                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                            }`}
+                          >
+                            <Icon className={`h-3.5 w-3.5 mr-2 shrink-0 ${isActive ? 'text-blue-600' : 'text-slate-400'}`} />
+                            <span>{sub.label}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
@@ -2259,12 +2280,12 @@ Cloud පිටපත ලබා ගැනීමට 'OK' ඔබන්න (දේ�
                     <span className="font-extrabold">{language === 'en' ? 'Security Alert:' : 'ආරක්ෂක අවවාදයයි:'} </span>
                     <span className="font-semibold">
                       {language === 'en'
-                        ? 'You are using the factory default admin PIN. Please change it in Settings → System Settings → Users & Roles to secure your system.'
-                        : 'ඔබ දැනට කර්මාන්ත ශාලා Default PIN එක භාවිතා කරයි. Settings → System Settings → Users & Roles හි ගොස් ඔබගේ PIN අංකය වෙනස් කරන්න.'}
+                        ? 'You are using the factory default admin PIN. Please change it in Settings → System Settings → Shop Profile to secure your system.'
+                        : 'ඔබ දැනට කර්මාන්ත ශාලා Default PIN එක භාවිතා කරයි. Settings → System Settings → ව්‍යාපාරික පැතිකඩ (Shop Profile) හි ගොස් ඔබගේ PIN අංකය වෙනස් කරන්න.'}
                     </span>
                   </div>
                   <button
-                    onClick={() => { setAdminTab('settings'); setAdminSubTab('users'); }}
+                    onClick={() => { setAdminTab('settings'); setAdminSubTab('shop'); }}
                     className="ml-auto shrink-0 px-3 py-1 bg-amber-500 text-white rounded-lg text-[10px] font-extrabold hover:bg-amber-600 transition whitespace-nowrap"
                   >
                     {language === 'en' ? 'Fix Now' : 'දැන් නිවැරදි කරන්න'}

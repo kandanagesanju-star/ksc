@@ -1183,20 +1183,20 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               <div className="space-y-1">
                 <label className="font-bold text-slate-500 text-indigo-700 flex items-center">
                   <Key className="h-3.5 w-3.5 mr-1" />
-                  Admin Passcode PIN
+                  Admin Passcode (PIN/Alphanumeric)
                 </label>
                 <input
                   type="password"
-                  maxLength={4}
+                  maxLength={12}
                   value={adminPin}
-                  onChange={(e) => setAdminPin(e.target.value.replace(/\D/g, ''))}
-                  placeholder="••••"
+                  onChange={(e) => setAdminPin(e.target.value)}
+                  placeholder="e.g. passcode"
                   className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-center font-extrabold tracking-widest bg-white"
                 />
                 {(settings.adminPin === '8892' || !settings.adminPin) && (
                   <p className="text-[10px] text-amber-600 font-bold flex items-center gap-1 mt-1">
                     <span>⚠️</span>
-                    <span>Default PIN in use. Please change it for security.</span>
+                    <span>Default passcode in use. Please change it for security.</span>
                   </p>
                 )}
               </div>
@@ -1316,87 +1316,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           </div>
         </form>
 
-        {/* Change Admin & POS Passcode PIN (Moved from Users & Roles) */}
-        <div className="mt-8 border-t border-slate-200/60 pt-6 animate-in fade-in duration-200">
-          <form onSubmit={handleChangePin} className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-4 text-xs font-semibold max-w-xl">
-            <div className="space-y-4">
-              <div className="border-b border-slate-100 pb-3">
-                <h3 className="text-sm font-bold text-slate-800 flex items-center">
-                  <Key className="h-4 w-4 mr-1.5 text-blue-600" />
-                  {language === 'en' ? 'Change Admin & POS Passcode PIN' : 'කළමනාකරණ සහ POS පින් අංකය වෙනස් කිරීම'}
-                </h3>
-                <p className="text-[10px] text-slate-400 font-medium">
-                  {language === 'en' ? 'Update the secure numeric PIN passcode used to switch to the admin dashboard and POS terminal.' : 'කළමනාකරණ අංශයට සහ POS පර්යන්තයට ඇතුළු වීමට භාවිතා කරන රහස් පින් අංකය යාවත්කාලීන කරන්න.'}
-                </p>
-              </div>
 
-              {pinError && (
-                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-600 rounded-xl font-bold flex items-center space-x-2 animate-pulse">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
-                  <span>{pinError}</span>
-                </div>
-              )}
-
-              {pinSuccess && (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-600 rounded-xl font-bold flex items-center space-x-2">
-                  <Check className="h-4 w-4 shrink-0 animate-bounce" />
-                  <span>{pinSuccess}</span>
-                </div>
-              )}
-
-              <div className="space-y-3">
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-500">{language === 'en' ? 'Current Passcode PIN *' : 'වත්මන් පින් අංකය (PIN) *'}</label>
-                  <input
-                    type="password"
-                    required
-                    maxLength={6}
-                    value={currentPin}
-                    onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, ''))}
-                    placeholder="••••"
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-center font-extrabold tracking-widest bg-slate-50 text-slate-800 focus:bg-white"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-500">{language === 'en' ? 'New Passcode PIN *' : 'නව පින් අංකය (PIN) *'}</label>
-                  <input
-                    type="password"
-                    required
-                    maxLength={6}
-                    value={newPin}
-                    onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
-                    placeholder="••••"
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-center font-extrabold tracking-widest bg-slate-50 text-slate-800 focus:bg-white"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-500">{language === 'en' ? 'Confirm New Passcode PIN *' : 'නව පින් අංකය තහවුරු කරන්න *'}</label>
-                  <input
-                    type="password"
-                    required
-                    maxLength={6}
-                    value={confirmNewPin}
-                    onChange={(e) => setConfirmNewPin(e.target.value.replace(/\D/g, ''))}
-                    placeholder="••••"
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-center font-extrabold tracking-widest bg-slate-50 text-slate-800 focus:bg-white"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-3">
-              <button
-                type="submit"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition shadow-md flex items-center space-x-1.5 cursor-pointer active:scale-95"
-              >
-                <Save className="h-4 w-4" />
-                <span>{language === 'en' ? 'Update Passcode PIN' : 'පින් අංකය යාවත්කාලීන කරන්න'}</span>
-              </button>
-            </div>
-          </form>
-        </div>
       </>)}
 
       {/* USERS & ROLES */}

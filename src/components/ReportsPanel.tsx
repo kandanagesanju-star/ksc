@@ -1027,47 +1027,9 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
   const activeTab = reportTabs.find(t => t.key === reportType)!;
 
   return (
-    <div className="flex flex-col md:flex-row gap-0 min-h-[70vh]">
-      {/* ── LEFT SIDEBAR NAV ── */}
-      <aside className="w-full md:w-52 shrink-0 bg-white border-b md:border-b-0 md:border-r border-slate-100 rounded-t-2xl md:rounded-t-none md:rounded-l-2xl shadow-sm flex flex-col">
-        <div className="px-4 pt-4 pb-2">
-          <p className="text-[9px] font-extrabold uppercase tracking-widest text-slate-400">
-            {language === 'en' ? 'Report Modules' : 'වාර්තා මොඩියුල'}
-          </p>
-        </div>
-        <nav className="flex flex-row md:flex-col overflow-x-auto md:overflow-y-auto whitespace-nowrap px-4 py-3 md:px-2 md:pb-4 space-x-2 md:space-x-0 md:space-y-0.5 scrollbar-none [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          {reportTabs.map(tab => {
-            const Icon = tab.icon;
-            const isActive = reportType === tab.key;
-            return (
-              <button
-                key={tab.key}
-                onClick={() => handleReportTypeChange(tab.key)}
-                className={`shrink-0 w-auto md:w-full flex items-center gap-2.5 px-3 py-2 md:py-2.5 rounded-xl text-left transition-all duration-150 group ${
-                  isActive
-                    ? `${tab.bg} ${tab.color} shadow-sm font-extrabold`
-                    : 'text-slate-600 hover:bg-slate-50 font-semibold hover:text-slate-800'
-                }`}
-              >
-                <span className={`shrink-0 p-1 rounded-lg transition-colors ${
-                  isActive ? `${tab.bg} ${tab.color}` : 'text-slate-400 group-hover:text-slate-600'
-                }`}>
-                  <Icon className="h-3.5 w-3.5" />
-                </span>
-                <span className="text-[11px] leading-tight">
-                  {language === 'en' ? tab.label : tab.labelSi}
-                </span>
-                {isActive && (
-                  <span className="ml-auto w-1 h-4 rounded-full bg-current opacity-60 hidden md:inline-block" />
-                )}
-              </button>
-            );
-          })}
-        </nav>
-      </aside>
-
+    <div className="w-full min-h-[70vh]">
       {/* ── RIGHT CONTENT AREA ── */}
-      <div className="flex-1 min-w-0 bg-slate-50/50 rounded-r-2xl overflow-hidden">
+      <div className="w-full min-w-0 bg-white border border-slate-150 shadow-sm rounded-2xl overflow-hidden">
         {/* Top title bar */}
         <div className="bg-white border-b border-slate-100 px-6 py-3 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center gap-2.5">
