@@ -252,10 +252,26 @@ function App() {
   }, [expandedMenus]);
 
   const toggleMenu = (menuKey: string) => {
-    setExpandedMenus(prev => ({
-      ...prev,
-      [menuKey]: !prev[menuKey]
-    }));
+    setExpandedMenus(prev => {
+      const willBeOpen = !prev[menuKey];
+      if (willBeOpen) {
+        // If opening this menu, close all other menus
+        return {
+          contacts: menuKey === 'contacts',
+          purchases: menuKey === 'purchases',
+          quotations: menuKey === 'quotations',
+          attendance: menuKey === 'attendance',
+          reports: menuKey === 'reports',
+          settings: menuKey === 'settings'
+        };
+      } else {
+        // If closing this menu, just set it to false
+        return {
+          ...prev,
+          [menuKey]: false
+        };
+      }
+    });
   };
 
   useEffect(() => {
@@ -264,34 +280,85 @@ function App() {
       if (!['customers', 'suppliers', 'loyalty', 'debtors', 'sms-gateway'].includes(adminSubTab)) {
         setAdminSubTab('customers');
       }
-      setExpandedMenus(prev => ({ ...prev, contacts: true }));
+      setExpandedMenus({
+        contacts: true,
+        purchases: false,
+        quotations: false,
+        attendance: false,
+        reports: false,
+        settings: false
+      });
     } else if (adminTab === 'purchases') {
       if (!['purchases', 'adjustments', 'returns'].includes(adminSubTab)) {
         setAdminSubTab('purchases');
       }
-      setExpandedMenus(prev => ({ ...prev, purchases: true }));
+      setExpandedMenus({
+        contacts: false,
+        purchases: true,
+        quotations: false,
+        attendance: false,
+        reports: false,
+        settings: false
+      });
     } else if (adminTab === 'quotations') {
       if (!['repairs', 'quotations'].includes(adminSubTab)) {
         setAdminSubTab('repairs');
       }
-      setExpandedMenus(prev => ({ ...prev, quotations: true }));
+      setExpandedMenus({
+        contacts: false,
+        purchases: false,
+        quotations: true,
+        attendance: false,
+        reports: false,
+        settings: false
+      });
     } else if (adminTab === 'attendance') {
       if (!['profiles', 'attendance', 'commissions'].includes(adminSubTab)) {
         setAdminSubTab('profiles');
       }
-      setExpandedMenus(prev => ({ ...prev, attendance: true }));
+      setExpandedMenus({
+        contacts: false,
+        purchases: false,
+        quotations: false,
+        attendance: true,
+        reports: false,
+        settings: false
+      });
     } else if (adminTab === 'reports') {
       if (!['sales', 'tax', 'expenses', 'profit-loss', 'stock', 'dues', 'estimates', 'warranty', 'turnover', 'shifts', 'wastage'].includes(adminSubTab)) {
         setAdminSubTab('sales');
       }
-      setExpandedMenus(prev => ({ ...prev, reports: true }));
+      setExpandedMenus({
+        contacts: false,
+        purchases: false,
+        quotations: false,
+        attendance: false,
+        reports: true,
+        settings: false
+      });
     } else if (adminTab === 'settings') {
       if (!['shop', 'features', 'online-store', 'users', 'pos', 'loyalty', 'bank', 'database', 'logs', 'sms'].includes(adminSubTab)) {
         setAdminSubTab('shop');
       }
-      setExpandedMenus(prev => ({ ...prev, settings: true }));
+      setExpandedMenus({
+        contacts: false,
+        purchases: false,
+        quotations: false,
+        attendance: false,
+        reports: false,
+        settings: true
+      });
     } else {
       setAdminSubTab('');
+      // Optionally collapse all when moving to a non-collapsible root tab like Dashboard
+      setExpandedMenus({
+        contacts: false,
+        purchases: false,
+        quotations: false,
+        attendance: false,
+        reports: false,
+        settings: false
+      });
     }
   }, [adminTab]);
 
