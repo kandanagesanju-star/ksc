@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Product, Category, ProductSource, ShopSettings } from '../types';
 import { translations } from '../lib/translations';
 import { Plus, Search, Edit, Copy, Trash2, AlertTriangle, Check, RefreshCw, X, Laptop, ChevronLeft, ChevronRight, Upload, Download, FileText, QrCode, Image, Printer } from 'lucide-react';
@@ -45,11 +45,55 @@ export const Inventory: React.FC<InventoryProps> = ({
   // Barcode Printing & Multiselect states
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [showPrintModal, setShowPrintModal] = useState(false);
+  const [stickerPaperSize, setStickerPaperSize] = useState<'A4-3x10' | 'A4-4x12' | 'A4-2x8' | 'Thermal-50x25' | 'Thermal-38x25' | 'Thermal-80x50' | 'Custom'>('A4-3x10');
   const [labelWidth, setLabelWidth] = useState(160);
   const [labelHeight, setLabelHeight] = useState(90);
   const [labelFontSize, setLabelFontSize] = useState(9);
   const [labelColumns, setLabelColumns] = useState(3);
   const [labelQuantities, setLabelQuantities] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    switch (stickerPaperSize) {
+      case 'A4-3x10':
+        setLabelWidth(200);
+        setLabelHeight(110);
+        setLabelColumns(3);
+        setLabelFontSize(9);
+        break;
+      case 'A4-4x12':
+        setLabelWidth(145);
+        setLabelHeight(96);
+        setLabelColumns(4);
+        setLabelFontSize(8);
+        break;
+      case 'A4-2x8':
+        setLabelWidth(300);
+        setLabelHeight(140);
+        setLabelColumns(2);
+        setLabelFontSize(11);
+        break;
+      case 'Thermal-50x25':
+        setLabelWidth(190);
+        setLabelHeight(95);
+        setLabelColumns(1);
+        setLabelFontSize(9);
+        break;
+      case 'Thermal-38x25':
+        setLabelWidth(145);
+        setLabelHeight(95);
+        setLabelColumns(1);
+        setLabelFontSize(8);
+        break;
+      case 'Thermal-80x50':
+        setLabelWidth(300);
+        setLabelHeight(190);
+        setLabelColumns(1);
+        setLabelFontSize(12);
+        break;
+      default:
+        break;
+    }
+  }, [stickerPaperSize]);
 
   // Form fields
   const [id, setId] = useState('');
@@ -1410,7 +1454,19 @@ export const Inventory: React.FC<InventoryProps> = ({
                 padding: 0;
                 box-shadow: none;
                 background: white;
+                display: grid !important;
+                grid-template-columns: repeat(${labelColumns}, minmax(0, 1fr)) !important;
+                gap: 4px !important;
               }
+              .sticker-card {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                ${stickerPaperSize.startsWith('Thermal') ? 'page-break-after: always !important; break-after: page !important; width: 100% !important; height: 100% !important;' : ''}
+              }
+              ${stickerPaperSize === 'Thermal-50x25' ? '@page { size: 50mm 25mm; margin: 0; }' : ''}
+              ${stickerPaperSize === 'Thermal-38x25' ? '@page { size: 38mm 25mm; margin: 0; }' : ''}
+              ${stickerPaperSize === 'Thermal-80x50' ? '@page { size: 80mm 50mm; margin: 0; }' : ''}
+              ${stickerPaperSize.startsWith('A4') ? '@page { size: A4; margin: 10mm; }' : ''}
             }
           `}</style>
 
@@ -1437,6 +1493,23 @@ export const Inventory: React.FC<InventoryProps> = ({
                 <h4 className="font-extrabold text-slate-200 uppercase tracking-wider text-[10px] border-b border-slate-850 pb-1">
                   Sticker Label Layout
                 </h4>
+
+                <div className="space-y-1.5">
+                  <label className="font-bold text-slate-400 block">Sticker Paper Preset</label>
+                  <select
+                    value={stickerPaperSize}
+                    onChange={(e) => setStickerPaperSize(e.target.value as any)}
+                    className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg font-bold text-white outline-none focus:border-blue-500 transition"
+                  >
+                    <option value="A4-3x10">A4 Sheet (3 x 10 Grid - 30 Labels)</option>
+                    <option value="A4-4x12">A4 Sheet (4 x 12 Grid - 48 Labels)</option>
+                    <option value="A4-2x8">A4 Sheet (2 x 8 Grid - 16 Labels)</option>
+                    <option value="Thermal-50x25">Thermal Roll (50mm x 25mm - 1 Col)</option>
+                    <option value="Thermal-38x25">Thermal Roll (38mm x 25mm - 1 Col)</option>
+                    <option value="Thermal-80x50">Thermal Roll (80mm x 50mm - 1 Col)</option>
+                    <option value="Custom">Custom Size (Use Sliders below)</option>
+                  </select>
+                </div>
 
                 <div className="space-y-1.5">
                   <div className="flex justify-between font-bold text-slate-400">
@@ -1544,7 +1617,7 @@ export const Inventory: React.FC<InventoryProps> = ({
                         stickers.push(
                           <div
                             key={`${id}-${i}`}
-                            className="border border-slate-350 p-2 flex flex-col justify-between items-center text-center overflow-hidden bg-white shadow-sm rounded"
+                            className="sticker-card border border-slate-350 p-2 flex flex-col justify-between items-center text-center overflow-hidden bg-white shadow-sm rounded"
                             style={{
                               width: `${labelWidth}px`,
                               height: `${labelHeight}px`,

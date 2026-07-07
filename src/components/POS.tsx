@@ -362,6 +362,13 @@ export const POS: React.FC<POSProps> = ({
   // Receipt state
   const [completedSale, setCompletedSale] = useState<Sale | null>(null);
   const [completedSaleQrUrl, setCompletedSaleQrUrl] = useState<string>('');
+  const [receiptPrintSize, setReceiptPrintSize] = useState<'58mm' | '80mm' | 'A4'>('80mm');
+
+  useEffect(() => {
+    if (settings && settings.receiptWidth) {
+      setReceiptPrintSize(settings.receiptWidth);
+    }
+  }, [settings?.receiptWidth]);
 
 
 
@@ -2120,6 +2127,20 @@ export const POS: React.FC<POSProps> = ({
               </div>
             </div>
 
+            {/* Receipt Size selector */}
+            <div className="px-4 py-2 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between gap-2 text-[10px] font-bold text-slate-600">
+              <span>{language === 'en' ? 'Print Size / Format:' : 'මුද්‍රණ ප්‍රමාණය / හැඩතලය:'}</span>
+              <select
+                value={receiptPrintSize}
+                onChange={(e) => setReceiptPrintSize(e.target.value as any)}
+                className="px-2 py-1 bg-white border border-slate-200 rounded-lg text-slate-800 outline-none text-[10px] font-bold focus:border-blue-500 transition"
+              >
+                <option value="58mm">Thermal 58mm</option>
+                <option value="80mm">Thermal 80mm</option>
+                <option value="A4">Standard A4 Invoice</option>
+              </select>
+            </div>
+
             {/* Actions */}
             <div className="bg-slate-50 p-3 border-t border-slate-100 flex space-x-2">
               <button
@@ -2131,9 +2152,9 @@ export const POS: React.FC<POSProps> = ({
                       * { margin: 0; padding: 0; box-sizing: border-box; }
                       @media print {
                         body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                        @page { margin: 0; size: ${settings.receiptWidth || '80mm'} auto; }
+                        @page { margin: 0; size: ${receiptPrintSize} auto; }
                       }
-                      body { font-family: 'Courier New', Courier, monospace; font-size: 10px; width: ${settings.receiptWidth === '58mm' ? '52mm' : settings.receiptWidth === 'A4' ? '190mm' : '74mm'}; padding: 4mm; color: #000; }
+                      body { font-family: 'Courier New', Courier, monospace; font-size: 10px; width: ${receiptPrintSize === '58mm' ? '52mm' : receiptPrintSize === 'A4' ? '190mm' : '74mm'}; padding: 4mm; color: #000; }
                       .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
                       .shop-info { flex: 1; text-align: left; }
                       .shop-name { font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 1px; text-align: left; }
