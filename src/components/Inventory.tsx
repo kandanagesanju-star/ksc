@@ -571,8 +571,26 @@ export const Inventory: React.FC<InventoryProps> = ({
             onClick={() => {
               const rows = products.map(p => `<tr><td>${p.id}</td><td>${p.nameEn}</td><td>${p.nameSi}</td><td>${p.category}</td><td>Rs.${p.retailPrice}</td><td>Rs.${p.wholesalePrice}</td><td>${p.stock}</td></tr>`).join('');
               const html = `<!DOCTYPE html><html><head><title>Inventory Report</title><style>body{font-family:Arial;font-size:11px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ccc;padding:4px 8px;text-align:left}th{background:#1e293b;color:white}tr:nth-child(even){background:#f8fafc}h2{color:#1e293b}</style></head><body><h2>Inventory Report</h2><p>${new Date().toLocaleString()}</p><table><tr><th>ID</th><th>Name (EN)</th><th>Name (SI)</th><th>Category</th><th>Retail Price</th><th>Wholesale Price</th><th>Stock</th></tr>${rows}</table></body></html>`;
-              const w = window.open('', '_blank');
-              if (w) { w.document.write(html); w.document.close(); w.focus(); setTimeout(() => w.print(), 500); }
+              const printFrame = document.createElement('iframe');
+              printFrame.style.position = 'fixed';
+              printFrame.style.right = '0';
+              printFrame.style.bottom = '0';
+              printFrame.style.width = '0';
+              printFrame.style.height = '0';
+              printFrame.style.border = '0';
+              document.body.appendChild(printFrame);
+              const frameDoc = printFrame.contentWindow?.document || printFrame.contentDocument;
+              if (frameDoc) {
+                frameDoc.write(html);
+                frameDoc.close();
+                printFrame.contentWindow?.focus();
+                setTimeout(() => {
+                  printFrame.contentWindow?.print();
+                  setTimeout(() => {
+                    document.body.removeChild(printFrame);
+                  }, 1000);
+                }, 500);
+              }
             }}
             className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-2 rounded-xl text-xs font-bold transition shadow-md flex items-center gap-1.5"
           >

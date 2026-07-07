@@ -633,9 +633,6 @@ export const ExpertInsights: React.FC<ExpertInsightsProps> = ({
     const defaultPinWarning = settings.adminPin === '8892' || !settings.adminPin;
 
     const handlePrintAuditReport = () => {
-      const printWindow = window.open('', '_blank', 'width=800,height=900');
-      if (!printWindow) return;
-      
       const printContent = `
         <!DOCTYPE html>
         <html>
@@ -783,10 +780,27 @@ export const ExpertInsights: React.FC<ExpertInsightsProps> = ({
         </body>
         </html>
       `;
-      printWindow.document.write(printContent);
-      printWindow.document.close();
-      printWindow.focus();
-      setTimeout(() => printWindow.print(), 1000);
+      
+      const printFrame = document.createElement('iframe');
+      printFrame.style.position = 'fixed';
+      printFrame.style.right = '0';
+      printFrame.style.bottom = '0';
+      printFrame.style.width = '0';
+      printFrame.style.height = '0';
+      printFrame.style.border = '0';
+      document.body.appendChild(printFrame);
+      const frameDoc = printFrame.contentWindow?.document || printFrame.contentDocument;
+      if (frameDoc) {
+        frameDoc.write(printContent);
+        frameDoc.close();
+        printFrame.contentWindow?.focus();
+        setTimeout(() => {
+          printFrame.contentWindow?.print();
+          setTimeout(() => {
+            document.body.removeChild(printFrame);
+          }, 1000);
+        }, 500);
+      }
     };
 
     switch (activeRole) {

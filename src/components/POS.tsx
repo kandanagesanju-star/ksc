@@ -2205,8 +2205,26 @@ export const POS: React.FC<POSProps> = ({
                     <div class="sep"></div>
                     <div class="footer">${settings.receiptFooterMessage ? settings.receiptFooterMessage.replace(/\n/g, '<br/>') : 'Thank You! Come Again.<br/>ඔබට ස්තුතියි! නැවත පැමිණෙන්න.'}</div>
                     </body></html>`;
-                  const w = window.open('', '_blank', 'width=420,height=680');
-                  if (w) { w.document.write(printContent); w.document.close(); w.focus(); setTimeout(() => w.print(), 600); }
+                  const printFrame = document.createElement('iframe');
+                  printFrame.style.position = 'fixed';
+                  printFrame.style.right = '0';
+                  printFrame.style.bottom = '0';
+                  printFrame.style.width = '0';
+                  printFrame.style.height = '0';
+                  printFrame.style.border = '0';
+                  document.body.appendChild(printFrame);
+                  const frameDoc = printFrame.contentWindow?.document || printFrame.contentDocument;
+                  if (frameDoc) {
+                    frameDoc.write(printContent);
+                    frameDoc.close();
+                    printFrame.contentWindow?.focus();
+                    setTimeout(() => {
+                      printFrame.contentWindow?.print();
+                      setTimeout(() => {
+                        document.body.removeChild(printFrame);
+                      }, 1000);
+                    }, 500);
+                  }
                 }}
                 className="flex-1 bg-slate-800 hover:bg-slate-900 text-white py-2 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1"
               >
@@ -2306,12 +2324,51 @@ export const POS: React.FC<POSProps> = ({
                 type="button"
                 onClick={() => {
                   const printContents = document.getElementById('z-report-print')?.innerHTML;
-                  const originalContents = document.body.innerHTML;
                   if (printContents) {
-                    document.body.innerHTML = printContents;
-                    window.print();
-                    document.body.innerHTML = originalContents;
-                    window.location.reload();
+                    const printFrame = document.createElement('iframe');
+                    printFrame.style.position = 'fixed';
+                    printFrame.style.right = '0';
+                    printFrame.style.bottom = '0';
+                    printFrame.style.width = '0';
+                    printFrame.style.height = '0';
+                    printFrame.style.border = '0';
+                    document.body.appendChild(printFrame);
+                    const frameDoc = printFrame.contentWindow?.document || printFrame.contentDocument;
+                    if (frameDoc) {
+                      frameDoc.write(`
+                        <!DOCTYPE html><html><head><title>Z-Report</title>
+                        <style>
+                          body { font-family: 'Courier New', Courier, monospace; font-size: 10px; padding: 4mm; color: #000; }
+                          .text-center { text-align: center; }
+                          .border-b { border-bottom: 1px dashed #000; }
+                          .pb-2 { padding-bottom: 8px; }
+                          .mt-2 { margin-top: 8px; }
+                          .uppercase { text-transform: uppercase; }
+                          .tracking-wide { letter-spacing: 1px; }
+                          .font-extrabold { font-weight: bold; }
+                          .font-medium { font-weight: 500; }
+                          .py-1 { padding-top: 4px; padding-bottom: 4px; }
+                          .flex { display: flex; }
+                          .justify-between { justify-content: space-between; }
+                          .border-t { border-top: 1px solid #000; }
+                          .pt-1\\.5 { padding-top: 6px; }
+                          .bg-slate-50 { background-color: #f8fafc; }
+                          .p-3 { padding: 12px; }
+                          .rounded-xl { border-radius: 8px; }
+                          .border { border: 1px solid #e2e8f0; }
+                        </style></head><body>
+                        ${printContents}
+                        </body></html>
+                      `);
+                      frameDoc.close();
+                      printFrame.contentWindow?.focus();
+                      setTimeout(() => {
+                        printFrame.contentWindow?.print();
+                        setTimeout(() => {
+                          document.body.removeChild(printFrame);
+                        }, 1000);
+                      }, 500);
+                    }
                   }
                 }}
                 className="flex-1 bg-slate-800 hover:bg-slate-900 text-white py-2 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1"
