@@ -203,6 +203,18 @@ export const Storefront: React.FC<StorefrontProps> = ({
     setCurrentPage(1);
   }, [selectedCategory, searchQuery]);
 
+  // Deep linking to product details from URL query parameter
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const prodId = params.get('product');
+    if (prodId && products.length > 0) {
+      const prod = products.find(p => p.id === prodId && !p.isHiddenOnline);
+      if (prod) {
+        setSelectedProduct(prod);
+      }
+    }
+  }, [products]);
+
   // Reviews state loaded from localStorage, pre-populated if empty
   const [reviews, setReviews] = useState<Review[]>(() => {
     const saved = localStorage.getItem('store_reviews');
@@ -1857,32 +1869,49 @@ export const Storefront: React.FC<StorefrontProps> = ({
                   </div>
 
                   {/* Actions */}
-                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                    <button
-                      onClick={() => addToCart(selectedProduct)}
-                      disabled={selectedProduct.stock !== 'Unlimited' && selectedProduct.stock <= 0}
-                      className={`flex-1 py-3 px-6 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
-                        selectedProduct.stock !== 'Unlimited' && selectedProduct.stock <= 0
-                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                          : `${theme.bg} ${theme.hoverBg} text-white shadow-lg ${theme.shadow} hover:shadow-xl active:scale-95 cursor-pointer`
-                      }`}
-                    >
-                      <ShoppingCart className="h-4 w-4" />
-                      <span>{t.addToCart}</span>
-                    </button>
+                  <div className="space-y-2.5 pt-2">
+                    <div className="flex flex-col sm:flex-row gap-3">
+                      <button
+                        onClick={() => addToCart(selectedProduct)}
+                        disabled={selectedProduct.stock !== 'Unlimited' && selectedProduct.stock <= 0}
+                        className={`flex-1 py-3 px-6 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
+                          selectedProduct.stock !== 'Unlimited' && selectedProduct.stock <= 0
+                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                            : `${theme.bg} ${theme.hoverBg} text-white shadow-lg ${theme.shadow} hover:shadow-xl active:scale-95 cursor-pointer`
+                        }`}
+                      >
+                        <ShoppingCart className="h-4 w-4" />
+                        <span>{t.addToCart}</span>
+                      </button>
+                      
+                      <a
+                        href={`https://wa.me/${(settings.onlinePhone || settings.shopPhone || '+94 71 83 00 589').replace(/[^0-9]/g, '').replace(/^0/, '94')}?text=${encodeURIComponent(
+                          language === 'en'
+                            ? `Hello! I want to order the following product:\n- Product: ${selectedProduct.nameEn}\n- Price: Rs. ${selectedProduct.retailPrice.toLocaleString()}\n- ID: ${selectedProduct.id}\nThank you!`
+                            : `ආයුබෝවන්! මට මෙම භාණ්ඩය ඇණවුම් කිරීමට අවශ්‍යයි:\n- භාණ්ඩය: ${selectedProduct.nameSi || selectedProduct.nameEn}\n- මිල: Rs. ${selectedProduct.retailPrice.toLocaleString()}\n- අංකය: ${selectedProduct.id}\nස්තූතියි!`
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex-1 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white py-3 px-6 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/10 cursor-pointer text-center"
+                      >
+                        <span className="text-lg leading-none">💬</span>
+                        <span>WhatsApp Order</span>
+                      </a>
+                    </div>
                     
+                    {/* Share on WhatsApp Link (Deep linking) */}
                     <a
-                      href={`https://wa.me/${(settings.onlinePhone || settings.shopPhone || '+94 71 83 00 589').replace(/[^0-9]/g, '').replace(/^0/, '94')}?text=${encodeURIComponent(
+                      href={`https://api.whatsapp.com/send?text=${encodeURIComponent(
                         language === 'en'
-                          ? `Hello! I want to order the following product:\n- Product: ${selectedProduct.nameEn}\n- Price: Rs. ${selectedProduct.retailPrice.toLocaleString()}\n- ID: ${selectedProduct.id}\nThank you!`
-                          : `ආයුබෝවන්! මට මෙම භාණ්ඩය ඇණවුම් කිරීමට අවශ්‍යයි:\n- භාණ්ඩය: ${selectedProduct.nameSi || selectedProduct.nameEn}\n- මිල: Rs. ${selectedProduct.retailPrice.toLocaleString()}\n- අංකය: ${selectedProduct.id}\nස්තූතියි!`
+                          ? `Check out this product at ${settings.shopName || 'SmartShop'}: *${selectedProduct.nameEn}* (Rs. ${selectedProduct.retailPrice.toLocaleString()})\n\nView details & order here:\n${window.location.origin}${window.location.pathname}?product=${selectedProduct.id}`
+                          : `බලන්නකෝ මේ භාණ්ඩය (${settings.shopName || 'SmartShop'}): *${selectedProduct.nameSi || selectedProduct.nameEn}* (රු. ${selectedProduct.retailPrice.toLocaleString()})\n\nභාණ්ඩයේ විස්තර බැලීමට සහ ඇණවුම් කිරීමට මෙතැනින් පිවිසෙන්න:\n${window.location.origin}${window.location.pathname}?product=${selectedProduct.id}`
                       )}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white py-3 px-6 rounded-2xl font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/10 cursor-pointer text-center"
+                      className="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 active:scale-[0.98] py-2.5 px-6 rounded-2xl font-black text-[11px] uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer text-center"
                     >
-                      <span className="text-lg leading-none">💬</span>
-                      <span>WhatsApp Order</span>
+                      <span className="text-base leading-none">🔗</span>
+                      <span>{language === 'en' ? 'Share product with a friend (WhatsApp)' : 'භාණ්ඩය WhatsApp හරහා යහළුවෙකුට යවන්න (Share)'}</span>
                     </a>
                   </div>
 
