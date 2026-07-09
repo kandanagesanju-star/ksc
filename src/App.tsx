@@ -176,6 +176,11 @@ function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
+  // Backup validation and preview state (Database Engineer & UI/UX Designer)
+  const [pendingRestoreData, setPendingRestoreData] = useState<any>(null);
+  const [showRestoreModal, setShowRestoreModal] = useState<boolean>(false);
+  const [isOverwriteConfirmed, setIsOverwriteConfirmed] = useState<boolean>(false);
+
   // Shifts state
   const [shifts, setShifts] = useState<RegisterShift[]>(() => {
     const saved = localStorage.getItem('shop_shifts');
@@ -1652,56 +1657,75 @@ function App() {
     }
   };
 
+  const validateBackupSchema = (data: any): boolean => {
+    if (!data || typeof data !== 'object') return false;
+    const hasProducts = Array.isArray(data.products);
+    const hasSales = Array.isArray(data.sales);
+    const hasCustomers = Array.isArray(data.customers);
+    return hasProducts || hasSales || hasCustomers;
+  };
+
   const handleImportBackup = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-
-    const confirmRestore = confirm(
-      language === 'en'
-        ? '⚠️ WARNING: Restoring from a backup file will OVERWRITE all current data on this device.\nAre you sure you want to continue?'
-        : '⚠️ අවධානය: උපස්ථ ගොනුවෙන් නැවත පිහිටුවීමෙන් දැනට මෙම උපාංගයේ ඇති සියලු දත්ත මකා දැමෙනු ඇත.\nඔබට ඉදිරියට යාමට විශ්වාසද?'
-    );
-    if (!confirmRestore) {
-      event.target.value = '';
-      return;
-    }
 
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
         const data = JSON.parse(e.target?.result as string);
-        if (!data || typeof data !== 'object') {
-          throw new Error('Invalid JSON format');
+        if (!validateBackupSchema(data)) {
+          alert(language === 'en' ? '❌ Invalid backup file format! Restoring failed.' : '❌ නොගැලපෙන උපස්ථ ගොනුවකි! ප්‍රතිස්ථාපනය අසාර්ථක විය.');
+          event.target.value = '';
+          return;
         }
 
-        if (data.products) localStorage.setItem('shop_products', JSON.stringify(data.products));
-        if (data.sales) localStorage.setItem('shop_sales', JSON.stringify(data.sales));
-        if (data.customers) localStorage.setItem('shop_customers', JSON.stringify(data.customers));
-        if (data.suppliers) localStorage.setItem('shop_suppliers', JSON.stringify(data.suppliers));
-        if (data.employees) localStorage.setItem('shop_employees', JSON.stringify(data.employees));
-        if (data.settings) localStorage.setItem('shop_settings', JSON.stringify(data.settings));
-        if (data.repairs) localStorage.setItem('shop_repairs', JSON.stringify(data.repairs));
-        if (data.specialOrders) localStorage.setItem('shop_special_orders', JSON.stringify(data.specialOrders));
-        if (data.quotations) localStorage.setItem('shop_quotations', JSON.stringify(data.quotations));
-        if (data.expenses) localStorage.setItem('shop_expenses', JSON.stringify(data.expenses));
-        if (data.shifts) localStorage.setItem('shop_shifts', JSON.stringify(data.shifts));
-        if (data.purchaseOrders) localStorage.setItem('shop_purchase_orders', JSON.stringify(data.purchaseOrders));
-        if (data.bankTransactions) localStorage.setItem('shop_bank_transactions', JSON.stringify(data.bankTransactions));
-        if (data.bankBalance !== undefined) localStorage.setItem('shop_bank_balance', String(data.bankBalance));
-        if (data.stockAdjustments) localStorage.setItem('shop_stock_adjustments', JSON.stringify(data.stockAdjustments));
-        if (data.auditLogs) localStorage.setItem('shop_audit_logs', JSON.stringify(data.auditLogs));
-
-        alert(
-          language === 'en'
-            ? '✅ Database restored successfully! The application will now reload.'
-            : '✅ දත්ත සමුදාය සාර්ථකව ප්‍රතිස්ථාපනය කරන ලදී! පද්ධතිය දැන් නැවත පූරණය වනු ඇත.'
-        );
-        window.location.reload();
+        setPendingRestoreData({
+          ...data,
+          fileName: file.name,
+          fileSize: file.size
+        });
+        setShowRestoreModal(true);
+        event.target.value = '';
       } catch (err) {
         alert(language === 'en' ? '❌ Invalid backup file format! Restoring failed.' : '❌ නොගැලපෙන උපස්ථ ගොනුවකි! ප්‍රතිස්ථාපනය අසාර්ථක විය.');
+        event.target.value = '';
       }
     };
     reader.readAsText(file);
+  };
+
+  const executeRestoreBackup = () => {
+    if (!pendingRestoreData) return;
+    const data = pendingRestoreData;
+
+    try {
+      if (data.products) localStorage.setItem('shop_products', JSON.stringify(data.products));
+      if (data.sales) localStorage.setItem('shop_sales', JSON.stringify(data.sales));
+      if (data.customers) localStorage.setItem('shop_customers', JSON.stringify(data.customers));
+      if (data.suppliers) localStorage.setItem('shop_suppliers', JSON.stringify(data.suppliers));
+      if (data.employees) localStorage.setItem('shop_employees', JSON.stringify(data.employees));
+      if (data.settings) localStorage.setItem('shop_settings', JSON.stringify(data.settings));
+      if (data.repairs) localStorage.setItem('shop_repairs', JSON.stringify(data.repairs));
+      if (data.specialOrders) localStorage.setItem('shop_special_orders', JSON.stringify(data.specialOrders));
+      if (data.quotations) localStorage.setItem('shop_quotations', JSON.stringify(data.quotations));
+      if (data.expenses) localStorage.setItem('shop_expenses', JSON.stringify(data.expenses));
+      if (data.shifts) localStorage.setItem('shop_shifts', JSON.stringify(data.shifts));
+      if (data.purchaseOrders) localStorage.setItem('shop_purchase_orders', JSON.stringify(data.purchaseOrders));
+      if (data.bankTransactions) localStorage.setItem('shop_bank_transactions', JSON.stringify(data.bankTransactions));
+      if (data.bankBalance !== undefined) localStorage.setItem('shop_bank_balance', String(data.bankBalance));
+      if (data.stockAdjustments) localStorage.setItem('shop_stock_adjustments', JSON.stringify(data.stockAdjustments));
+      if (data.auditLogs) localStorage.setItem('shop_audit_logs', JSON.stringify(data.auditLogs));
+
+      addAuditLog('DATABASE_RESTORED', 'Restored complete database state from backup file.');
+      alert(
+        language === 'en'
+          ? '✅ Database restored successfully! The application will now reload.'
+          : '✅ දත්ත සමුදාය සාර්ථකව ප්‍රතිස්ථාපනය කරන ලදී! පද්ධතිය දැන් නැවත පූරණය වනු ඇත.'
+      );
+      window.location.reload();
+    } catch (err) {
+      alert(language === 'en' ? '❌ Restoring failed due to storage error.' : '❌ දත්ත ප්‍රතිස්ථාපනය අසාර්ථක විය.');
+    }
   };
 
   const t = translations[language];
@@ -2195,7 +2219,7 @@ function App() {
                         { key: 'pos', label: language === 'en' ? 'POS Hardware' : 'POS යන්ත්‍ර සැකසුම්', icon: Printer },
                         { key: 'loyalty', label: language === 'en' ? 'Loyalty Settings' : 'ලෝයල්ටි සැකසුම්', icon: Award },
                         { key: 'bank', label: language === 'en' ? 'Bank & LankaQR' : 'බැංකු සහ LankaQR', icon: CreditCard },
-                        { key: 'database', label: language === 'en' ? 'Database Backup' : 'දත්ත ගබඩා ආරක්ෂාව', icon: Database },
+                        { key: 'database', label: language === 'en' ? 'Database & Security' : 'දත්ත සහ ආරක්ෂාව', icon: Database },
                         { key: 'logs', label: language === 'en' ? 'Register Logs' : 'පරිශීලන සටහන් (Logs)', icon: History },
                         { key: 'sms', label: language === 'en' ? 'Cloud SMS gateway' : 'Cloud SMS ගේට්වේ', icon: MessageSquare }
                       ].map(sub => {
@@ -2507,65 +2531,112 @@ function App() {
               )}
 
               {adminTab === 'backup' && (
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-6 text-xs text-slate-700">
-                  <div className="flex items-center space-x-2 pb-3 border-b border-slate-100">
-                    <div className="bg-emerald-500/10 p-2 rounded-xl text-emerald-600 border border-emerald-500/20">
-                      <Download className="h-5 w-5" />
+                <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-6 text-xs text-slate-700 animate-in fade-in slide-in-from-top-4 duration-300">
+                  {/* Header */}
+                  <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+                    <div className="flex items-center space-x-3">
+                      <div className="bg-emerald-500/10 p-2.5 rounded-xl text-emerald-600 border border-emerald-500/20">
+                        <Download className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-sm font-extrabold text-slate-800 text-left">
+                          {language === 'en' ? 'Full System Database Backup & Restore' : 'සම්පූර්ණ පද්ධති උපස්ථය සහ ප්‍රතිස්ථාපනය'}
+                        </h3>
+                        <p className="text-[10px] text-slate-400 font-medium leading-relaxed text-left">
+                          {language === 'en' 
+                            ? 'Download a copy of the entire local database or restore it from a backup file.' 
+                            : 'පද්ධති දත්ත සමුදාය සම්පූර්ණයෙන්ම බාගත කරන්න හෝ පෙර උපස්ථයකින් ප්‍රතිස්ථාපනය කරන්න.'}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="text-sm font-extrabold text-slate-800">
-                        {language === 'en' ? 'Full System Database Backup & Restore' : 'සම්පූර්ණ පද්ධති උපස්ථය සහ ප්‍රතිස්ථාපනය'}
-                      </h3>
-                      <p className="text-[10px] text-slate-400 font-medium">
-                        {language === 'en' ? 'Download a copy of the entire local database or restore it from a backup file.' : 'පද්ධති දත්ත සමුදාය සම්පූර්ණයෙන්ම බාගත කරන්න හෝ පෙර උපස්ථයකින් ප්‍රතිස්ථාපනය කරන්න.'}
+                  </div>
+
+                  {/* Warning Box */}
+                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start space-x-3 text-amber-850 text-left">
+                    <AlertCircle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <h4 className="font-bold text-amber-800 text-[11px]">
+                        {language === 'en' ? 'Important Security & Data Handling Notice' : 'වැදගත් ආරක්ෂක සහ දත්ත හැසිරවීමේ නිවේදනය'}
+                      </h4>
+                      <p className="text-[9.5px] leading-relaxed font-medium">
+                        {language === 'en'
+                          ? 'This backup process exports your local database in an unencrypted JSON text format. Anyone with access to the JSON file can read your entire business details, inventory cost margins, sales metrics, and customer databases. Store downloaded files in secure, password-protected USB drives or folders. For encrypted exports, use "Database & Security" settings tab.'
+                          : 'මෙම උපස්ථ ගොනුව සාමාන්‍ය JSON පෙළ ආකාරයෙන් බාගත වේ. එබැවින් මෙම ගොනුව ලැබෙන ඕනෑම අයෙකුට ඔබේ ව්‍යාපාරික විස්තර, භාණ්ඩ මිලදී ගත් මිල ගණන් සහ පාරිභෝගික දුරකථන අංක කියවිය හැක. එබැවින් මෙම ගොනුව සුරක්ෂිතව තබා ගන්න. මුරපදයකින් ආරක්ෂිතව බාගත කිරීමට settings වල ඇති "Database & Security" ටැබ් එක භාවිතා කරන්න.'}
                       </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Current Database Statistics Dashboard */}
+                  <div className="space-y-3">
+                    <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-wider text-left">
+                      {language === 'en' ? 'Current Database Statistics' : 'දැනට පවතින දත්ත ගබඩාවේ සාරාංශය'}
+                    </h4>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-left">
+                        <div className="text-[9px] font-extrabold text-slate-450 uppercase">{language === 'en' ? 'Products' : 'භාණ්ඩ'}</div>
+                        <div className="text-sm font-black text-slate-800 mt-1">{products.length}</div>
+                      </div>
+                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-left">
+                        <div className="text-[9px] font-extrabold text-slate-455 uppercase">{language === 'en' ? 'Sales Ledger' : 'විකුණුම්'}</div>
+                        <div className="text-sm font-black text-slate-800 mt-1">{sales.length}</div>
+                      </div>
+                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-left">
+                        <div className="text-[9px] font-extrabold text-slate-455 uppercase">{language === 'en' ? 'Customers' : 'ගනුදෙනුකරුවන්'}</div>
+                        <div className="text-sm font-black text-slate-800 mt-1">{customers.length}</div>
+                      </div>
+                      <div className="bg-slate-50 border border-slate-100 rounded-xl p-3 text-left">
+                        <div className="text-[9px] font-extrabold text-slate-455 uppercase">{language === 'en' ? 'Repairs & Orders' : 'රෙපෙයාර් සහ ඇණවුම්'}</div>
+                        <div className="text-sm font-black text-slate-800 mt-1">{repairs.length + specialOrders.length}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Export & Import Actions */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
                     {/* EXPORT SECTION */}
-                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200/60 space-y-3 flex flex-col justify-between">
-                      <div className="space-y-2">
-                        <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
-                          {language === 'en' ? '1. Export Database Backup' : '1. පද්ධති දත්ත බාගත කිරීම'}
+                    <div className="bg-slate-50/50 p-5 rounded-2xl border border-slate-200/60 flex flex-col justify-between hover:shadow-md transition duration-200">
+                      <div className="space-y-2 text-left">
+                        <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest block bg-emerald-50 w-fit px-2 py-0.5 rounded-md">
+                          {language === 'en' ? '1. Export' : '1. අපනයනය'}
                         </span>
                         <h4 className="font-extrabold text-slate-800 text-xs">
                           {language === 'en' ? 'Download Full JSON Dump' : 'සම්පූර්ණ දත්ත ගොනුව බාගත කරන්න'}
                         </h4>
-                        <p className="text-[10px] text-slate-500 leading-relaxed">
+                        <p className="text-[9.5px] text-slate-450 leading-relaxed font-medium">
                           {language === 'en' 
-                            ? 'Downloads all system tables (including Products, Sales logs, Customers list, Expenses, Shifts, and System Settings) in a single JSON file. You can store this file on your local drive or USB backup stick.' 
-                            : 'තොග දත්ත, විකුණුම් වාර්තා, ගනුදෙනුකරුවන්, වියදම් සහ සිටින්ස් ඇතුළු සමස්ත පද්ධති දත්ත එකම ගොනුවක් ලෙස බාගත කෙරේ. මෙය ඔබේ පරිගණකයේ සුරක්ෂිතව තබාගත හැක.'}
+                            ? 'Downloads all local data tables in a single JSON file. You can store this file on your local drive or USB backup stick to keep a copy of your work.' 
+                            : 'පද්ධති දත්ත සමුදාය සම්පූර්ණයෙන්ම බාගත කරන්න. මෙය ඔබේ පරිගණකයේ හෝ USB ධාවකයක සුරක්ෂිතව තබාගත හැක.'}
                         </p>
                       </div>
 
                       <button
                         onClick={handleExportBackup}
-                        className="w-full mt-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition shadow-md active:scale-95 flex items-center justify-center space-x-1.5 cursor-pointer"
+                        className="w-full mt-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold transition shadow-md active:scale-95 flex items-center justify-center space-x-1.5 cursor-pointer text-[10px]"
                       >
-                        <Download className="h-4 w-4" />
-                        <span>{language === 'en' ? 'Export Database (Download JSON)' : 'දත්ත සමුදාය බාගත කරන්න'}</span>
+                        <Download className="h-3.5 w-3.5" />
+                        <span>{language === 'en' ? 'Export Database (JSON)' : 'දත්ත සමුදාය බාගත කරන්න'}</span>
                       </button>
                     </div>
 
-                    <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200/60 space-y-3 flex flex-col justify-between">
-                      <div className="space-y-2">
-                        <span className="text-[10px] font-extrabold text-rose-500 uppercase tracking-wider block">
-                          {language === 'en' ? '2. Restore Database Backup' : '2. දත්ත සමුදාය ප්‍රතිස්ථාපනය'}
+                    {/* IMPORT SECTION */}
+                    <div className="bg-slate-50/50 p-5 rounded-2xl border border-slate-200/60 flex flex-col justify-between hover:shadow-md transition duration-200">
+                      <div className="space-y-2 text-left">
+                        <span className="text-[9px] font-black text-rose-600 uppercase tracking-widest block bg-rose-50 w-fit px-2 py-0.5 rounded-md">
+                          {language === 'en' ? '2. Import' : '2. ආනයනය'}
                         </span>
                         <h4 className="font-extrabold text-slate-800 text-xs">
                           {language === 'en' ? 'Upload Backup File' : 'පෙර බාගත කල උපස්ථ ගොනුව තෝරන්න'}
                         </h4>
-                        <p className="text-[10px] text-slate-500 leading-relaxed">
+                        <p className="text-[9.5px] text-slate-450 leading-relaxed font-medium">
                           {language === 'en'
-                            ? '⚠️ WARNING: Restoring from a backup file will overwrite all current system data on this device. Make sure you select a valid SmartShop JSON backup file.'
-                            : '⚠️ අවධානය: උපස්ථ ගොනුව ප්‍රතිස්ථාපනය කිරීම මඟින් දැනට පද්ධතියේ ඇති සියලුම දත්ත සම්පූර්ණයෙන්ම මැකී යනු ඇත.'}
+                            ? 'Upload a previously exported JSON backup file. All current data on this device will be replaced with the data from the backup.'
+                            : 'පෙර බාගත කල JSON උපස්ථ ගොනුවක් තෝරා ප්‍රතිස්ථාපනය කරන්න. මෙයින් දැනට පද්ධතියේ ඇති සියලුම දත්ත මැකී යනු ඇත.'}
                         </p>
                       </div>
 
                       <div>
-                        <label className="w-full mt-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition shadow-md active:scale-95 flex items-center justify-center space-x-1.5 cursor-pointer text-center text-xs">
-                          <Upload className="h-4 w-4" />
+                        <label className="w-full mt-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition shadow-md active:scale-95 flex items-center justify-center space-x-1.5 cursor-pointer text-center text-[10px]">
+                          <Upload className="h-3.5 w-3.5" />
                           <span>{language === 'en' ? 'Import & Restore Backup' : 'උපස්ථ ගොනුවෙන් ප්‍රතිස්ථාපනය කරන්න'}</span>
                           <input
                             type="file"
@@ -2577,6 +2648,169 @@ function App() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Restore Confirmation Preview Modal */}
+                  {showRestoreModal && pendingRestoreData && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                      <div className="bg-white rounded-3xl border border-slate-100 max-w-2xl w-full p-6 shadow-2xl flex flex-col max-h-[90vh] text-left animate-in zoom-in-95 duration-200">
+                        
+                        {/* Header */}
+                        <div className="flex items-center space-x-3 pb-3 border-b border-slate-100 shrink-0">
+                          <div className="bg-rose-500/10 p-2 rounded-xl text-rose-600 border border-rose-500/20">
+                            <AlertCircle className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-extrabold text-slate-800">
+                              {language === 'en' ? 'Verify Backup & Confirm Restore' : 'ගොනුව සත්‍යාපනය කර ප්‍රතිස්ථාපනය තහවුරු කරන්න'}
+                            </h3>
+                            <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
+                              {language === 'en' 
+                                ? 'Verify file data table records side-by-side with your current database before applying changes.' 
+                                : 'දත්ත ප්‍රතිස්ථාපනය කිරීමට පෙර Backup ගොනුවේ අඩංගු දත්ත ප්‍රමාණයන් වත්මන් දත්ත සමඟ සන්සන්දනය කරන්න.'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* File Details */}
+                        <div className="bg-slate-50 border border-slate-150 rounded-xl p-3 my-4 grid grid-cols-2 gap-3 text-[10px] shrink-0">
+                          <div>
+                            <span className="font-extrabold text-slate-400 block uppercase tracking-wider">{language === 'en' ? 'Backup File' : 'ගොනුවේ නම'}</span>
+                            <span className="font-bold text-slate-700 break-all">{pendingRestoreData.fileName}</span>
+                          </div>
+                          <div>
+                            <span className="font-extrabold text-slate-400 block uppercase tracking-wider">{language === 'en' ? 'File Size / Exported' : 'ගොනු ප්‍රමාණය / අපනයිත දිනය'}</span>
+                            <span className="font-bold text-slate-700">
+                              {(pendingRestoreData.fileSize / 1024).toFixed(2)} KB • {pendingRestoreData.exportedAt ? new Date(pendingRestoreData.exportedAt).toLocaleString() : 'N/A'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Overwrite Danger Warning Card */}
+                        <div className="bg-rose-50 border border-rose-200 text-rose-850 p-3.5 rounded-xl flex items-start space-x-2.5 text-[10px] leading-relaxed shrink-0 mb-4">
+                          <ShieldAlert className="h-5 w-5 text-rose-500 shrink-0" />
+                          <div>
+                            <span className="font-black block uppercase text-rose-800">{language === 'en' ? '⚠️ CRITICAL RESTORE ACTION WARNING' : '⚠️ අතිශය භයානක දත්ත වෙනස්කිරීමේ අනතුරු ඇඟවීමයි'}</span>
+                            <span>
+                              {language === 'en'
+                                ? 'Proceeding will COMPLETELY WIPE OUT all current products, sales history, customer listings, employees data, and configurations on this browser storage, substituting it with the file contents. This action cannot be undone.'
+                                : 'මෙමඟින් දැනට මෙම පරිගණකයේ ඇති සියලුම භාණ්ඩ, විකුණුම් ඉතිහාසය, පාරිභෝගික වාර්තා, සේවක පැමිණීම් සහ settings දත්ත සම්පූර්ණයෙන්ම මැකී යන අතර, ගොනුවේ ඇති දත්ත ප්‍රතිස්ථාපනය වේ. මෙය නැවත වෙනස් කල නොහැක.'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Comparison Table */}
+                        <div className="flex-1 overflow-y-auto min-h-0 pr-1 mb-4 border border-slate-100 rounded-2xl">
+                          <table className="w-full text-left text-[10.5px]">
+                            <thead className="bg-slate-50 text-slate-500 font-extrabold sticky top-0 border-b border-slate-100 uppercase tracking-wider text-[9px]">
+                              <tr>
+                                <th className="px-4 py-2">{language === 'en' ? 'Data Table Description' : 'දත්ත වගුවේ නම'}</th>
+                                <th className="px-4 py-2 text-center">{language === 'en' ? 'Current Count' : 'වත්මන් ප්‍රමාණය'}</th>
+                                <th className="px-4 py-2 text-center">{language === 'en' ? 'Backup Count' : 'Backup ප්‍රමාණය'}</th>
+                                <th className="px-4 py-2 text-right">{language === 'en' ? 'Trend' : 'වෙනස'}</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
+                              {[
+                                { nameEn: 'Products Catalog', nameSi: 'භාණ්ඩ නාමාවලිය', key: 'products', current: products.length },
+                                { nameEn: 'Sales History Ledger', nameSi: 'විකුණුම් ඉතිහාසය', key: 'sales', current: sales.length },
+                                { nameEn: 'Registered Customers', nameSi: 'පාරිභෝගික ලැයිස්තුව', key: 'customers', current: customers.length },
+                                { nameEn: 'Registered Suppliers', nameSi: 'සැපයුම්කරුවන්', key: 'suppliers', current: suppliers.length },
+                                { nameEn: 'Repair Services Log', nameSi: 'රෙපෙයාර් සටහන්', key: 'repairs', current: repairs.length },
+                                { nameEn: 'Special Custom Orders', nameSi: 'විශේෂ ඇණවුම්', key: 'specialOrders', current: specialOrders.length },
+                                { nameEn: 'Quotations & Estimates', nameSi: 'මිල ගණන් තක්සේරු', key: 'quotations', current: quotations.length },
+                                { nameEn: 'Expenses Record', nameSi: 'වියදම් සටහන්', key: 'expenses', current: expenses.length },
+                                { nameEn: 'Employees & Staff', nameSi: 'සේවකයින්', key: 'employees', current: employees.length },
+                                { nameEn: 'Attendance Clock', nameSi: 'පැමිණීමේ සටහන්', key: 'attendance', current: attendance.length },
+                                { nameEn: 'Register Shifts Log', nameSi: 'සේවා මුර (Shifts)', key: 'shifts', current: shifts.length },
+                                { nameEn: 'Bank Ledger Trx', nameSi: 'බැංකු ගනුදෙනු', key: 'bankTransactions', current: bankTransactions.length },
+                                { nameEn: 'Security Audit Logs', nameSi: 'පද්ධති ලොග් වාර්තා', key: 'auditLogs', current: auditLogs.length }
+                              ].map((tbl) => {
+                                const backupVal = Array.isArray(pendingRestoreData[tbl.key]) ? pendingRestoreData[tbl.key].length : 0;
+                                const diff = backupVal - tbl.current;
+                                return (
+                                  <tr key={tbl.key} className="hover:bg-slate-50/50">
+                                    <td className="px-4 py-2 font-bold text-slate-800">{language === 'en' ? tbl.nameEn : tbl.nameSi}</td>
+                                    <td className="px-4 py-2 text-center text-slate-500 font-bold">{tbl.current}</td>
+                                    <td className="px-4 py-2 text-center text-slate-900 font-extrabold">{backupVal}</td>
+                                    <td className="px-4 py-2 text-right">
+                                      {diff > 0 ? (
+                                        <span className="text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full text-[9px] font-black">+{diff}</span>
+                                      ) : diff < 0 ? (
+                                        <span className="text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full text-[9px] font-black">{diff}</span>
+                                      ) : (
+                                        <span className="text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full text-[9px] font-bold">0</span>
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                              {/* Bank Balance Comparison Row */}
+                              <tr className="hover:bg-slate-50/50">
+                                <td className="px-4 py-2 font-extrabold text-slate-850">{language === 'en' ? 'Starting Bank Balance' : 'බැංකු ශේෂය'}</td>
+                                <td className="px-4 py-2 text-center text-slate-500 font-bold">LKR {bankBalance.toLocaleString()}</td>
+                                <td className="px-4 py-2 text-center text-slate-950 font-black">LKR {(pendingRestoreData.bankBalance || 0).toLocaleString()}</td>
+                                <td className="px-4 py-2 text-right font-black">
+                                  {Number(pendingRestoreData.bankBalance || 0) - bankBalance > 0 ? (
+                                    <span className="text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded text-[9px]">LKR +{(Number(pendingRestoreData.bankBalance || 0) - bankBalance).toLocaleString()}</span>
+                                  ) : Number(pendingRestoreData.bankBalance || 0) - bankBalance < 0 ? (
+                                    <span className="text-rose-600 bg-rose-50 px-1.5 py-0.5 rounded text-[9px]">LKR {(Number(pendingRestoreData.bankBalance || 0) - bankBalance).toLocaleString()}</span>
+                                  ) : (
+                                    <span className="text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded text-[9px]">0</span>
+                                  )}
+                                </td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Confirmation Checkbox */}
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 mb-4 shrink-0 flex items-start space-x-2.5">
+                          <input
+                            id="confirm-overwrite-checkbox"
+                            type="checkbox"
+                            checked={isOverwriteConfirmed}
+                            onChange={(e) => setIsOverwriteConfirmed(e.target.checked)}
+                            className="h-4 w-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 mt-0.5 cursor-pointer"
+                          />
+                          <label htmlFor="confirm-overwrite-checkbox" className="text-[10px] text-slate-600 font-bold leading-relaxed cursor-pointer select-none">
+                            {language === 'en'
+                              ? 'I explicitly understand that this action is permanent and will completely overwrite all existing database records on this device.'
+                              : 'මෙම ක්‍රියාව ස්ථිර වන අතර දැනට මෙම පරිගණකයේ ඇති සියලුම දත්ත මකාදමා Backup එකෙහි දත්ත ප්‍රතිස්ථාපනය කරන බව මම තහවුරු කරමි.'}
+                          </label>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex justify-end gap-3 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowRestoreModal(false);
+                              setPendingRestoreData(null);
+                              setIsOverwriteConfirmed(false);
+                            }}
+                            className="px-4 py-2 border border-slate-200 rounded-xl hover:bg-slate-50 text-slate-600 font-bold text-xs transition cursor-pointer"
+                          >
+                            {language === 'en' ? 'Cancel' : 'අවලංගු කරන්න'}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={!isOverwriteConfirmed}
+                            onClick={() => {
+                              executeRestoreBackup();
+                              setShowRestoreModal(false);
+                              setPendingRestoreData(null);
+                              setIsOverwriteConfirmed(false);
+                            }}
+                            className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-extrabold text-xs disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center space-x-1 shadow-md"
+                          >
+                            <Upload className="h-4.5 w-4.5" />
+                            <span>{language === 'en' ? 'Confirm & Restore' : 'තහවුරු කර ප්‍රතිස්ථාපනය කරන්න'}</span>
+                          </button>
+                        </div>
+
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

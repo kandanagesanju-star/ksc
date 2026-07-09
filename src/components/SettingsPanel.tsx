@@ -686,16 +686,16 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           className="flex flex-1 items-center space-x-2 overflow-x-auto py-1 px-2 scroll-smooth custom-scrollbar"
         >
           {[
-            { key: 'shop' as const, label: 'Shop Profile', icon: Settings },
-            { key: 'features' as const, label: 'Feature Toggles', icon: Settings },
-            { key: 'online-store' as const, label: 'Online Store Customizer', icon: Layout },
-            { key: 'users' as const, label: 'Users & Roles', icon: User },
-            { key: 'pos' as const, label: 'POS & Hardware', icon: Printer },
-            { key: 'loyalty' as const, label: 'Loyalty Settings', icon: Award },
-            { key: 'bank' as const, label: 'Bank & QR', icon: CreditCard },
-            { key: 'database' as const, label: 'Database & Security', icon: Database },
-            { key: 'logs' as const, label: 'Register Logs', icon: Activity },
-            { key: 'sms' as const, label: 'Cloud SMS Config', icon: MessageSquare }
+            { key: 'shop' as const, label: language === 'en' ? 'Shop Profile' : 'ව්‍යාපාරික පැතිකඩ', icon: Settings },
+            { key: 'features' as const, label: language === 'en' ? 'Feature Toggles' : 'මොඩියල ක්‍රියාත්මක', icon: Settings },
+            { key: 'online-store' as const, label: language === 'en' ? 'Online Store Customizer' : 'ඔන්ලයින් ෂොප් එක', icon: Layout },
+            { key: 'users' as const, label: language === 'en' ? 'Users & Roles' : 'පරිශීලකයින් සහ භූමිකා', icon: User },
+            { key: 'pos' as const, label: language === 'en' ? 'POS & Hardware' : 'POS යන්ත්‍ර සැකසුම්', icon: Printer },
+            { key: 'loyalty' as const, label: language === 'en' ? 'Loyalty Settings' : 'ලෝයල්ටි සැකසුම්', icon: Award },
+            { key: 'bank' as const, label: language === 'en' ? 'Bank & QR' : 'බැංකු සහ LankaQR', icon: CreditCard },
+            { key: 'database' as const, label: language === 'en' ? 'Database & Security' : 'දත්ත සහ ආරක්ෂාව', icon: Database },
+            { key: 'logs' as const, label: language === 'en' ? 'Register Logs' : 'පරිශීලන සටහන් (Logs)', icon: Activity },
+            { key: 'sms' as const, label: language === 'en' ? 'Cloud SMS Config' : 'Cloud SMS ගේට්වේ', icon: MessageSquare }
           ].map(tab => {
             const Icon = tab.icon;
             return (
@@ -2025,23 +2025,31 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 space-y-3">
               <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center">
                 <ShieldCheck className="h-4.5 w-4.5 mr-1.5 text-emerald-500" />
-                Database Integrity Health Check
+                {language === 'en' ? 'Database Integrity Health Check' : 'දත්ත ගබඩා අඛණ්ඩතා පරීක්ෂාව'}
               </h3>
               <p className="text-[10px] text-slate-400 font-medium leading-relaxed">
-                Scan table row mappings, positive values, out-of-bounds metrics, and constraint validations.
+                {language === 'en' 
+                  ? 'Scan table row mappings, positive values, out-of-bounds metrics, and constraint validations.'
+                  : 'දත්ත වගු සම්බන්ධතා, නිවැරදි අගයන් සහ දර්ශක සීමාවන් පරිපූර්ණ ලෙස පරීක්ෂා කිරීම.'}
               </p>
               
               <div className="flex items-center space-x-4 p-3 bg-slate-50 rounded-xl border border-slate-150">
                 <div className="text-2xl font-black text-emerald-600">{dbHealth.score}%</div>
                 <div>
-                  <div className="font-extrabold text-slate-800">Database Health Score</div>
-                  <div className="text-[10px] text-slate-400">Scanned {dbHealth.checkedCount} table references</div>
+                  <div className="font-extrabold text-slate-800">
+                    {language === 'en' ? 'Database Health Score' : 'දත්ත සමුදායේ සෞඛ්‍ය මට්ටම'}
+                  </div>
+                  <div className="text-[10px] text-slate-400">
+                    {language === 'en' ? `Scanned ${dbHealth.checkedCount} table references` : `දත්ත වගු සම්බන්ධතා ${dbHealth.checkedCount}ක් පරීක්ෂා කරන ලදී`}
+                  </div>
                 </div>
               </div>
 
               {dbHealth.issues.length > 0 ? (
                 <div className="bg-rose-50 border border-rose-100 text-[10px] text-rose-700 p-3 rounded-xl max-h-32 overflow-y-auto space-y-1 font-mono">
-                  <div className="font-bold mb-1">Found Integrity Warnings:</div>
+                  <div className="font-bold mb-1">
+                    {language === 'en' ? 'Found Integrity Warnings:' : 'හඳුනාගත් දත්ත දෝෂ සහ අනතුරු ඇඟවීම්:'}
+                  </div>
                   {dbHealth.issues.map((iss: string, idx: number) => (
                     <div key={idx}>⚠️ {iss}</div>
                   ))}
@@ -2049,7 +2057,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
               ) : (
                 <div className="bg-emerald-50 border border-emerald-100 text-[10px] text-emerald-700 p-3 rounded-xl flex items-center space-x-1.5 font-bold">
                   <Check className="h-4 w-4" />
-                  <span>All table index constraints and references are 100% integral!</span>
+                  <span>
+                    {language === 'en' 
+                      ? 'All table index constraints and references are 100% integral!' 
+                      : 'සියලුම දත්ත වගු සහ සම්බන්ධතා 100% ක් නිවැරදිව පවතී!'}
+                  </span>
                 </div>
               )}
             </div>
