@@ -428,6 +428,16 @@ function App() {
     };
   }, []);
 
+  // Font Size Scaling effect (Senior Architect & UI/UX)
+  useEffect(() => {
+    const size = settings.fontSize || 'base';
+    let px = '16px';
+    if (size === 'sm') px = '14px';
+    if (size === 'lg') px = '18px';
+    if (size === 'xl') px = '20px';
+    document.documentElement.style.fontSize = px;
+  }, [settings.fontSize]);
+
   // Auto-Lock Inactivity Timer (Cybersecurity Specialist)
   useEffect(() => {
     if (viewMode !== 'admin' || !activeUser) return;

@@ -15,3 +15,7 @@ All notable changes to this project will be documented in this file.
 - Implemented Database Storage Footprint Tracker in `SettingsPanel.tsx` showing active memory usage with a visual progress bar.
 - Added Log Archival & Purge Maintenance utilities to filter out audit logs older than 30 or 90 days.
 - Added Secure Database Factory Reset feature authenticated by Admin Passcode PIN to erase local storage and reload.
+- Implemented **Global Font Size Resizing Controller** scaling root HTML `rem` units dynamically between Small (`14px`), Base (`16px`), Large (`18px`), and Extra Large (`20px`) for customized readability.
+- Implemented **Product Catalog Layout Switchers** allowing users to switch product view layouts dynamically between "Tiles", "List", "Icons", and "Details" inside the POS Terminal, Central Inventory panel, and KSC Online Storefront.
+- Added **Floating Search Suggestions Dropdown** to the KSC Online Storefront search bar to suggest matching products as customers type.
+- Integrated **Product Quick View Modal** in the storefront for instant detailed specs, stock level checks, reviews list, and quick order pathways.

@@ -326,6 +326,7 @@ export interface ShopSettings {
   onlineHeroBannerUrl: string;
   heroBannerUrls?: string[]; // Array of banner image URLs for carousel slideshow
   onlinePrimaryThemeColor: string; // e.g. bg-blue-600
+  fontSize?: 'sm' | 'base' | 'lg' | 'xl';
   
   // THEME AND SECURITY ADVANCED VARIABLES
   uiTheme?: 'slate' | 'oled' | 'glass' | 'emerald';

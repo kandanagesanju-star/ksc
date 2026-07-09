@@ -156,6 +156,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
   const [activeTab, setActiveTab] = useState<'shop' | 'tracker'>('shop');
   const [selectedCategory, setSelectedCategory] = useState<Category | 'All'>('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [layoutMode, setLayoutMode] = useState<'grid' | 'list' | 'icons' | 'details'>('grid');
 
   // Repair tracking search state
   const [trackerQuery, setTrackerQuery] = useState('');
@@ -722,6 +723,171 @@ export const Storefront: React.FC<StorefrontProps> = ({
     );
   };
 
+  const renderStorefrontProductsList = (productList: Product[]) => {
+    if (layoutMode === 'grid') {
+      return (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+          {productList.map(p => <ProductCard key={p.id} product={p} />)}
+        </div>
+      );
+    }
+    if (layoutMode === 'list') {
+      return (
+        <div className="space-y-4">
+          {productList.map(p => {
+            const fakeOriginal = Math.round(p.retailPrice * 1.18);
+            const discount = Math.round(((fakeOriginal - p.retailPrice) / fakeOriginal) * 100);
+            const outOfStock = isOutOfStock(p.stock);
+            return (
+              <div 
+                key={p.id} 
+                onClick={() => setSelectedProduct(p)} 
+                className="bg-white p-4 rounded-3xl border border-slate-100 shadow-sm hover:shadow-lg transition-all flex items-center space-x-4 cursor-pointer text-left relative overflow-hidden"
+              >
+                <div className="w-20 h-20 rounded-2xl bg-slate-50 flex items-center justify-center shrink-0 overflow-hidden relative">
+                  {p.imageUrl ? (
+                    <img src={p.imageUrl} alt={p.nameEn} className="object-cover w-full h-full" />
+                  ) : (
+                    getCategoryIcon(p.category, "h-8 w-8 text-slate-400")
+                  )}
+                  {outOfStock && (
+                    <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-[1px] flex items-center justify-center">
+                      <span className="bg-slate-950/80 text-white text-[8px] font-black px-1.5 py-0.5 rounded">SOLD</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="text-[9px] font-black text-slate-400 uppercase">{(translations[language] as any)[p.category] || p.category}</span>
+                  <h4 className="font-extrabold text-slate-800 text-sm truncate mt-0.5">{language === 'si' ? (p.nameSi || p.nameEn) : p.nameEn}</h4>
+                  <p className="text-[10px] text-slate-400 truncate mt-0.5">{p.nameSi ? p.nameSi : p.nameEn}</p>
+                  <div className="flex items-center space-x-2 mt-2">
+                    <span className={`text-xs font-black ${theme.text}`}>Rs. {p.retailPrice.toLocaleString()}</span>
+                    {discount > 5 && <span className="text-[9.5px] text-slate-400 line-through font-semibold">Rs. {fakeOriginal.toLocaleString()}</span>}
+                  </div>
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); addToCart(p); }}
+                    disabled={outOfStock}
+                    className={`px-4 py-2 rounded-xl text-[10px] font-black flex items-center space-x-1 ${
+                      outOfStock
+                        ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                        : `${theme.bg} ${theme.hoverBg} text-white shadow-sm cursor-pointer`
+                    }`}
+                  >
+                    <ShoppingCart className="h-3 w-3" />
+                    <span>{t.addToCart}</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+    if (layoutMode === 'icons') {
+      return (
+        <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 text-center">
+          {productList.map(p => {
+            const outOfStock = isOutOfStock(p.stock);
+            return (
+              <div 
+                key={p.id} 
+                onClick={() => setSelectedProduct(p)} 
+                className="bg-white p-3 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition flex flex-col justify-between items-center cursor-pointer h-36 relative"
+              >
+                <div className="w-12 h-12 rounded-xl bg-slate-50 flex items-center justify-center shrink-0 overflow-hidden mb-1 relative">
+                  {p.imageUrl ? <img src={p.imageUrl} alt={p.nameEn} className="object-cover w-full h-full" /> : getCategoryIcon(p.category, "h-6 w-6 text-slate-400")}
+                  {outOfStock && (
+                    <div className="absolute inset-0 bg-slate-900/40 flex items-center justify-center">
+                      <span className="bg-slate-950/80 text-white text-[7px] font-black px-1 rounded">OUT</span>
+                    </div>
+                  )}
+                </div>
+                <div className="w-full">
+                  <h4 className="font-extrabold text-slate-800 text-[10px] truncate leading-tight w-full">{language === 'si' ? (p.nameSi || p.nameEn) : p.nameEn}</h4>
+                  <div className={`text-[10px] font-black ${theme.text} mt-1`}>Rs. {p.retailPrice.toLocaleString()}</div>
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); addToCart(p); }}
+                  disabled={outOfStock}
+                  className={`w-full py-1 mt-1 rounded-lg text-[9px] font-bold ${
+                    outOfStock
+                      ? 'bg-slate-100 text-slate-450 cursor-not-allowed'
+                      : `${theme.bg} ${theme.hoverBg} text-white cursor-pointer`
+                  }`}
+                >
+                  <span>+ {language === 'en' ? 'Add' : 'එක් කරන්න'}</span>
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+    if (layoutMode === 'details') {
+      return (
+        <div className="overflow-x-auto border border-slate-100 rounded-2xl bg-white shadow-sm text-left">
+          <table className="w-full text-left text-xs font-semibold text-slate-700">
+            <thead className="bg-slate-50 text-slate-400 font-extrabold border-b border-slate-100 uppercase tracking-wider text-[9px]">
+              <tr>
+                <th className="px-4 py-2.5">{language === 'en' ? 'Product Name' : 'භාණ්ඩයේ නම'}</th>
+                <th className="px-4 py-2.5">{language === 'en' ? 'Category' : 'වර්ගීකරණය'}</th>
+                <th className="px-4 py-2.5 text-center">{language === 'en' ? 'Stock Status' : 'තොග මට්ටම'}</th>
+                <th className="px-4 py-2.5 text-right">{language === 'en' ? 'Price' : 'මිල'}</th>
+                <th className="px-4 py-2.5 text-center">{language === 'en' ? 'Action' : 'ක්‍රියාව'}</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {productList.map(p => {
+                const out = isOutOfStock(p.stock);
+                return (
+                  <tr key={p.id} onClick={() => setSelectedProduct(p)} className="hover:bg-slate-50/50 cursor-pointer">
+                    <td className="px-4 py-3 flex items-center space-x-2.5 font-bold text-slate-800">
+                      <div className="w-7 h-7 rounded bg-slate-50 overflow-hidden flex items-center justify-center shrink-0 border border-slate-100">
+                        {p.imageUrl ? <img src={p.imageUrl} alt={p.nameEn} className="object-cover w-full h-full" /> : getCategoryIcon(p.category, "h-4 w-4 text-slate-400")}
+                      </div>
+                      <span className="truncate max-w-xs">{language === 'si' ? (p.nameSi || p.nameEn) : p.nameEn}</span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-500 font-medium">{(translations[language] as any)[p.category] || p.category}</td>
+                    <td className="px-4 py-3 text-center">
+                      {out ? (
+                        <span className="bg-rose-50 text-rose-600 px-2 py-0.5 rounded-full text-[9px] font-black uppercase">SOLD OUT</span>
+                      ) : p.stock === 'Unlimited' ? (
+                        <span className="bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full text-[9px] font-bold">{language === 'en' ? 'Unlimited' : 'සීමා රහිත'}</span>
+                      ) : (
+                        <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full text-[9px] font-black">{p.stock} Left</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right font-bold text-slate-800">Rs. {p.retailPrice.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-center">
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); addToCart(p); }}
+                        disabled={out}
+                        className={`px-3 py-1 rounded-lg text-[9.5px] font-black inline-flex items-center space-x-1 ${
+                          out
+                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                            : `${theme.bg} ${theme.hoverBg} text-white cursor-pointer`
+                        }`}
+                      >
+                        <ShoppingCart className="h-3 w-3" />
+                        <span>{language === 'en' ? 'Add' : 'එක් කරන්න'}</span>
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      );
+    }
+    return null;
+  };
+
   return (
     <div className="relative -mt-4 -mx-3 sm:-mx-6 lg:-mx-8">
 
@@ -834,15 +1000,60 @@ export const Storefront: React.FC<StorefrontProps> = ({
                 <option value="All" className={isHeaderDark ? 'bg-slate-950 text-slate-200' : 'bg-white text-slate-700'}>{t.allCategories}</option>
                 {categories.map(c => <option key={c} value={c} className={isHeaderDark ? 'bg-slate-950 text-slate-200' : 'bg-white text-slate-700'}>{c}</option>)}
               </select>
-              <input
-                type="text"
-                placeholder={language === 'en' ? 'Search products, brands and categories...' : 'භාණ්ඩ, බ්‍රෑන්ඩ් සහ කාණ්ඩ සොයන්න...'}
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                className={`flex-1 px-3 py-2 text-xs md:text-sm focus:outline-none min-w-0 ${
-                  isHeaderDark ? 'bg-transparent text-white placeholder-slate-400' : 'bg-transparent text-slate-800 placeholder-slate-400'
-                }`}
-              />
+              <div className="relative flex-1 flex items-center">
+                <input
+                  type="text"
+                  placeholder={language === 'en' ? 'Search products, brands and categories...' : 'භාණ්ඩ, බ්‍රෑන්ඩ් සහ කාණ්ඩ සොයන්න...'}
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className={`w-full px-3 py-2 text-xs md:text-sm focus:outline-none min-w-0 ${
+                    isHeaderDark ? 'bg-transparent text-white placeholder-slate-400' : 'bg-transparent text-slate-800 placeholder-slate-400'
+                  }`}
+                />
+                {searchQuery.trim().length >= 2 && (
+                  (() => {
+                    const matches = products
+                      .filter(p => !p.isHiddenOnline && (
+                        p.nameEn.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                        (p.nameSi && p.nameSi.includes(searchQuery)) ||
+                        p.category.toLowerCase().includes(searchQuery.toLowerCase())
+                      ))
+                      .slice(0, 5);
+                    if (matches.length === 0) return null;
+                    return (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white rounded-2xl shadow-xl border border-slate-150 overflow-hidden z-50 text-slate-800 text-xs font-semibold text-left animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="p-2 bg-slate-50 text-[10px] text-slate-400 uppercase font-black tracking-wider border-b border-slate-100">
+                          {language === 'en' ? 'Matching Suggestions' : 'සෙවුම් යෝජනා'}
+                        </div>
+                        <div className="divide-y divide-slate-100">
+                          {matches.map(p => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedProduct(p);
+                                setSearchQuery('');
+                              }}
+                              className="w-full px-4 py-2.5 hover:bg-slate-50 transition flex items-center justify-between text-left cursor-pointer"
+                            >
+                              <div className="flex items-center space-x-2.5 min-w-0">
+                                <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center shrink-0 overflow-hidden text-slate-400">
+                                  {p.imageUrl ? <img src={p.imageUrl} alt={p.nameEn} className="object-cover w-full h-full" /> : '📦'}
+                                </div>
+                                <div className="min-w-0">
+                                  <div className="font-extrabold text-slate-800 truncate">{language === 'si' ? (p.nameSi || p.nameEn) : p.nameEn}</div>
+                                  <div className="text-[9px] text-slate-400 font-semibold truncate">{(translations[language] as any)[p.category] || p.category}</div>
+                                </div>
+                              </div>
+                              <span className={`text-[10px] font-black shrink-0 ${theme.text}`}>Rs. {p.retailPrice.toLocaleString()}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()
+                )}
+              </div>
               <button className={`${theme.bg} ${theme.hoverBg} text-white px-4 md:px-5 py-2.5 flex items-center justify-center transition duration-300 hover:scale-105 active:scale-95 shrink-0 cursor-pointer`}>
                 <Search className="h-4 w-4" />
               </button>
@@ -1108,9 +1319,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
                     <p className="text-slate-500 font-semibold">{language === 'en' ? 'No products found.' : 'භාණ්ඩ හමු නොවිණි.'}</p>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                    {paginatedProducts.map(p => <ProductCard key={p.id} product={p} />)}
-                  </div>
+                  renderStorefrontProductsList(paginatedProducts)
                 )}
                 {totalPages > 1 && (
                   <div className="flex justify-center items-center space-x-1.5 pt-6 text-xs font-bold text-slate-600">
@@ -1238,6 +1447,29 @@ export const Storefront: React.FC<StorefrontProps> = ({
                       <span>{language === 'en' ? 'Explore Our Catalog' : 'සියලුම භාණ්ඩ'}</span>
                       <span className="text-xs text-slate-400 font-bold ml-2">({visibleProducts.length} {language === 'en' ? 'Products' : 'භාණ්ඩ'})</span>
                     </h2>
+                    
+                    {/* Storefront Layout selector tabs */}
+                    <div className="flex bg-slate-100/80 backdrop-blur-xs p-1 rounded-2xl border border-slate-200/40 text-[10px] font-black uppercase tracking-wider shrink-0 select-none">
+                      {[
+                        { mode: 'grid', label: language === 'en' ? 'Tiles' : 'Tiles' },
+                        { mode: 'list', label: language === 'en' ? 'List' : 'List' },
+                        { mode: 'icons', label: language === 'en' ? 'Icons' : 'Icons' },
+                        { mode: 'details', label: language === 'en' ? 'Details' : 'Details' },
+                      ].map(tab => (
+                        <button
+                          key={tab.mode}
+                          type="button"
+                          onClick={() => setLayoutMode(tab.mode as any)}
+                          className={`px-3 py-1.5 rounded-xl cursor-pointer transition-all duration-200 ${
+                            layoutMode === tab.mode 
+                              ? `${theme.bg} text-white shadow-sm` 
+                              : 'text-slate-500 hover:text-slate-800'
+                          }`}
+                        >
+                          {tab.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                   
                   {paginatedProducts.length === 0 ? (
@@ -1245,9 +1477,7 @@ export const Storefront: React.FC<StorefrontProps> = ({
                       <p className="text-slate-500 font-semibold">{language === 'en' ? 'No products available.' : 'භාණ්ඩ නොමැත.'}</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                      {paginatedProducts.map(p => <ProductCard key={p.id} product={p} />)}
-                    </div>
+                    renderStorefrontProductsList(paginatedProducts)
                   )}
 
                   {/* Smart Catalog Pagination */}

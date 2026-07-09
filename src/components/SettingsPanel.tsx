@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { ShopSettings, SystemAuditLog, Product, Customer, RepairJob, Sale, BankTransaction } from '../types';
 import { translations } from '../lib/translations';
 import { 
-  Settings, User, Key, Printer, Database, Award, 
+  Settings, User, Key, Printer, Database, Award, Languages,
   CreditCard, Activity, Save, RefreshCw, AlertCircle, Layout, Eye, EyeOff, ShieldAlert, ShieldCheck, Check, History, Trash, Download, Upload, Lock, Unlock, Image, X, MessageSquare, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
@@ -191,6 +191,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [shortcutCard, setShortcutCard] = useState(settings.posShortcuts.cardCheckout || 'F4');
   const [shortcutBank, setShortcutBank] = useState(settings.posShortcuts.bankCheckout || 'F6');
   const [receiptWidth, setReceiptWidth] = useState(settings.receiptWidth);
+  const [fontSize, setFontSize] = useState(settings.fontSize || 'base');
 
   // Bank Info
   const [bankName, setBankName] = useState(settings.bankName);
@@ -383,6 +384,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     setOnlineAnnouncementMessage(settings.onlineAnnouncementMessage || '');
     setOnlineAnnouncementBgColor(settings.onlineAnnouncementBgColor || 'bg-blue-500/15 text-blue-300 border-blue-500/30');
     setUiTheme(settings.uiTheme || 'slate');
+    setFontSize(settings.fontSize || 'base');
     setAdminPin(settings.adminPin || '8892');
     setCashierAllowPOS(settings.rolePermissions?.cashier?.allowPOS ?? true);
     setCashierAllowRepairs(settings.rolePermissions?.cashier?.allowRepairs ?? false);
@@ -671,6 +673,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       onlineAnnouncementMessage: onlineAnnouncementMessage.trim(),
       onlineAnnouncementBgColor,
       uiTheme,
+      fontSize,
       adminPin,
       enableSms,
       enableRepairs,
@@ -1197,7 +1200,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 className="w-full px-3 py-1.5 border border-slate-200 rounded-lg animate-in"
               />
             </div>
-            <div className="grid grid-cols-2 gap-3 md:col-span-2 bg-indigo-50/40 p-4 rounded-xl border border-indigo-100/60">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:col-span-2 bg-indigo-50/40 p-4 rounded-xl border border-indigo-100/60">
               <div className="space-y-1">
                 <label className="font-bold text-slate-500 text-indigo-700 flex items-center">
                   <Layout className="h-3.5 w-3.5 mr-1" />
@@ -1211,6 +1214,21 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                   <option value="oled">OLED Deep Black Theme</option>
                   <option value="emerald">Emerald Cyber Theme</option>
                   <option value="glass">Glassmorphism Cyber Theme</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="font-bold text-slate-500 text-indigo-700 flex items-center">
+                  <Languages className="h-3.5 w-3.5 mr-1" />
+                  {language === 'en' ? 'Application Font Size' : 'අකුරු ප්‍රමාණය'}
+                </label>
+                <select
+                  value={fontSize} onChange={(e) => setFontSize(e.target.value as any)}
+                  className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-white font-bold"
+                >
+                  <option value="sm">{language === 'en' ? 'Small (87.5%)' : 'කුඩා (87.5%)'}</option>
+                  <option value="base">{language === 'en' ? 'Normal (100%)' : 'ಸಾමාන්‍ය (100%)'}</option>
+                  <option value="lg">{language === 'en' ? 'Large (112.5%)' : 'විශාල (112.5%)'}</option>
+                  <option value="xl">{language === 'en' ? 'Extra Large (125%)' : 'ඉතා විශාල (125%)'}</option>
                 </select>
               </div>
               <div className="space-y-1">

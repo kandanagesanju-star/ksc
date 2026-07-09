@@ -66,6 +66,7 @@ export const POS: React.FC<POSProps> = ({
   // POS State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [posLayout, setPosLayout] = useState<'grid' | 'list' | 'icons' | 'details'>('grid');
   const [posCart, setPosCart] = useState<{ 
     product: Product; 
     quantity: number; // For non-weighted, this is count. For weighted, it is weight in kg.
@@ -1118,6 +1119,17 @@ export const POS: React.FC<POSProps> = ({
                   </option>
                 ))}
               </select>
+              <select
+                value={posLayout}
+                onChange={(e) => setPosLayout(e.target.value as any)}
+                className="bg-slate-50 border border-slate-200 text-xs font-bold rounded-xl px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700"
+                title={language === 'en' ? 'Select View Layout' : 'පිරිසැලසුම තෝරන්න'}
+              >
+                <option value="grid">📦 {language === 'en' ? 'Tiles' : 'Tiles'}</option>
+                <option value="list">📝 {language === 'en' ? 'List' : 'List'}</option>
+                <option value="icons">🖼️ {language === 'en' ? 'Icons' : 'Icons'}</option>
+                <option value="details">🔍 {language === 'en' ? 'Details' : 'Details'}</option>
+              </select>
               <button
                 type="button"
                 onClick={() => {
@@ -1142,54 +1154,207 @@ export const POS: React.FC<POSProps> = ({
           )}
         </div>
 
-        {/* Quick Click Products Grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 max-h-[55vh] overflow-y-auto pr-1">
-          {paginatedProducts.map(p => {
-            const isLowStock = p.stock !== 'Unlimited' && p.stock <= p.lowStockAlert;
-            const isOutOfStock = p.stock !== 'Unlimited' && p.stock <= 0;
-
-            return (
-              <button
-                key={p.id}
-                onClick={() => addToCart(p)}
-                disabled={isOutOfStock}
-                className={`p-3 bg-white border rounded-xl text-left hover:shadow-sm active:scale-95 transition flex flex-col justify-between h-28 ${
-                  isOutOfStock 
-                    ? 'border-slate-100 bg-slate-50/50 opacity-50 cursor-not-allowed' 
-                    : isLowStock 
-                    ? 'border-rose-200 hover:border-rose-300' 
-                    : 'border-slate-200 hover:border-blue-400'
-                }`}
-              >
-                <div>
-                  <div className="flex justify-between items-start">
-                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{p.id}</span>
-                    <span className={`text-[8px] font-extrabold px-1 py-0.5 rounded text-white ${
-                      p.source === 'Self-Manufactured' ? 'bg-emerald-500' : p.source === 'Service (Unlimited)' ? 'bg-purple-500' : 'bg-blue-500'
-                    }`}>
-                      {p.isWeighted ? 'Weight' : 'Unit'}
+        {/* POS Products View Layouts (Tiles, List, Icons, Details) */}
+        {posLayout === 'grid' && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3 max-h-[55vh] overflow-y-auto pr-1">
+            {paginatedProducts.map(p => {
+              const isLowStock = p.stock !== 'Unlimited' && p.stock <= p.lowStockAlert;
+              const isOutOfStock = p.stock !== 'Unlimited' && p.stock <= 0;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => addToCart(p)}
+                  disabled={isOutOfStock}
+                  className={`p-3 bg-white border rounded-xl text-left hover:shadow-sm active:scale-95 transition flex flex-col justify-between h-28 ${
+                    isOutOfStock 
+                      ? 'border-slate-100 bg-slate-50/50 opacity-50 cursor-not-allowed' 
+                      : isLowStock 
+                      ? 'border-rose-200 hover:border-rose-300' 
+                      : 'border-slate-200 hover:border-blue-400'
+                  }`}
+                >
+                  <div>
+                    <div className="flex justify-between items-start">
+                      <span className="text-[9px] font-bold text-slate-400 tracking-wider">{p.id}</span>
+                      <span className={`text-[8px] font-extrabold px-1 py-0.5 rounded text-white ${
+                        p.source === 'Self-Manufactured' ? 'bg-emerald-500' : p.source === 'Service (Unlimited)' ? 'bg-purple-500' : 'bg-blue-500'
+                      }`}>
+                        {p.isWeighted ? 'Weight' : 'Unit'}
+                      </span>
+                    </div>
+                    <h4 className="text-xs font-bold text-slate-800 line-clamp-1 mt-1">
+                      {language === 'en' ? p.nameEn : p.nameSi}
+                    </h4>
+                    <p className="text-[10px] text-slate-400 line-clamp-1">
+                      {language === 'en' ? p.nameSi : p.nameEn}
+                    </p>
+                  </div>
+                  <div className="flex justify-between items-end w-full pt-1 border-t border-slate-100">
+                    <span className="text-xs font-extrabold text-blue-600">
+                      Rs. {priceMode === 'Wholesale' ? p.wholesalePrice : p.retailPrice} {p.isWeighted && '/kg'}
+                    </span>
+                    <span className={`text-[10px] font-bold ${isOutOfStock ? 'text-rose-500' : isLowStock ? 'text-amber-500' : 'text-slate-500'}`}>
+                      {p.stock === 'Unlimited' ? '∞' : `${p.stock} Qty`}
                     </span>
                   </div>
-                  <h4 className="text-xs font-bold text-slate-800 line-clamp-1 mt-1">
-                    {language === 'en' ? p.nameEn : p.nameSi}
-                  </h4>
-                  <p className="text-[10px] text-slate-400 line-clamp-1">
-                    {language === 'en' ? p.nameSi : p.nameEn}
-                  </p>
-                </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
-                <div className="flex justify-between items-end w-full pt-1 border-t border-slate-100">
-                  <span className="text-xs font-extrabold text-blue-600">
-                    Rs. {priceMode === 'Wholesale' ? p.wholesalePrice : p.retailPrice} {p.isWeighted && '/kg'}
-                  </span>
-                  <span className={`text-[10px] font-bold ${isOutOfStock ? 'text-rose-500' : isLowStock ? 'text-amber-500' : 'text-slate-500'}`}>
-                    {p.stock === 'Unlimited' ? '∞' : `${p.stock} Qty`}
-                  </span>
+        {posLayout === 'list' && (
+          <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
+            {paginatedProducts.map(p => {
+              const isLowStock = p.stock !== 'Unlimited' && p.stock <= p.lowStockAlert;
+              const isOutOfStock = p.stock !== 'Unlimited' && p.stock <= 0;
+              return (
+                <div
+                  key={p.id}
+                  onClick={() => !isOutOfStock && addToCart(p)}
+                  className={`p-2.5 bg-white border rounded-xl flex items-center justify-between text-left transition select-none cursor-pointer ${
+                    isOutOfStock 
+                      ? 'border-slate-100 bg-slate-50/50 opacity-40 cursor-not-allowed' 
+                      : isLowStock 
+                      ? 'border-rose-100 hover:border-rose-300' 
+                      : 'border-slate-200 hover:border-blue-400 hover:shadow-sm'
+                  }`}
+                >
+                  <div className="flex items-center space-x-3 min-w-0">
+                    <div className="w-10 h-10 rounded bg-slate-50 flex items-center justify-center shrink-0 border border-slate-100 overflow-hidden text-slate-400 text-xs">
+                      {p.imageUrl ? <img src={p.imageUrl} alt={p.nameEn} className="object-cover w-full h-full" /> : '📦'}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-xs font-bold text-slate-800 truncate">{language === 'en' ? p.nameEn : p.nameSi}</div>
+                      <div className="text-[10px] text-slate-400 truncate mt-0.5">{language === 'en' ? p.nameSi : p.nameEn} • {p.id}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-4 shrink-0 text-right">
+                    <div>
+                      <div className="text-xs font-black text-blue-600">Rs. {priceMode === 'Wholesale' ? p.wholesalePrice : p.retailPrice}</div>
+                      <div className={`text-[10px] font-bold mt-0.5 ${isOutOfStock ? 'text-rose-500 animate-pulse' : isLowStock ? 'text-amber-500' : 'text-slate-400'}`}>
+                        {p.stock === 'Unlimited' ? 'Unlimited' : `${p.stock} Left`}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={isOutOfStock}
+                      onClick={(e) => { e.stopPropagation(); addToCart(p); }}
+                      className={`px-3 py-1.5 rounded-lg text-[10px] font-bold ${
+                        isOutOfStock 
+                          ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
+                          : 'bg-blue-50 text-blue-600 border border-blue-150 hover:bg-blue-100 cursor-pointer'
+                      }`}
+                    >
+                      + Add
+                    </button>
+                  </div>
                 </div>
-              </button>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
+
+        {posLayout === 'icons' && (
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-2.5 max-h-[55vh] overflow-y-auto pr-1">
+            {paginatedProducts.map(p => {
+              const isLowStock = p.stock !== 'Unlimited' && p.stock <= p.lowStockAlert;
+              const isOutOfStock = p.stock !== 'Unlimited' && p.stock <= 0;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => addToCart(p)}
+                  disabled={isOutOfStock}
+                  className={`p-2 bg-white border rounded-xl hover:shadow-xs text-center active:scale-95 transition flex flex-col items-center justify-between h-20 ${
+                    isOutOfStock 
+                      ? 'border-slate-100 bg-slate-50/50 opacity-40 cursor-not-allowed' 
+                      : isLowStock 
+                      ? 'border-rose-200 hover:border-rose-300' 
+                      : 'border-slate-200 hover:border-blue-400'
+                  }`}
+                  title={language === 'en' ? p.nameEn : p.nameSi}
+                >
+                  <span className="text-[8px] font-black text-slate-400 block tracking-tight truncate w-full">{p.id}</span>
+                  <div className="text-[10px] font-bold text-slate-800 line-clamp-1 w-full mt-0.5 leading-tight">
+                    {language === 'en' ? p.nameEn : p.nameSi}
+                  </div>
+                  <div className="text-[10.5px] font-extrabold text-blue-600 mt-0.5">
+                    Rs. {priceMode === 'Wholesale' ? p.wholesalePrice : p.retailPrice}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {posLayout === 'details' && (
+          <div className="overflow-x-auto border border-slate-200 rounded-xl bg-white max-h-[55vh] overflow-y-auto">
+            <table className="w-full text-left text-xs font-semibold text-slate-700">
+              <thead className="bg-slate-50 text-[10px] text-slate-400 font-extrabold uppercase tracking-wider sticky top-0 border-b border-slate-200 shadow-xs z-10">
+                <tr>
+                  <th className="py-2.5 px-4">Code</th>
+                  <th className="py-2.5 px-4">Product Name</th>
+                  <th className="py-2.5 px-4">Category</th>
+                  <th className="py-2.5 px-4 text-right">Price</th>
+                  <th className="py-2.5 px-4 text-center">Stock</th>
+                  <th className="py-2.5 px-4 text-center">Add</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-[11px] font-bold">
+                {paginatedProducts.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-slate-400">No items found</td>
+                  </tr>
+                ) : (
+                  paginatedProducts.map(p => {
+                    const isLow = p.stock !== 'Unlimited' && p.stock <= p.lowStockAlert;
+                    const isOut = p.stock !== 'Unlimited' && p.stock <= 0;
+                    return (
+                      <tr 
+                        key={p.id} 
+                        onClick={() => !isOut && addToCart(p)} 
+                        className={`hover:bg-slate-50/50 cursor-pointer transition ${isOut ? 'opacity-40 bg-slate-50/20' : ''}`}
+                      >
+                        <td className="py-2 px-4 text-slate-450 font-extrabold text-[10px]">{p.id}</td>
+                        <td className="py-2 px-4">
+                          <div className="text-slate-800 font-black">{language === 'en' ? p.nameEn : p.nameSi}</div>
+                          <div className="text-[9px] text-slate-400 font-medium">{language === 'en' ? p.nameSi : p.nameEn}</div>
+                        </td>
+                        <td className="py-2 px-4 text-slate-500 text-[10px]">{(translations[language] as any)[p.category] || p.category}</td>
+                        <td className="py-2 px-4 text-right text-blue-600 font-extrabold">
+                          Rs. {priceMode === 'Wholesale' ? p.wholesalePrice : p.retailPrice}
+                        </td>
+                        <td className="py-2 px-4 text-center">
+                          {isOut ? (
+                            <span className="bg-rose-50 text-rose-600 px-1.5 py-0.5 rounded text-[9px] font-black uppercase">OUT</span>
+                          ) : p.stock === 'Unlimited' ? (
+                            <span className="text-slate-400 font-bold">∞</span>
+                          ) : (
+                            <span className={isLow ? 'text-amber-500 font-black' : 'text-slate-600 font-semibold'}>{p.stock}</span>
+                          )}
+                        </td>
+                        <td className="py-2 px-4 text-center">
+                          <button
+                            type="button"
+                            disabled={isOut}
+                            onClick={(e) => { e.stopPropagation(); addToCart(p); }}
+                            className={`px-2 py-0.5 rounded text-[10px] font-black ${
+                              isOut 
+                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed' 
+                                : 'bg-blue-50 text-blue-600 border border-blue-150 hover:bg-blue-100 cursor-pointer'
+                            }`}
+                          >
+                            +
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* POS Grid Pagination Controls */}
         {totalPages > 1 && (

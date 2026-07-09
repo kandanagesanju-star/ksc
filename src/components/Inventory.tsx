@@ -33,6 +33,7 @@ export const Inventory: React.FC<InventoryProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<Category | 'All'>('All');
   const [showLowStockOnly, setShowLowStockOnly] = useState(false);
+  const [inventoryLayout, setInventoryLayout] = useState<'details' | 'grid' | 'list' | 'icons'>('details');
 
   // Pagination State (Pages 1, 2, 3...)
   const [currentPage, setCurrentPage] = useState(1);
@@ -658,11 +659,23 @@ export const Inventory: React.FC<InventoryProps> = ({
             {language === 'en' ? 'Low Stock Only' : 'අඩු තොග පමණක්'}
           </span>
         </label>
+        <select
+          value={inventoryLayout}
+          onChange={(e) => setInventoryLayout(e.target.value as any)}
+          className="bg-slate-50 border border-slate-200 text-xs font-bold rounded-xl px-2.5 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-700 font-outfit"
+          title={language === 'en' ? 'Select View Layout' : 'පිරිසැලසුම තෝරන්න'}
+        >
+          <option value="details">🔍 {language === 'en' ? 'Details' : 'Details'}</option>
+          <option value="grid">📦 {language === 'en' ? 'Tiles' : 'Tiles'}</option>
+          <option value="list">📝 {language === 'en' ? 'List' : 'List'}</option>
+          <option value="icons">🖼️ {language === 'en' ? 'Icons' : 'Icons'}</option>
+        </select>
       </div>
 
       {/* Inventory Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-        <div className="overflow-x-auto">
+        {inventoryLayout === 'details' && (
+          <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 text-slate-400 font-extrabold text-[10px] tracking-wider border-b border-slate-100">
@@ -807,6 +820,136 @@ export const Inventory: React.FC<InventoryProps> = ({
             </tbody>
           </table>
         </div>
+        )}
+
+        {/* Grid Layout */}
+        {inventoryLayout === 'grid' && (
+          <div className="p-5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {paginatedProducts.length === 0 ? (
+              <div className="col-span-full py-12 text-center text-slate-400 font-medium">No products found</div>
+            ) : (
+              paginatedProducts.map(p => {
+                const isLow = p.stock !== 'Unlimited' && p.stock <= p.lowStockAlert;
+                const isOut = p.stock !== 'Unlimited' && p.stock <= 0;
+                return (
+                  <div key={p.id} className="bg-white rounded-2xl border border-slate-150 p-4 shadow-xs flex flex-col justify-between space-y-4 hover:shadow-md transition text-left">
+                    <div>
+                      <div className="flex justify-between items-center text-[10px] text-slate-400 font-bold uppercase">
+                        <span>{p.id}</span>
+                        <span className="bg-slate-100 text-slate-600 px-1.5 rounded">{(t as any)[p.category] || p.category}</span>
+                      </div>
+                      <h4 className="font-extrabold text-slate-800 text-sm mt-2 leading-snug line-clamp-1">{p.nameEn}</h4>
+                      <p className="text-[10px] text-slate-400 line-clamp-1">{p.nameSi}</p>
+                      
+                      <div className="grid grid-cols-3 gap-1 bg-slate-50 p-2 rounded-xl border border-slate-100 mt-3 text-[10px] font-bold text-center">
+                        <div>
+                          <div className="text-slate-400 font-semibold uppercase text-[8px]">Cost</div>
+                          <div className="text-slate-700">Rs. {p.costPrice}</div>
+                        </div>
+                        <div>
+                          <div className="text-slate-400 font-semibold uppercase text-[8px]">Retail</div>
+                          <div className="text-slate-850">Rs. {p.retailPrice}</div>
+                        </div>
+                        <div>
+                          <div className="text-slate-400 font-semibold uppercase text-[8px]">Whls.</div>
+                          <div className="text-blue-600">Rs. {p.wholesalePrice}</div>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-between items-center border-t border-slate-100 pt-3">
+                      <div>
+                        <div className="text-[9px] text-slate-400 font-bold uppercase">Stock Level</div>
+                        <div className={`text-xs font-black ${isOut ? 'text-rose-600 animate-pulse' : isLow ? 'text-amber-500' : 'text-slate-800'}`}>
+                          {p.stock === 'Unlimited' ? 'Unlimited' : `${p.stock} units`}
+                        </div>
+                      </div>
+                      <div className="flex space-x-1 shrink-0">
+                        <button onClick={() => openEditModal(p)} className="p-1.5 bg-slate-50 hover:bg-blue-50 text-slate-500 hover:text-blue-600 border border-slate-150 rounded-lg transition" title={t.editProduct}><Edit className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => openDuplicateModal(p)} className="p-1.5 bg-slate-50 hover:bg-amber-50 text-slate-500 hover:text-amber-600 border border-slate-150 rounded-lg transition" title="Duplicate"><Copy className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => { if (confirm('Delete?')) onDeleteProduct(p.id); }} className="p-1.5 bg-slate-50 hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-150 rounded-lg transition" title={t.delete}><Trash2 className="h-3.5 w-3.5" /></button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {/* List Layout */}
+        {inventoryLayout === 'list' && (
+          <div className="p-4 space-y-2">
+            {paginatedProducts.length === 0 ? (
+              <div className="text-center py-12 text-slate-450 font-medium">No items found</div>
+            ) : (
+              paginatedProducts.map(p => {
+                const isLow = p.stock !== 'Unlimited' && p.stock <= p.lowStockAlert;
+                const isOut = p.stock !== 'Unlimited' && p.stock <= 0;
+                return (
+                  <div key={p.id} className="bg-white p-3 rounded-2xl border border-slate-150 flex items-center justify-between text-left hover:shadow-xs transition">
+                    <div className="min-w-0 flex-1 pr-4">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-[10px] font-extrabold text-slate-400">{p.id}</span>
+                        <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-[9px] font-bold">{(t as any)[p.category] || p.category}</span>
+                        <span className="text-[10px] text-slate-400 font-bold">{p.brand} ({p.rackLocation})</span>
+                      </div>
+                      <h4 className="font-extrabold text-slate-800 text-xs truncate mt-1.5">{p.nameEn}</h4>
+                      <p className="text-[10px] text-slate-450 truncate">{p.nameSi}</p>
+                    </div>
+                    
+                    <div className="flex items-center space-x-6 text-right shrink-0">
+                      <div>
+                        <div className="text-[9px] text-slate-400 font-bold uppercase">Prices (Cost/Retail/Whls)</div>
+                        <div className="text-xs font-black text-slate-850">
+                          Rs. {p.costPrice} / Rs. {p.retailPrice} / <span className="text-blue-600">Rs. {p.wholesalePrice}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="w-24 text-center">
+                        <div className="text-[9px] text-slate-400 font-bold uppercase">Stock Level</div>
+                        <div className={`text-xs font-black ${isOut ? 'text-rose-600' : isLow ? 'text-amber-500' : 'text-slate-800'}`}>
+                          {p.stock === 'Unlimited' ? 'Unlimited' : `${p.stock} Qty`}
+                        </div>
+                      </div>
+                      
+                      <div className="flex space-x-1">
+                        <button onClick={() => openEditModal(p)} className="p-1.5 bg-slate-50 hover:bg-blue-50 text-slate-500 hover:text-blue-600 border border-slate-150 rounded-lg transition" title={t.editProduct}><Edit className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => openDuplicateModal(p)} className="p-1.5 bg-slate-50 hover:bg-amber-50 text-slate-500 hover:text-amber-600 border border-slate-150 rounded-lg transition" title="Duplicate"><Copy className="h-3.5 w-3.5" /></button>
+                        <button onClick={() => { if (confirm('Delete?')) onDeleteProduct(p.id); }} className="p-1.5 bg-slate-50 hover:bg-rose-50 text-slate-500 hover:text-rose-600 border border-slate-150 rounded-lg transition" title={t.delete}><Trash2 className="h-3.5 w-3.5" /></button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {/* Icons Layout */}
+        {inventoryLayout === 'icons' && (
+          <div className="p-4 grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-3 text-center">
+            {paginatedProducts.length === 0 ? (
+              <div className="col-span-full py-12 text-slate-400">No products found</div>
+            ) : (
+              paginatedProducts.map(p => {
+                return (
+                  <div key={p.id} className="bg-white p-2.5 rounded-xl border border-slate-150 flex flex-col justify-between items-center h-28 hover:shadow-xs transition">
+                    <span className="text-[8.5px] font-bold text-slate-400 block tracking-tight uppercase truncate w-full">{p.id}</span>
+                    <h4 className="font-extrabold text-slate-800 text-[10px] leading-tight line-clamp-2 w-full mt-1">{p.nameEn}</h4>
+                    <div className="text-[10px] font-black text-slate-600 mt-1">Rs. {p.retailPrice}</div>
+                    
+                    <div className="flex space-x-1 mt-2 w-full border-t border-slate-100 pt-1.5 justify-center">
+                      <button onClick={() => openEditModal(p)} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title={t.editProduct}><Edit className="h-3.5 w-3.5" /></button>
+                      <button onClick={() => openDuplicateModal(p)} className="p-1 text-amber-600 hover:bg-amber-50 rounded" title="Duplicate"><Copy className="h-3.5 w-3.5" /></button>
+                      <button onClick={() => { if (confirm('Delete?')) onDeleteProduct(p.id); }} className="p-1 text-rose-600 hover:bg-rose-50 rounded" title={t.delete}><Trash2 className="h-3.5 w-3.5" /></button>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
 
         {/* Pagination Controls */}
         {totalPages > 1 && (
