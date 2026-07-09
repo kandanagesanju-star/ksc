@@ -12,3 +12,6 @@ All notable changes to this project will be documented in this file.
 - Revamped the main "Database Backup" screen in `App.tsx` with a modern, glassmorphic layout displaying current database table counts (statistics).
 - Implemented robust JSON schema validation in `handleImportBackup` to prevent corrupted files from crashing local storage.
 - Designed a side-by-side data comparison modal overlay that shows Current vs. Backup record counts (Products, Sales, Customers, Repairs, etc.) with a checkbox confirm step before restoring/overwriting database content.
+- Implemented Database Storage Footprint Tracker in `SettingsPanel.tsx` showing active memory usage with a visual progress bar.
+- Added Log Archival & Purge Maintenance utilities to filter out audit logs older than 30 or 90 days.
+- Added Secure Database Factory Reset feature authenticated by Admin Passcode PIN to erase local storage and reload.

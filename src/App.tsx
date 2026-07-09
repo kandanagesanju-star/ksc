@@ -1728,6 +1728,12 @@ function App() {
     }
   };
 
+  const handlePurgeLogs = (days: number) => {
+    const threshold = Date.now() - days * 24 * 60 * 60 * 1000;
+    setAuditLogs(prev => prev.filter(log => new Date(log.createdAt).getTime() >= threshold));
+    addAuditLog('LOGS_PURGED', `Purged audit logs older than ${days} days.`);
+  };
+
   const t = translations[language];
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -2515,6 +2521,7 @@ function App() {
                   onGetCompleteDatabaseState={getCompleteDatabaseState}
                   activeSubTab={adminSubTab}
                   onSubTabChange={setAdminSubTab}
+                  onPurgeLogs={handlePurgeLogs}
                 />
               )}
 

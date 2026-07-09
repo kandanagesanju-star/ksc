@@ -29,6 +29,7 @@ interface SettingsPanelProps {
   onGetCompleteDatabaseState?: () => any;
   activeSubTab?: string;
   onSubTabChange?: (tab: any) => void;
+  onPurgeLogs?: (days: number) => void;
 }
 
 const compressImage = (file: File, maxWidth: number, maxHeight: number): Promise<string> => {
@@ -104,9 +105,41 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   bankBalance = 125000,
   onGetCompleteDatabaseState,
   activeSubTab,
-  onSubTabChange
+  onSubTabChange,
+  onPurgeLogs
 }) => {
   const t = translations[language];
+
+  const getLocalStorageSize = () => {
+    let total = 0;
+    try {
+      for (let x in localStorage) {
+        if (localStorage.hasOwnProperty(x)) {
+          total += (localStorage[x].length + x.length) * 2;
+        }
+      }
+    } catch (e) {}
+    return (total / 1024).toFixed(2);
+  };
+
+  const handleSecureWipe = () => {
+    const pin = prompt(language === 'en' ? 'Enter Admin Passcode PIN to confirm data wipe:' : 'දත්ත මකාදැමීම තහවුරු කිරීමට Admin PIN එක ඇතුළත් කරන්න:');
+    if (!pin) return;
+    if (pin !== settings.adminPin) {
+      alert(language === 'en' ? '❌ Incorrect PIN passcode!' : '❌ වැරදි පින් අංකයකි!');
+      return;
+    }
+    const doubleCheck = confirm(language === 'en' ? '⚠️ WARNING: THIS WILL PERMANENTLY ERASE ALL SYSTEM DATA! Are you absolutely sure?' : '⚠️ අවධානය: මෙමඟින් සියලුම පද්ධති දත්ත සදහටම මැකී යනු ඇත! ඔබට විශ්වාසද?');
+    if (!doubleCheck) return;
+
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('shop_') || key === 'active_user' || key === 'shop_db_snapshots') {
+        localStorage.removeItem(key);
+      }
+    });
+    alert(language === 'en' ? '✅ Database successfully wiped. Reloading...' : '✅ දත්ත සමුදාය සාර්ථකව මකා දමන ලදී. පද්ධතිය නැවත පූරණය වෙමින් පවතී...');
+    window.location.reload();
+  };
 
   // Sub tabs
   const [subTab, setSubTab] = useState<'shop' | 'online-store' | 'users' | 'pos' | 'loyalty' | 'bank' | 'database' | 'logs' | 'features' | 'sms'>('shop');
@@ -2225,6 +2258,94 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 )}
               </div>
             </div>
+
+            {/* Database Storage & Maintenance (Database Engineer & Cybersecurity) */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 space-y-4 text-left">
+              <div>
+                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center">
+                  <Database className="h-4.5 w-4.5 mr-1.5 text-blue-600" />
+                  {language === 'en' ? 'Database Storage & Maintenance' : 'දත්ත ගබඩා ධාරිතාව සහ නඩත්තුව'}
+                </h3>
+                <p className="text-[10px] text-slate-400 font-medium leading-relaxed mt-0.5">
+                  {language === 'en' 
+                    ? 'Monitor local browser database storage footprint, perform log cleanups, or factory reset the application.' 
+                    : 'බ්‍රවුසර දත්ත ගබඩා ධාරිතාව නිරීක්ෂණය කිරීම, පැරණි ලොග් වාර්තා පිරිසිදු කිරීම සහ පද්ධතිය මුල සිට සකස් කිරීම.'}
+                </p>
+              </div>
+
+              {/* Progress bar */}
+              {(() => {
+                const sizeKb = Number(getLocalStorageSize());
+                const sizeMb = sizeKb / 1024;
+                const percentage = Math.min((sizeMb / 5) * 100, 100);
+                return (
+                  <div className="space-y-1.5 p-3 bg-slate-50 border border-slate-150 rounded-xl text-[10px]">
+                    <div className="flex justify-between font-bold text-slate-655">
+                      <span>{language === 'en' ? 'Local Storage Footprint' : 'වත්මන් දත්ත ධාරිතාව'}</span>
+                      <span className="font-extrabold text-slate-800">
+                        {sizeKb < 1024 
+                          ? `${sizeKb.toFixed(2)} KB` 
+                          : `${sizeMb.toFixed(2)} MB`} / 5.00 MB ({percentage.toFixed(1)}%)
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full transition-all duration-300 ${
+                          percentage > 85 
+                            ? 'bg-rose-500' 
+                            : percentage > 50 
+                            ? 'bg-amber-500' 
+                            : 'bg-blue-600'
+                        }`} 
+                        style={{ width: `${percentage}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Maintenance Tools */}
+              <div className="space-y-3 pt-3 border-t border-slate-100 text-left">
+                <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">{language === 'en' ? 'Audit Logs Maintenance' : 'ලොග් වාර්තා නඩත්තුව'}</div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onPurgeLogs) {
+                        onPurgeLogs(30);
+                      }
+                    }}
+                    className="flex-1 bg-slate-800 hover:bg-slate-900 text-white py-1.5 rounded-lg font-bold text-[9.5px] transition cursor-pointer text-center"
+                  >
+                    {language === 'en' ? 'Purge > 30 Days' : 'දින 30+ මකන්න'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onPurgeLogs) {
+                        onPurgeLogs(90);
+                      }
+                    }}
+                    className="flex-1 bg-slate-800 hover:bg-slate-900 text-white py-1.5 rounded-lg font-bold text-[9.5px] transition cursor-pointer text-center"
+                  >
+                    {language === 'en' ? 'Purge > 90 Days' : 'දින 90+ මකන්න'}
+                  </button>
+                </div>
+
+                <div className="space-y-1.5 pt-3 border-t border-slate-100">
+                  <div className="text-[9px] font-bold text-rose-500 uppercase tracking-wider">{language === 'en' ? 'System Factory Reset' : 'පද්ධති ප්‍රධාන මකාදැමීම'}</div>
+                  <button
+                    type="button"
+                    onClick={handleSecureWipe}
+                    className="w-full bg-rose-50 border border-rose-200 hover:bg-rose-100 text-rose-600 py-2 rounded-xl font-black text-[10px] transition cursor-pointer text-center flex items-center justify-center space-x-1"
+                  >
+                    <Trash className="h-3.5 w-3.5" />
+                    <span>{language === 'en' ? 'Secure Database Factory Reset' : 'සියලු දත්ත සදහටම මකාදමන්න (Factory Reset)'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       )}
