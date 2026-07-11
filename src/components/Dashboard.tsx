@@ -406,10 +406,28 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         </div>
 
-        {/* Row 2, Card 2: Active Repairs KPI (3 Columns) */}
+        {/* Row 2, Card 1.5: Total Inventory Products KPI (2 Columns) */}
+        <div 
+          onClick={() => setAdminTab('inventory')}
+          className="md:col-span-2 bg-white rounded-3xl p-5 border border-slate-100 shadow-sm space-y-3 cursor-pointer hover:shadow-md hover:border-slate-200 transition active:scale-[0.99]"
+        >
+          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">
+            {language === 'en' ? 'Total Products' : 'මුළු නිෂ්පාදන'}
+          </span>
+          <h3 className="text-xl font-black text-blue-600 flex items-baseline space-x-1">
+            <span>{products.length}</span>
+            <span className="text-xs font-bold text-slate-400 ml-1">Items</span>
+          </h3>
+          <div className="flex justify-between items-center text-[10px] bg-slate-50 p-2 rounded-xl font-bold">
+            <span className="text-slate-400">Inventory:</span>
+            <span className="text-blue-600">Active Stock</span>
+          </div>
+        </div>
+
+        {/* Row 2, Card 2: Active Repairs KPI (2 Columns) */}
         <div 
           onClick={() => setAdminTab('quotations')}
-          className="md:col-span-3 bg-white rounded-3xl p-5 border border-slate-100 shadow-sm space-y-3 cursor-pointer hover:shadow-md hover:border-slate-200 transition active:scale-[0.99]"
+          className="md:col-span-2 bg-white rounded-3xl p-5 border border-slate-100 shadow-sm space-y-3 cursor-pointer hover:shadow-md hover:border-slate-200 transition active:scale-[0.99]"
         >
           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">{language === 'en' ? 'Active Repairs' : 'සක්‍රීය රෙපෙයාර්'}</span>
           <h3 className="text-xl font-black text-purple-600 flex items-baseline space-x-1">
@@ -417,15 +435,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <span className="text-xs font-bold text-slate-400 ml-1">Jobs</span>
           </h3>
           <div className="flex justify-between items-center text-[10px] bg-slate-50 p-2 rounded-xl font-bold">
-            <span className="text-slate-400">Repairs in queue:</span>
+            <span className="text-slate-400">Queue:</span>
             <span className="text-purple-600">{repairs.filter(r => r.status === 'Pending').length} Pending</span>
           </div>
         </div>
 
-        {/* Row 2, Card 3: Low Stock Alerts KPI (3 Columns) */}
+        {/* Row 2, Card 3: Low Stock Alerts KPI (2 Columns) */}
         <div 
           onClick={() => setAdminTab('inventory')}
-          className="md:col-span-3 bg-white rounded-3xl p-5 border border-slate-100 shadow-sm space-y-3 cursor-pointer hover:shadow-md hover:border-slate-200 transition active:scale-[0.99]"
+          className="md:col-span-2 bg-white rounded-3xl p-5 border border-slate-100 shadow-sm space-y-3 cursor-pointer hover:shadow-md hover:border-slate-200 transition active:scale-[0.99]"
         >
           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest block">{language === 'en' ? 'Low Stock Alerts' : 'තොග අනතුරු ඇඟවීම්'}</span>
           <h3 className="text-xl font-black text-rose-600 flex items-baseline space-x-1">
@@ -433,8 +451,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
             <span className="text-xs font-bold text-slate-400 ml-1">Items</span>
           </h3>
           <div className="flex justify-between items-center text-[10px] bg-slate-50 p-2 rounded-xl font-bold">
-            <span className="text-slate-400">Needs orders:</span>
-            <span className="text-rose-500 font-extrabold animate-pulse">Critical Alert</span>
+            <span className="text-slate-400">Status:</span>
+            <span className="text-rose-500 font-extrabold animate-pulse">Critical</span>
           </div>
         </div>
 
