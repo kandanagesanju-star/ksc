@@ -246,9 +246,9 @@ export const Navbar: React.FC<NavbarProps> = ({
     if (lockoutTime > 0) return;
     const requiredPin = settings.adminPin || '8892';
     
-    const matchedEmployee = employees.find(e => e.passcode === passcode);
+    const matchedEmployee = employees.find(e => e.passcode?.trim() === passcode.trim());
 
-    if (passcode === requiredPin || matchedEmployee) {
+    if (passcode.trim() === requiredPin.trim() || matchedEmployee) {
       setViewMode('admin');
       
       const loggedUser = matchedEmployee 
@@ -650,7 +650,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         value={passcode}
                         onChange={(e) => setPasscode(e.target.value)}
                         placeholder="••••"
-                        className="w-full text-center px-4 pr-11 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-lg font-bold tracking-widest text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-sans"
+                        className="w-full text-center pl-12 pr-12 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-lg font-bold tracking-widest text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-sans"
                         onKeyDown={(e) => {
                           if (e.key === 'Enter') handleAdminAccess();
                         }}
@@ -660,7 +660,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         type="button"
                         tabIndex={-1}
                         onClick={() => setShowPin(v => !v)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-indigo-400 transition"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-indigo-400 transition z-10 cursor-pointer p-1.5"
                         title={showPin ? 'Hide' : 'Show'}
                       >
                         {showPin ? <EyeOff size={16} /> : <Eye size={16} />}

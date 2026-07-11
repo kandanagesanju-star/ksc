@@ -222,7 +222,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         const adminPin = parsedData.settings?.adminPin;
 
         // If client uploaded a new passcode, synchronize it with the KV password key
-        if (adminPin && adminPin.trim() !== '') {
+        // We block downgrading a custom password to default values (8892 or 1234) from client pushes
+        if (adminPin && adminPin.trim() !== '' && adminPin.trim() !== '8892' && adminPin.trim() !== '1234') {
           const currentExpected = await env.SYNC_KV.get(`password_${finalShopId}`);
           if (adminPin.trim() !== currentExpected) {
             await env.SYNC_KV.put(`password_${finalShopId}`, adminPin.trim());
