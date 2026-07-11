@@ -6,6 +6,7 @@ import { Inventory } from './components/Inventory';
 import { CustomerRepairs } from './components/CustomerRepairs';
 import { Analytics } from './components/Analytics';
 import { ExpertInsights } from './components/ExpertInsights';
+import { SuperAdminDashboard } from './components/SuperAdminDashboard';
 
 import { Dashboard } from './components/Dashboard';
 import { ContactsLoyalty } from './components/ContactsLoyalty';
@@ -217,10 +218,14 @@ function App() {
     return (saved === 'en' || saved === 'si') ? saved : 'en';
   });
 
-  const [viewMode, setViewMode] = useState<'storefront' | 'admin'>(() => {
+  const [viewMode, setViewMode] = useState<'storefront' | 'admin' | 'super-admin'>(() => {
     const saved = localStorage.getItem('shop_view_mode');
-    return (saved === 'storefront' || saved === 'admin') ? saved : 'storefront';
+    return (saved === 'storefront' || saved === 'admin' || saved === 'super-admin') ? saved : 'storefront';
   });
+
+  const [isSuspended, setIsSuspended] = useState<boolean>(false);
+  const [suspensionReason, setSuspensionReason] = useState<'Suspended' | 'Expired'>('Suspended');
+  const [subscriptionExpiry, setSubscriptionExpiry] = useState<{ daysRemaining: number; expiryDate: number } | null>(null);
 
   const [activeUser, setActiveUser] = useState<any>(() => {
     const saved = localStorage.getItem('active_user');
@@ -616,6 +621,164 @@ function App() {
     localStorage.setItem('shop_admin_tab', adminTab);
   }, [adminTab]);
 
+  // SaaS URL Routing and startup check
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+       // Check if dynamic onboarding setup link is clicked
+    const setupSyncId = params.get('setupSyncId');
+    const setupPassword = params.get('setupPassword');
+    const setupShopName = params.get('setupShopName');
+    const setupId = params.get('setup');
+
+    if (setupId) {
+      const configureShop = async () => {
+        try {
+          const res = await fetch(`/api/sync?shopId=${encodeURIComponent(setupId)}&setup=true`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.success) {
+              localStorage.setItem('shop_sync_id', setupId);
+              localStorage.setItem('shop_sync_enabled', 'true');
+              localStorage.setItem('shop_sync_private', 'true');
+              localStorage.setItem('shop_sync_password', data.password || '8892');
+              localStorage.setItem('shop_view_mode', 'storefront'); // Reset super-admin view lock!
+
+              if (data.expiryDate) {
+                localStorage.setItem(`expiry_${setupId}`, String(data.expiryDate));
+              }
+
+              // Update settings
+              const savedSettings = localStorage.getItem('shop_settings');
+              const currentSettings = savedSettings ? JSON.parse(savedSettings) : settings;
+              const updated = {
+                ...currentSettings,
+                shopName: data.shopName || 'Connected Shop',
+                adminPin: data.password || '8892'
+              };
+              localStorage.setItem('shop_settings', JSON.stringify(updated));
+              
+              alert(language === 'en' 
+                ? `✅ System configured successfully!\nConnected Shop ID: ${setupId}` 
+                : `✅ පද්ධතිය සාර්ථකව සක්‍රීය කරන ලදී!\nසම්බන්ධිත Shop ID එක: ${setupId}`
+              );
+
+              // Clean up URL parameters to keep address bar tidy
+              window.history.replaceState({}, document.title, window.location.pathname);
+              
+              // Force page reload to initialize database sync pull cleanly
+              localStorage.setItem('shop_sync_force_pull', 'true');
+              window.location.reload();
+            } else {
+              alert(language === 'en' ? '❌ Invalid shop credentials!' : '❌ වැරදි වෙළඳසැල් හැඳුනුම්පතකි!');
+            }
+          } else {
+            alert(language === 'en' ? '❌ Failed to connect to server!' : '❌ සේවාදායකයට සම්බන්ධ විය නොහැක!');
+          }
+        } catch (err) {
+          console.error('Setup configuration failed:', err);
+          alert(language === 'en' ? '❌ Connection error!' : '❌ සම්බන්ධතා දෝෂයකි!');
+        }
+      };
+      configureShop();
+      return;
+    }
+
+    if (setupSyncId) {
+      localStorage.setItem('shop_sync_id', setupSyncId);
+      localStorage.setItem('shop_sync_enabled', 'true');
+      localStorage.setItem('shop_sync_private', 'true');
+      localStorage.setItem('shop_view_mode', 'storefront'); // Reset super-admin view lock!
+      if (setupPassword) {
+        localStorage.setItem('shop_sync_password', setupPassword);
+      }
+      
+      // Update shop name settings dynamically
+      const savedSettings = localStorage.getItem('shop_settings');
+      const currentSettings = savedSettings ? JSON.parse(savedSettings) : settings;
+      const updated = {
+        ...currentSettings,
+        shopName: setupShopName ? decodeURIComponent(setupShopName) : currentSettings.shopName || 'Connected Shop',
+        adminPin: setupPassword || '8892'
+      };
+      localStorage.setItem('shop_settings', JSON.stringify(updated));
+      setSettings(updated);
+
+      alert(language === 'en' 
+        ? `✅ System configured successfully!\nConnected Shop ID: ${setupSyncId}` 
+        : `✅ පද්ධතිය සාර්ථකව සක්‍රීය කරන ලදී!\nසම්බන්ධිත Shop ID එක: ${setupSyncId}`
+      );
+
+      // Clean up URL parameters to keep address bar tidy
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      // Force page reload to initialize database sync pull cleanly
+      localStorage.setItem('shop_sync_force_pull', 'true');
+      window.location.reload();
+      return;
+    }
+
+    if (params.get('view') === 'super-admin') {
+      setViewMode('super-admin');
+    }
+  }, []);
+
+  // Subscription Active Check on startup
+  useEffect(() => {
+    const checkSubscription = async () => {
+      const syncId = localStorage.getItem('shop_sync_id');
+      if (!syncId) return;
+
+      // 1. Local fallback simulation check
+      const localStatus = localStorage.getItem(`status_${syncId}`);
+      const localExpiryStr = localStorage.getItem(`expiry_${syncId}`);
+      let localExpired = false;
+      let localDaysRemaining = 9999;
+      
+      if (localExpiryStr) {
+        const expiry = Number(localExpiryStr);
+        const diff = expiry - Date.now();
+        localDaysRemaining = Math.ceil(diff / (1000 * 60 * 60 * 24));
+        if (localDaysRemaining <= 0) {
+          localExpired = true;
+        }
+      }
+
+      if (localStatus === 'deactivated' || localExpired) {
+        setIsSuspended(true);
+        setSuspensionReason(localExpired ? 'Expired' : 'Suspended');
+        return;
+      } else {
+        if (localDaysRemaining <= 30) {
+          setSubscriptionExpiry({ daysRemaining: localDaysRemaining, expiryDate: localExpiryStr ? Number(localExpiryStr) : 0 });
+        } else {
+          setSubscriptionExpiry(null);
+        }
+      }
+
+      // 2. Cloud Server check
+      try {
+        const cloudMeta = await getCloudSyncTimestamp(syncId);
+        if (cloudMeta.suspended) {
+          setIsSuspended(true);
+          setSuspensionReason(cloudMeta.reason === 'Expired' ? 'Expired' : 'Suspended');
+        } else {
+          setIsSuspended(false);
+          if (cloudMeta.daysRemaining !== undefined && cloudMeta.daysRemaining <= 30) {
+            setSubscriptionExpiry({
+              daysRemaining: cloudMeta.daysRemaining,
+              expiryDate: cloudMeta.expiryDate || 0
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Error checking subscription status:', err);
+      }
+    };
+    checkSubscription();
+    const interval = setInterval(checkSubscription, 300000); // Check every 5 minutes
+    return () => clearInterval(interval);
+  }, []);
+
   // Synchronizer refs to prevent loops and intervals re-registering
   const isPullingRef = useRef(false);
   const isFirstMountRef = useRef(true);
@@ -722,6 +885,15 @@ function App() {
 
         // 1. Fetch cloud metadata timestamp
         const cloudMeta = await getCloudSyncTimestamp(syncId);
+        
+        // Local simulation check fallback
+        const localStatus = localStorage.getItem(`status_${syncId}`);
+        if (localStatus === 'deactivated' || cloudMeta.suspended) {
+          setIsSuspended(true);
+          return;
+        } else {
+          setIsSuspended(false);
+        }
         
         // Save private cloud flag
         localStorage.setItem('shop_sync_private', cloudMeta.isPrivate ? 'true' : 'false');
@@ -1550,6 +1722,9 @@ function App() {
   };
 
   const handleUpdateSettings = (newSettings: ShopSettings) => {
+    if (newSettings.adminPin && newSettings.adminPin !== settings.adminPin) {
+      localStorage.setItem('shop_sync_password', newSettings.adminPin);
+    }
     setSettings(newSettings);
   };
 
@@ -1757,14 +1932,101 @@ function App() {
     { key: 'more', icon: Menu, label: language === 'en' ? 'More' : 'තව' },
   ].filter(item => item.key === 'more' || isTabAllowed(item.key));
 
+  if (viewMode === 'super-admin') {
+    return (
+      <SuperAdminDashboard
+        language={language}
+        setViewMode={(mode) => setViewMode(mode)}
+      />
+    );
+  }
+
+  if (isSuspended) {
+    const isExpired = suspensionReason === 'Expired';
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950 p-6 font-sans">
+        <div className="w-full max-w-lg bg-slate-900/60 backdrop-blur-xl border border-slate-800 rounded-3xl p-8 shadow-2xl relative overflow-hidden text-center space-y-6">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-rose-500 via-red-500 to-orange-500"></div>
+          
+          <div className="flex flex-col items-center">
+            <div className="p-4 bg-rose-500/10 rounded-2xl border border-rose-500/20 text-rose-500 mb-4 animate-pulse">
+              <ShieldAlert size={48} />
+            </div>
+            <h1 className="text-2xl font-black text-slate-100 tracking-tight">
+              {isExpired 
+                ? (language === 'en' ? 'SaaS Subscription Expired' : 'දායකත්ව කාලය අවසන් වී ඇත')
+                : (language === 'en' ? 'POS System Suspended' : 'පද්ධතිය තාවකාලිකව අත්හිටුවා ඇත')}
+            </h1>
+            <p className="text-slate-400 text-sm mt-2 font-medium">
+              {isExpired
+                ? (language === 'en' 
+                    ? 'Your platform subscription period has expired. Access will remain locked until renewed.' 
+                    : 'මෙම වෙළඳසැලට අදාළ දායකත්ව කාලය අවසන් වී ඇති බැවින් පද්ධතිය ක්‍රියා විරහිත කර ඇත.')
+                : (language === 'en' 
+                    ? 'Your shop subscription has been deactivated or is overdue.' 
+                    : 'මෙම වෙළඳසැලට අදාළ ගිණුම අක්‍රීය කර හෝ සේවාව තාවකාලිකව අත්හිටුවා ඇත.')}
+            </p>
+          </div>
+
+          <div className="bg-slate-950 border border-slate-800/60 rounded-2xl p-4 text-xs font-mono text-left space-y-2 select-all">
+            <div className="text-slate-500">Shop ID: <span className="text-cyan-400 font-bold">{localStorage.getItem('shop_sync_id')}</span></div>
+            <div className="text-slate-500">Shop Name: <span className="text-slate-300 font-bold">{settings.shopName}</span></div>
+          </div>
+
+          <div className="text-xs text-slate-400 leading-relaxed font-medium bg-rose-500/5 p-4 rounded-xl border border-rose-500/10">
+            {isExpired ? (
+              language === 'en' ? (
+                <span>Please make the payment and contact the platform administrator to renew your subscription immediately.</span>
+              ) : (
+                <span>දායකත්ව ගාස්තුව ගෙවා, සේවා කාලය දීර්ඝ කර ගැනීම සඳහා කරුණාකර ප්‍රධාන පරිපාලකවරයා අමතන්න.</span>
+              )
+            ) : (
+              language === 'en' ? (
+                <span>Please contact the platform administrator to activate your subscription and restore database operations.</span>
+              ) : (
+                <span>සේවාව නැවත සක්‍රීය කර දත්ත සමුදාය යාවත්කාලීන කර ගැනීමට කරුණාකර ප්‍රධාන පරිපාලකවරයා අමතන්න.</span>
+              )
+            )}
+          </div>
+
+          <div className="pt-2">
+            <button
+              onClick={async () => {
+                const syncId = localStorage.getItem('shop_sync_id');
+                if (syncId) {
+                  try {
+                    const localStatus = localStorage.getItem(`status_${syncId}`);
+                    const cloudMeta = await getCloudSyncTimestamp(syncId);
+                    if (localStatus !== 'deactivated' && !cloudMeta.suspended) {
+                      setIsSuspended(false);
+                      alert(language === 'en' ? 'Subscription active! Restoring system...' : 'ගිණුම සක්‍රීයයි! පද්ධතිය යථා තත්ත්වයට පත් කරමින්...');
+                    } else {
+                      alert(language === 'en' ? 'System remains suspended.' : 'පද්ධතිය තවමත් අත්හිටුවා ඇත.');
+                    }
+                  } catch (e) {
+                    alert(language === 'en' ? 'Network error checking status' : 'තත්ත්වය පරීක්ෂා කිරීමේදී දෝෂයක් ඇති විය');
+                  }
+                }
+              }}
+              className="bg-rose-600 hover:bg-rose-500 active:bg-rose-700 text-white font-bold text-xs py-3 px-6 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 mx-auto"
+            >
+              <RefreshCw size={14} />
+              <span>{language === 'en' ? 'Re-check Status' : 'නැවත පරීක්ෂා කරන්න'}</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-between text-slate-800">
       {/* Navigation Header */}
       <Navbar
         language={language}
         setLanguage={setLanguage}
-        viewMode={viewMode}
-        setViewMode={setViewMode}
+        viewMode={viewMode as any}
+        setViewMode={setViewMode as any}
         adminTab={adminTab as any}
         setAdminTab={setAdminTab}
         cartCount={0}
@@ -2294,6 +2556,25 @@ function App() {
             <div className={`col-span-1 ${isPosFullScreen ? 'lg:col-span-11' : 'lg:col-span-9'} transition-all duration-300`}>
 
               {/* ⚠️ Default PIN Security Warning Banner */}
+              {/* ⚠️ Subscription Expiring Soon Warning Banner */}
+              {subscriptionExpiry && !isPosFullScreen && (
+                <div className={`mb-4 flex items-center gap-3 border rounded-xl px-4 py-3 text-xs font-bold animate-in fade-in duration-300 ${
+                  subscriptionExpiry.daysRemaining <= 7 
+                    ? 'bg-rose-500/10 border-rose-500/30 text-rose-500 animate-pulse' 
+                    : 'bg-amber-500/10 border-amber-500/30 text-amber-600'
+                }`}>
+                  <span className="text-base shrink-0">⚠️</span>
+                  <div className="text-left">
+                    <span className="font-extrabold">{language === 'en' ? 'SaaS Subscription Warning:' : 'දායකත්ව කාලය අවසන් වීමේ නිවේදනය:'} </span>
+                    <span className="font-semibold">
+                      {language === 'en'
+                        ? `Your subscription expires in ${subscriptionExpiry.daysRemaining} days (on ${new Date(subscriptionExpiry.expiryDate).toLocaleDateString()}). Please renew to avoid service interruption.`
+                        : `ඔබගේ දායකත්ව කාලය තව දින ${subscriptionExpiry.daysRemaining} කින් අවසන් වේ (${new Date(subscriptionExpiry.expiryDate).toLocaleDateString()} දින). සේවාව අඛණ්ඩව ලබා ගැනීමට කරුණාකර අලුත් කරන්න.`}
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {(settings.adminPin === '8892' || !settings.adminPin) && !isPosFullScreen && (
                 <div className="mb-4 flex items-center gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3 text-amber-700 text-xs font-bold animate-in fade-in duration-300">
                   <span className="text-base shrink-0">⚠️</span>

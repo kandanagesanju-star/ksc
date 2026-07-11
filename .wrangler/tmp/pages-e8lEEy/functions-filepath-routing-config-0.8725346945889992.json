@@ -1,0 +1,53 @@
+{
+  "routes": [
+    {
+      "routePath": "/api/admin",
+      "mountPath": "/api",
+      "method": "GET",
+      "module": [
+        "api/admin.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/admin",
+      "mountPath": "/api",
+      "method": "OPTIONS",
+      "module": [
+        "api/admin.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/admin",
+      "mountPath": "/api",
+      "method": "POST",
+      "module": [
+        "api/admin.ts:onRequestPost"
+      ]
+    },
+    {
+      "routePath": "/api/sync",
+      "mountPath": "/api",
+      "method": "GET",
+      "module": [
+        "api/sync.ts:onRequestGet"
+      ]
+    },
+    {
+      "routePath": "/api/sync",
+      "mountPath": "/api",
+      "method": "OPTIONS",
+      "module": [
+        "api/sync.ts:onRequestOptions"
+      ]
+    },
+    {
+      "routePath": "/api/sync",
+      "mountPath": "/api",
+      "method": "POST",
+      "module": [
+        "api/sync.ts:onRequestPost"
+      ]
+    }
+  ],
+  "baseURL": "/"
+}

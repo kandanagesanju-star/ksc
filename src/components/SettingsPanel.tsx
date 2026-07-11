@@ -523,6 +523,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [confirmNewPin, setConfirmNewPin] = useState('');
   const [pinError, setPinError] = useState('');
   const [pinSuccess, setPinSuccess] = useState('');
+  const [showCurrentPin, setShowCurrentPin] = useState(false);
+  const [showNewPin, setShowNewPin] = useState(false);
 
   const handleChangePin = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1236,14 +1238,25 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                   <Key className="h-3.5 w-3.5 mr-1" />
                   Admin Passcode (PIN/Alphanumeric)
                 </label>
-                <input
-                  type="password"
-                  maxLength={12}
-                  value={adminPin}
-                  onChange={(e) => setAdminPin(e.target.value)}
-                  placeholder="e.g. passcode"
-                  className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-center font-extrabold tracking-widest bg-white"
-                />
+                <div className="relative">
+                  <input
+                    type={showCurrentPin ? 'text' : 'password'}
+                    maxLength={20}
+                    value={adminPin}
+                    onChange={(e) => setAdminPin(e.target.value)}
+                    placeholder="e.g. passcode"
+                    className="w-full px-3 pr-9 py-1.5 border border-slate-200 rounded-lg text-center font-extrabold tracking-widest bg-white"
+                  />
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => setShowCurrentPin(v => !v)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-500 transition"
+                    title={showCurrentPin ? 'Hide' : 'Show'}
+                  >
+                    {showCurrentPin ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
                 {(settings.adminPin === '8892' || !settings.adminPin) && (
                   <p className="text-[10px] text-amber-600 font-bold flex items-center gap-1 mt-1">
                     <span>⚠️</span>

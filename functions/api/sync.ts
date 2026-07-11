@@ -7,6 +7,24 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(request.url);
   const shopId = url.searchParams.get('shopId');
   const timestampOnly = url.searchParams.get('timestampOnly') === 'true';
+  const setupMode = url.searchParams.get('setup') === 'true';
+
+  if (setupMode && env.SYNC_KV) {
+    const registryData = await env.SYNC_KV.get('saas_shops_registry');
+    let registry: any[] = registryData ? JSON.parse(registryData) : [];
+    const shop = registry.find((s: any) => s.shopId === shopId);
+    if (shop) {
+      return new Response(JSON.stringify({
+        success: true,
+        shopId,
+        shopName: shop.shopName,
+        password: shop.password || '8892',
+        expiryDate: shop.expiryDate || 0
+      }), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+  }
 
   if (!shopId || shopId === 'undefined' || shopId === 'null') {
     return new Response(JSON.stringify({ found: false, error: 'Missing shopId', isPrivate: !!env.SYNC_KV }), {
@@ -18,10 +36,57 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   let data: string | null = null;
   let isPrivate = false;
 
+  let daysRemaining = 9999;
+  let expiryDateVal = 0;
+  let isExpired = false;
+
   if (env.SYNC_KV) {
-    data = await env.SYNC_KV.get(`shop_${shopId}`);
     isPrivate = true;
+    
+    // Check if subscription has expired
+    const expiryStr = await env.SYNC_KV.get(`expiry_${shopId}`);
+    if (expiryStr) {
+      expiryDateVal = Number(expiryStr);
+      const diff = expiryDateVal - Date.now();
+      daysRemaining = Math.ceil(diff / (1000 * 60 * 60 * 24));
+      if (daysRemaining <= 0) {
+        isExpired = true;
+      }
+    }
+
+    // Check if the shop is deactivated or expired
+    const status = await env.SYNC_KV.get(`status_${shopId}`) || 'active';
+    if (status === 'deactivated' || isExpired) {
+      return new Response(JSON.stringify({ 
+        found: true, 
+        suspended: true, 
+        reason: isExpired ? 'Expired' : 'Suspended',
+        isPrivate 
+      }), {
+        status: 200, // Return 200 so UI initialization fetches the status check gracefully
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    // Verify Password if set
+    const password = request.headers.get('X-Shop-Password') || '';
+    const expectedPassword = await env.SYNC_KV.get(`password_${shopId}`);
+    if (expectedPassword && password !== expectedPassword) {
+      return new Response(JSON.stringify({ error: 'Invalid Shop Password', authorized: false, isPrivate }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    data = await env.SYNC_KV.get(`shop_${shopId}`);
   } else {
+    // Local simulation: block any shopId that starts with "suspended-"
+    if (shopId.startsWith('suspended-')) {
+      return new Response(JSON.stringify({ found: true, suspended: true, isPrivate: false }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
     // Fetch from ExtendsClass JSON storage
     try {
       const res = await fetch(`https://extendsclass.com/api/json-storage/bin/${shopId}`);
@@ -34,7 +99,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   }
 
   if (!data) {
-    return new Response(JSON.stringify({ found: false, isPrivate }), {
+    return new Response(JSON.stringify({ found: false, isPrivate, daysRemaining, expiryDate: expiryDateVal }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
@@ -52,7 +117,9 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
         isPrivate,
         dataSize,
         productsCount,
-        salesCount
+        salesCount,
+        daysRemaining,
+        expiryDate: expiryDateVal
       }), {
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
       });
@@ -61,12 +128,23 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     if (typeof parsed === 'object' && parsed !== null) {
       parsed.isPrivate = isPrivate;
       parsed.found = true;
+      parsed.daysRemaining = daysRemaining;
+      parsed.expiryDate = expiryDateVal;
+
+      // Force sync settings.adminPin with KV password key (Super Admin password registry)
+      if (env.SYNC_KV) {
+        const expectedPassword = await env.SYNC_KV.get(`password_${shopId}`);
+        if (expectedPassword) {
+          if (!parsed.settings) parsed.settings = {};
+          parsed.settings.adminPin = expectedPassword.trim();
+        }
+      }
     }
     return new Response(JSON.stringify(parsed), {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   } catch (e) {
-    return new Response(JSON.stringify({ error: 'Invalid JSON stored', isPrivate }), {
+    return new Response(JSON.stringify({ error: 'Invalid JSON stored', isPrivate, daysRemaining, expiryDate: expiryDateVal }), {
       status: 200, // Return 200 so frontend doesn't crash on invalid data, just treats it as not found
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
@@ -82,7 +160,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
     const body = await request.text();
     // Validate JSON structure
-    JSON.parse(body);
+    const parsedData = JSON.parse(body);
 
     let isPrivate = false;
     let finalShopId = shopId;
@@ -93,9 +171,100 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         // For private KV, we generate a simple random ID if creating new
         finalShopId = 'ksc-' + Math.floor(1000 + Math.random() * 9000);
       }
+
+      // Check if subscription has expired
+      const expiryStr = await env.SYNC_KV.get(`expiry_${finalShopId}`);
+      let isExpired = false;
+      if (expiryStr) {
+        const expiry = Number(expiryStr);
+        if (expiry - Date.now() <= 0) {
+          isExpired = true;
+        }
+      }
+
+      // Check if the shop is deactivated or expired
+      const status = await env.SYNC_KV.get(`status_${finalShopId}`) || 'active';
+      if (status === 'deactivated' || isExpired) {
+        return new Response(JSON.stringify({ 
+          error: isExpired ? 'Subscription Expired. Sync Blocked.' : 'Account Suspended. Sync Blocked.', 
+          suspended: true, 
+          reason: isExpired ? 'Expired' : 'Suspended' 
+        }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+
+      // Verify Password if set (skip for createBin)
+      if (!createBin && finalShopId && finalShopId !== 'undefined' && finalShopId !== 'null') {
+        const password = request.headers.get('X-Shop-Password') || '';
+        const expectedPassword = await env.SYNC_KV.get(`password_${finalShopId}`);
+        if (expectedPassword && password !== expectedPassword) {
+          return new Response(JSON.stringify({ error: 'Invalid Shop Password', authorized: false, isPrivate }), {
+            status: 401,
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
+      }
+
       await env.SYNC_KV.put(`shop_${finalShopId}`, body);
+
+      // --- AUTO REGISTRATION / METADATA UPDATE IN MASTER REGISTRY ---
+      try {
+        const registryData = await env.SYNC_KV.get('saas_shops_registry');
+        let registry: any[] = registryData ? JSON.parse(registryData) : [];
+        
+        // Extract stats from payload
+        const shopName = parsedData.settings?.shopName || 'Unnamed Shop';
+        const productsCount = parsedData.products?.length || 0;
+        const salesCount = parsedData.sales?.length || 0;
+        const lastUpdated = parsedData.lastUpdated || Date.now();
+        const adminPin = parsedData.settings?.adminPin;
+
+        // If client uploaded a new passcode, synchronize it with the KV password key
+        if (adminPin && adminPin.trim() !== '') {
+          const currentExpected = await env.SYNC_KV.get(`password_${finalShopId}`);
+          if (adminPin.trim() !== currentExpected) {
+            await env.SYNC_KV.put(`password_${finalShopId}`, adminPin.trim());
+          }
+        }
+
+        const existingIndex = registry.findIndex((item: any) => item.shopId === finalShopId);
+        if (existingIndex > -1) {
+          registry[existingIndex] = {
+            ...registry[existingIndex],
+            shopName,
+            productsCount,
+            salesCount,
+            lastSynced: lastUpdated,
+            password: adminPin ? adminPin.trim() : registry[existingIndex].password
+          };
+        } else {
+          registry.push({
+            shopId: finalShopId,
+            shopName,
+            createdAt: Date.now(),
+            lastSynced: lastUpdated,
+            productsCount,
+            salesCount,
+            status: 'active',
+            password: adminPin ? adminPin.trim() : '8892'
+          });
+        }
+        await env.SYNC_KV.put('saas_shops_registry', JSON.stringify(registry));
+      } catch (regErr) {
+        console.error('Error updating saas_shops_registry:', regErr);
+      }
+
     } else {
       // Use ExtendsClass API
+      if (finalShopId && finalShopId.startsWith('suspended-')) {
+        return new Response(JSON.stringify({ error: 'Account Suspended. Sync Blocked.', suspended: true }), {
+          status: 403,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+
       if (createBin || !finalShopId || finalShopId === 'undefined' || finalShopId === 'null') {
         // Create new bin
         const res = await fetch('https://extendsclass.com/api/json-storage/bin', {
@@ -121,7 +290,12 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       }
     }
 
-    return new Response(JSON.stringify({ success: true, shopId: finalShopId, isPrivate }), {
+    return new Response(JSON.stringify({ 
+      success: true, 
+      shopId: finalShopId, 
+      isPrivate,
+      updatedPassword: parsedData.settings?.adminPin 
+    }), {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
     });
   } catch (e: any) {

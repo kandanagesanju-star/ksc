@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { translations } from '../lib/translations';
 import { ShopSettings, Customer, Employee } from '../types';
-import { ShoppingBag, ShieldAlert, Laptop, Languages, Layers, Wifi, WifiOff, Key, Lock, User, Award, X, LogOut, ChevronDown, RefreshCw } from 'lucide-react';
+import { ShoppingBag, ShieldAlert, Laptop, Languages, Layers, Wifi, WifiOff, Key, Lock, User, Award, X, LogOut, ChevronDown, RefreshCw, Eye, EyeOff } from 'lucide-react';
 
 interface NavbarProps {
   language: 'en' | 'si';
@@ -59,6 +59,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [lockoutTime, setLockoutTime] = useState(0);
   const [showRecovery, setShowRecovery] = useState(false);
   const [recoveryCode, setRecoveryCode] = useState('');
+  const [showPin, setShowPin] = useState(false);
 
   // Inactivity auto-logout timer (30 min)
   const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -286,6 +287,7 @@ export const Navbar: React.FC<NavbarProps> = ({
         onUpdateSettings(updatedSettings);
       }
       localStorage.setItem('shop_settings', JSON.stringify(updatedSettings));
+      localStorage.setItem('shop_sync_password', '8892');
       
       alert(language === 'en' 
         ? '✅ Passcode PIN reset successfully! Please set a new secure PIN in Settings.'
@@ -641,18 +643,29 @@ export const Navbar: React.FC<NavbarProps> = ({
 
                 {lockoutTime === 0 && (
                   <div className="space-y-3">
-                    <input
-                      type="password"
-                      maxLength={6}
-                      value={passcode}
-                      onChange={(e) => setPasscode(e.target.value)}
-                      placeholder="••••"
-                      className="w-full text-center px-4 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-lg font-bold tracking-widest text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-sans"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleAdminAccess();
-                      }}
-                      autoFocus
-                    />
+                    <div className="relative">
+                      <input
+                        type={showPin ? 'text' : 'password'}
+                        maxLength={20}
+                        value={passcode}
+                        onChange={(e) => setPasscode(e.target.value)}
+                        placeholder="••••"
+                        className="w-full text-center px-4 pr-11 py-2.5 bg-slate-950 border border-slate-800 rounded-xl text-lg font-bold tracking-widest text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent font-sans"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleAdminAccess();
+                        }}
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        tabIndex={-1}
+                        onClick={() => setShowPin(v => !v)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-indigo-400 transition"
+                        title={showPin ? 'Hide' : 'Show'}
+                      >
+                        {showPin ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
                     <button
                       type="button"
                       onClick={() => setShowRecovery(true)}

@@ -12,6 +12,10 @@ export interface SyncResponse {
   dataSize?: number;
   productsCount?: number;
   salesCount?: number;
+  suspended?: boolean;
+  reason?: string;
+  daysRemaining?: number;
+  expiryDate?: number;
 }
 
 const CHUNK_CHAR_LIMIT = 50000; // 50KB string slice size to guarantee bypass of 413 Payload Too Large limits
@@ -22,7 +26,11 @@ export const getCloudSyncTimestamp = async (shopId: string): Promise<SyncRespons
     return { found: false, lastUpdated: 0, isPrivate: false };
   }
   try {
-    const res = await fetch(`/api/sync?shopId=${encodeURIComponent(shopId)}&timestampOnly=true`);
+    const res = await fetch(`/api/sync?shopId=${encodeURIComponent(shopId)}&timestampOnly=true`, {
+      headers: {
+        'X-Shop-Password': localStorage.getItem('shop_sync_password') || ''
+      }
+    });
     if (!res.ok) {
       throw new Error(`Cloud fetch error: ${res.statusText}`);
     }
@@ -39,7 +47,11 @@ export const getCloudSyncState = async (shopId: string): Promise<any> => {
     return null;
   }
   try {
-    const res = await fetch(`/api/sync?shopId=${encodeURIComponent(shopId)}`);
+    const res = await fetch(`/api/sync?shopId=${encodeURIComponent(shopId)}`, {
+      headers: {
+        'X-Shop-Password': localStorage.getItem('shop_sync_password') || ''
+      }
+    });
     if (!res.ok) {
       throw new Error(`Cloud download error: ${res.statusText}`);
     }
@@ -98,7 +110,8 @@ export const pushLocalStateToCloud = async (shopId: string, state: any): Promise
       const res = await fetch(url, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'X-Shop-Password': localStorage.getItem('shop_sync_password') || ''
         },
         body: jsonString
       });
@@ -108,7 +121,11 @@ export const pushLocalStateToCloud = async (shopId: string, state: any): Promise
         throw new Error(errData.error || `Upload failed: ${res.statusText}`);
       }
 
-      return await res.json();
+      const result = await res.json();
+      if (result.updatedPassword) {
+        localStorage.setItem('shop_sync_password', result.updatedPassword);
+      }
+      return result;
     }
 
     // --- PUBLIC SANDBOX CHUNKING (ExtendsClass String Slicing) ---
