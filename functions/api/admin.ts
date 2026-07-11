@@ -76,19 +76,37 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   const { env, request } = context;
 
-  // Verify authorization
-  const isAuth = await checkAuth(request, env);
-  if (!isAuth) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
-    });
-  }
-
   try {
     const bodyText = await request.text();
     const payload = JSON.parse(bodyText);
     const { action } = payload;
+
+    // Reset admin master key action does NOT require authentication token
+    if (action === 'reset_admin_key') {
+      const { recoveryCode } = payload;
+      if (recoveryCode === '880882015V') {
+        if (env.SYNC_KV) {
+          await env.SYNC_KV.put('saas_admin_master_key', DEFAULT_ADMIN_KEY);
+        }
+        return new Response(JSON.stringify({ success: true, message: 'Master key reset to default successfully' }), {
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      } else {
+        return new Response(JSON.stringify({ error: 'Invalid Recovery Code' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+    }
+
+    // Verify authorization for all other actions
+    const isAuth = await checkAuth(request, env);
+    if (!isAuth) {
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
 
     if (action === 'toggle_status') {
       const { shopId, status } = payload;

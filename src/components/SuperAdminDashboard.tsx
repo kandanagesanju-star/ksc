@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Layout, Users, ShoppingBag, Database, Search, RefreshCw, Key, ToggleLeft, ToggleRight, Check, X, AlertTriangle, Plus, ArrowLeft, Settings, Edit2, Eye, Trash2 } from 'lucide-react';
+import { Shield, Layout, Users, ShoppingBag, Database, Search, RefreshCw, Key, ToggleLeft, ToggleRight, Check, X, AlertTriangle, Plus, ArrowLeft, Settings, Edit2, Eye, EyeOff, Trash2 } from 'lucide-react';
 
 interface ShopTenant {
   shopId: string;
@@ -69,10 +69,17 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ langua
   
   // Change password states
   const [showPasswordModal, setShowPasswordModal] = useState<boolean>(false);
+  const [currentPassword, setCurrentPassword] = useState<string>('');
   const [newPassword, setNewPassword] = useState<string>('');
   const [confirmNewPassword, setConfirmNewPassword] = useState<string>('');
   const [passwordError, setPasswordError] = useState<string>('');
   const [passwordSuccess, setPasswordSuccess] = useState<string>('');
+  
+  // Password visibility toggles
+  const [showOldPass, setShowOldPass] = useState<boolean>(false);
+  const [showNewPass, setShowNewPass] = useState<boolean>(false);
+  const [showConfirmPass, setShowConfirmPass] = useState<boolean>(false);
+  const [showLoginPass, setShowLoginPass] = useState<boolean>(false);
 
   const fetchShops = async (keyToUse: string = adminKey) => {
     setLoading(true);
@@ -461,12 +468,21 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ langua
     setPasswordError('');
     setPasswordSuccess('');
 
+    const token = sessionStorage.getItem('saas_admin_token') || '';
+    const localSavedKey = localStorage.getItem('saas_admin_key') || 'KSC-SaaS-Admin-2026';
+    const expectedCurrentKey = isLocalSimulation ? localSavedKey : token;
+
+    if (currentPassword.trim() !== expectedCurrentKey) {
+      setPasswordError(language === 'en' ? 'Incorrect current master key' : 'වත්මන් පාලක කේතය වැරදියි');
+      return;
+    }
+
     if (newPassword.length < 4) {
       setPasswordError(language === 'en' ? 'Password must be at least 4 characters long' : 'නව කේතය අවම වශයෙන් අකුරු/ඉලක්කම් 4ක් විය යුතුය');
       return;
     }
     if (newPassword !== confirmNewPassword) {
-      setPasswordError(language === 'en' ? 'Passwords do not match' : 'මුරපදයන් එකිනෙකට නොගැලපේ');
+      setPasswordError(language === 'en' ? 'Passwords do not match' : 'मुරපදයන් එකිනෙකට නොගැලපේ');
       return;
     }
 
@@ -476,13 +492,14 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ langua
         // Save locally
         localStorage.setItem('saas_admin_key', newPassword.trim());
         sessionStorage.setItem('saas_admin_token', newPassword.trim());
+        setAdminKey(newPassword.trim());
         setPasswordSuccess(language === 'en' ? 'Master key changed successfully!' : 'පාලක කේතය සාර්ථකව වෙනස් කරන ලදී!');
+        setCurrentPassword('');
         setNewPassword('');
         setConfirmNewPassword('');
         setTimeout(() => setShowPasswordModal(false), 1500);
       } else {
         // Save to Cloud KV
-        const token = sessionStorage.getItem('saas_admin_token') || '';
         const res = await fetch('/api/admin', {
           method: 'POST',
           headers: {
@@ -501,13 +518,68 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ langua
         }
 
         sessionStorage.setItem('saas_admin_token', newPassword.trim());
+        setAdminKey(newPassword.trim());
         setPasswordSuccess(language === 'en' ? 'Master key changed successfully!' : 'පාලක කේතය සාර්ථකව වෙනස් කරන ලදී!');
+        setCurrentPassword('');
         setNewPassword('');
         setConfirmNewPassword('');
         setTimeout(() => setShowPasswordModal(false), 1500);
       }
     } catch (err: any) {
       setPasswordError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotMasterKey = async () => {
+    const code = prompt(
+      language === 'en'
+        ? 'Enter the Master Recovery Code to reset the Super Admin password to default:'
+        : 'Super Admin මුරපදය මුලින් තිබූ තත්වයට (default) පත් කිරීමට Master Recovery Code එක ඇතුළත් කරන්න:'
+    );
+    if (!code) return;
+
+    setLoading(true);
+    try {
+      if (isLocalSimulation) {
+        if (code === '880882015V') {
+          localStorage.setItem('saas_admin_key', 'KSC-SaaS-Admin-2026');
+          setAdminKey('KSC-SaaS-Admin-2026');
+          alert(
+            language === 'en'
+              ? '✅ Super Admin password reset successfully to default: KSC-SaaS-Admin-2026'
+              : '✅ Super Admin මුරපදය සාර්ථකව KSC-SaaS-Admin-2026 ලෙස reset කරන ලදී!'
+          );
+        } else {
+          alert(language === 'en' ? '❌ Invalid Recovery Code!' : '❌ වැරදි Recovery Code එකක්!');
+        }
+      } else {
+        const res = await fetch('/api/admin', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            action: 'reset_admin_key',
+            recoveryCode: code
+          })
+        });
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.error || 'Failed to reset key');
+        }
+
+        setAdminKey('KSC-SaaS-Admin-2026');
+        alert(
+          language === 'en'
+            ? '✅ Super Admin password reset successfully to default: KSC-SaaS-Admin-2026'
+            : '✅ Super Admin මුරපදය සාර්ථකව KSC-SaaS-Admin-2026 ලෙස reset කරන ලදී!'
+        );
+      }
+    } catch (err: any) {
+      alert(language === 'en' ? `Error: ${err.message}` : `දෝෂයක්: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -541,18 +613,35 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ langua
 
           <form onSubmit={handleLogin} className="space-y-6">
             <div>
-              <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">
-                {language === 'en' ? 'Super Admin Master Key' : 'ප්‍රධාන පාලක මුරපදය'}
-              </label>
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  {language === 'en' ? 'Super Admin Master Key' : 'ප්‍රධාන පාලක මුරපදය'}
+                </label>
+                <button
+                  type="button"
+                  onClick={handleForgotMasterKey}
+                  className="text-[10px] font-bold text-slate-500 hover:text-blue-400 transition underline underline-offset-2"
+                >
+                  {language === 'en' ? 'Forgot Master Key?' : 'මුරපදය අමතකද?'}
+                </button>
+              </div>
               <div className="relative">
                 <input
-                  type="password"
+                  type={showLoginPass ? 'text' : 'password'}
                   placeholder="••••••••••••••••"
                   value={adminKey}
                   onChange={(e) => setAdminKey(e.target.value)}
-                  className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl px-4 py-3.5 pl-11 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-medium transition-all"
+                  className="w-full bg-slate-950/80 border border-slate-800 rounded-2xl px-4 py-3.5 pl-11 pr-10 text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-medium transition-all"
                 />
                 <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={18} />
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={() => setShowLoginPass(!showLoginPass)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-355 transition"
+                >
+                  {showLoginPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
               {authError && (
                 <div className="mt-3 text-rose-400 text-xs font-semibold flex items-center gap-1.5 bg-rose-500/10 p-3 rounded-xl border border-rose-500/20">
@@ -996,30 +1085,74 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ langua
             <form onSubmit={handleChangePassword} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-400 mb-1.5">
-                  {language === 'en' ? 'New Password' : 'නව පාලක කේතය (Password)'}
+                  {language === 'en' ? 'Current Password' : 'වත්මන් පාලක කේතය (Current Password)'}
                 </label>
-                <input
-                  type="password"
-                  required
-                  placeholder="••••••••"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-200 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
+                <div className="relative">
+                  <input
+                    type={showOldPass ? 'text' : 'password'}
+                    required
+                    placeholder="••••••••"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3 pr-10 py-2.5 text-slate-200 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => setShowOldPass(!showOldPass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-350 transition"
+                  >
+                    {showOldPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-400 mb-1.5">
-                  {language === 'en' ? 'Confirm New Password' : 'නව පාලක කේතය නැවත ඇතුලත් කරන්න'}
+                  {language === 'en' ? 'New Password' : 'නව පාලක කේතය (New Password)'}
                 </label>
-                <input
-                  type="password"
-                  required
-                  placeholder="••••••••"
-                  value={confirmNewPassword}
-                  onChange={(e) => setConfirmNewPassword(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-slate-200 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
+                <div className="relative">
+                  <input
+                    type={showNewPass ? 'text' : 'password'}
+                    required
+                    placeholder="••••••••"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3 pr-10 py-2.5 text-slate-200 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => setShowNewPass(!showNewPass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-350 transition"
+                  >
+                    {showNewPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-400 mb-1.5">
+                  {language === 'en' ? 'Confirm New Password' : 'නව පාලක කේතය නැවත ඇතුලත් කරන්න (Confirm)'}
+                </label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPass ? 'text' : 'password'}
+                    required
+                    placeholder="••••••••"
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-3 pr-10 py-2.5 text-slate-200 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                  />
+                  <button
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => setShowConfirmPass(!showConfirmPass)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-350 transition"
+                  >
+                    {showConfirmPass ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
 
               {passwordError && (
@@ -1038,6 +1171,9 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ langua
                   type="button"
                   onClick={() => {
                     setShowPasswordModal(false);
+                    setCurrentPassword('');
+                    setNewPassword('');
+                    setConfirmNewPassword('');
                     setPasswordError('');
                     setPasswordSuccess('');
                   }}
@@ -1047,7 +1183,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ langua
                 </button>
                 <button
                   type="submit"
-                  disabled={loading || !newPassword.trim() || !confirmNewPassword.trim()}
+                  disabled={loading || !currentPassword.trim() || !newPassword.trim() || !confirmNewPassword.trim()}
                   className="bg-blue-600 hover:bg-blue-500 text-white py-2.5 px-4 rounded-xl transition-all cursor-pointer flex items-center justify-center"
                 >
                   {loading ? <RefreshCw size={14} className="animate-spin" /> : (language === 'en' ? 'Save Key' : 'සුරකින්න')}
