@@ -102,7 +102,7 @@ export const pushLocalStateToCloud = async (shopId: string, state: any): Promise
 
     if (isPrivate) {
       // Private KV supports up to 25MB per value directly. No chunking needed.
-      const isNew = !shopId || shopId === 'undefined' || shopId === 'null' || shopId.startsWith('ksc-');
+      const isNew = !shopId || shopId === 'undefined' || shopId === 'null' || shopId === 'ksc-demo';
       const url = isNew 
         ? '/api/sync?createBin=true' 
         : `/api/sync?shopId=${encodeURIComponent(shopId)}`;
@@ -140,7 +140,7 @@ export const pushLocalStateToCloud = async (shopId: string, state: any): Promise
       const slice = jsonString.substring(i * CHUNK_CHAR_LIMIT, (i + 1) * CHUNK_CHAR_LIMIT);
       const existingChunkId = chunkIds[i];
 
-      const isChunkNew = !existingChunkId || existingChunkId.startsWith('ksc-') || existingChunkId === 'undefined';
+      const isChunkNew = !existingChunkId || existingChunkId === 'ksc-demo' || existingChunkId === 'undefined';
       const chunkUrl = isChunkNew 
         ? '/api/sync?createBin=true' 
         : `/api/sync?shopId=${encodeURIComponent(existingChunkId)}`;
