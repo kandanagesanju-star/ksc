@@ -226,6 +226,14 @@ export interface Expense {
   createdAt: string;
 }
 
+export interface SpecialOrderItem {
+  id: string;
+  name: string;
+  size: string;
+  qty: number;
+  unitPrice: number;
+}
+
 export interface SpecialOrder {
   id: string;
   customerName: string;
@@ -239,6 +247,9 @@ export interface SpecialOrder {
   status: 'Pending' | 'Ordered from Supplier' | 'Arrived' | 'Shipped/Delivered';
   notes?: string;
   createdAt: string;
+  orderType?: string;
+  dueDate?: string;
+  items?: SpecialOrderItem[];
 }
 
 export interface Employee {
