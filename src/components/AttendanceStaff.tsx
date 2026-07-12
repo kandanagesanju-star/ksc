@@ -373,7 +373,7 @@ export const AttendanceStaff: React.FC<AttendanceStaffProps> = ({
                   {attendance.map(rec => (
                     <tr key={rec.id} className="hover:bg-slate-50/50">
                       <td className="py-4 px-6 font-bold text-slate-400">{rec.date}</td>
-                      <td className="py-4 px-6 font-bold text-slate-800">{rec.employeeName}</td>
+                      <td className="py-4 px-6 font-bold text-slate-800">{employees.find(e => e.id === rec.employeeId)?.name || rec.employeeName}</td>
                       <td className="py-4 px-6 text-center font-medium">{rec.clockIn}</td>
                       <td className="py-4 px-6 text-center font-medium">{rec.clockOut || '-'}</td>
                       <td className="py-4 px-6 text-center">
@@ -455,7 +455,7 @@ export const AttendanceStaff: React.FC<AttendanceStaffProps> = ({
                   {commissions.map(com => (
                     <tr key={com.id} className="hover:bg-slate-50/50">
                       <td className="py-4 px-6 text-slate-400">{com.id}</td>
-                      <td className="py-4 px-6 font-bold text-slate-800">{com.employeeName}</td>
+                      <td className="py-4 px-6 font-bold text-slate-800">{employees.find(e => e.id === com.employeeId)?.name || com.employeeName}</td>
                       <td className="py-4 px-6 text-center">
                         <span className="bg-slate-100 px-2 py-0.5 rounded text-[10px] font-bold">
                           {com.sourceType}
