@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { RepairJob, Quotation, Customer, RepairStatus, Product } from '../types';
+import { RepairJob, Quotation, Customer, RepairStatus, Product, ShopSettings } from '../types';
 import { translations } from '../lib/translations';
 import { 
   Plus, Search, Wrench, Edit, Trash2, Printer, CheckCircle, 
@@ -23,6 +23,7 @@ interface QuotationsRepairsProps {
   onDeleteRepair: (id: string) => void;
   activeSubTab?: string;
   onSubTabChange?: (tab: any) => void;
+  settings: ShopSettings;
 }
 
 export const QuotationsRepairs: React.FC<QuotationsRepairsProps> = ({
@@ -41,7 +42,8 @@ export const QuotationsRepairs: React.FC<QuotationsRepairsProps> = ({
   onUpdateRepair,
   onDeleteRepair,
   activeSubTab,
-  onSubTabChange
+  onSubTabChange,
+  settings
 }) => {
   const t = translations[language];
 
@@ -66,6 +68,21 @@ export const QuotationsRepairs: React.FC<QuotationsRepairsProps> = ({
   const [editingRepair, setEditingRepair] = useState<RepairJob | null>(null);
   const [editingRepairDetails, setEditingRepairDetails] = useState<RepairJob | null>(null);
   const [editingQuotation, setEditingQuotation] = useState<Quotation | null>(null);
+
+  // Quotation print state hooks
+  const [printingQuotation, setPrintingQuotation] = useState<Quotation | null>(null);
+  const [includeBankDetails, setIncludeBankDetails] = useState(true);
+  const [qBankName, setQBankName] = useState('');
+  const [qAccountNo, setQAccountNo] = useState('');
+  const [qAccountName, setQAccountName] = useState('');
+  const [qValidity, setQValidity] = useState('30 Days');
+  const [qSubject, setQSubject] = useState('');
+
+  const printingCustomerAddress = useMemo(() => {
+    if (!printingQuotation) return '';
+    const matched = customers.find(c => c.name === printingQuotation.customerName && c.phone === printingQuotation.customerPhone);
+    return matched?.address || '';
+  }, [printingQuotation, customers]);
 
   // New Repair Form state
   const [selectedRepairCust, setSelectedRepairCust] = useState<Customer | null>(null);
@@ -356,6 +373,390 @@ export const QuotationsRepairs: React.FC<QuotationsRepairsProps> = ({
     setNewProdNameEn('');
     setNewProdCost(0);
     setNewProdRetail(0);
+  };
+
+  const handlePrintQuote = () => {
+    if (!printingQuotation) return;
+
+    const matchedCustomer = customers.find(c => c.name === printingQuotation.customerName && c.phone === printingQuotation.customerPhone);
+    const customerAddress = matchedCustomer?.address || '';
+
+    const subtotal = printingQuotation.total;
+    const vatRate = settings.vatRate || 0;
+    const ssclRate = settings.ssclRate || 0;
+    const vatAmount = subtotal * (vatRate / 100);
+    const ssclAmount = subtotal * (ssclRate / 100);
+    const grandTotal = subtotal + vatAmount + ssclAmount;
+
+    const printContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>PRICE QUOTATION - ${printingQuotation.id}</title>
+        <style>
+          @page {
+            size: A4;
+            margin: 20mm;
+          }
+          body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            color: #1e293b;
+            line-height: 1.5;
+            margin: 0;
+            padding: 0;
+            font-size: 13px;
+          }
+          .header-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 25px;
+          }
+          .shop-title {
+            font-size: 24px;
+            font-weight: 800;
+            color: #0f172a;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: -0.5px;
+          }
+          .shop-tag {
+            font-size: 11px;
+            color: #64748b;
+            margin: 4px 0 0 0;
+            font-weight: 600;
+            text-transform: uppercase;
+          }
+          .shop-details {
+            text-align: right;
+            font-size: 11px;
+            color: #475569;
+            line-height: 1.6;
+          }
+          .divider {
+            border-bottom: 2px solid #cbd5e1;
+            margin-bottom: 20px;
+          }
+          .doc-title-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+          }
+          .doc-title {
+            font-size: 18px;
+            font-weight: 800;
+            color: #1e3a8a;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          .meta-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 25px;
+          }
+          .meta-td-left {
+            width: 55%;
+            vertical-align: top;
+            padding-right: 15px;
+          }
+          .meta-td-right {
+            width: 45%;
+            vertical-align: top;
+            text-align: right;
+          }
+          .label-header {
+            font-size: 10px;
+            font-weight: 800;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 6px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 3px;
+          }
+          .client-name {
+            font-size: 14px;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 2px;
+          }
+          .client-phone {
+            font-weight: 700;
+            color: #475569;
+          }
+          .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            margin-bottom: 25px;
+          }
+          .items-table th {
+            background-color: #f8fafc;
+            color: #1e293b;
+            font-weight: 700;
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 0.5px;
+            border-top: 1px solid #cbd5e1;
+            border-bottom: 2px solid #cbd5e1;
+            padding: 10px 12px;
+            text-align: left;
+          }
+          .items-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #e2e8f0;
+            font-size: 12px;
+          }
+          .text-right {
+            text-align: right !important;
+          }
+          .text-center {
+            text-align: center !important;
+          }
+          .summary-table {
+            width: 320px;
+            margin-left: auto;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+          }
+          .summary-table td {
+            padding: 6px 12px;
+            font-size: 12px;
+          }
+          .summary-total {
+            font-size: 13px;
+            font-weight: 800;
+            color: #1e3a8a;
+            border-top: 2px solid #cbd5e1;
+            border-bottom: 2px double #cbd5e1;
+            background-color: #f8fafc;
+          }
+          .bank-card {
+            border: 1px solid #cbd5e1;
+            background-color: #f8fafc;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 30px;
+            width: 65%;
+          }
+          .bank-title {
+            font-size: 10px;
+            font-weight: 800;
+            color: #1e3a8a;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #cbd5e1;
+            padding-bottom: 3px;
+          }
+          .bank-row {
+            display: flex;
+            margin-bottom: 4px;
+            font-size: 11px;
+          }
+          .bank-row-label {
+            width: 100px;
+            color: #64748b;
+            font-weight: 700;
+          }
+          .bank-row-val {
+            font-weight: 700;
+            color: #0f172a;
+          }
+          .terms-block {
+            font-size: 11px;
+            color: #64748b;
+            line-height: 1.6;
+            margin-bottom: 50px;
+          }
+          .signature-section {
+            width: 100%;
+            margin-top: 50px;
+            border-collapse: collapse;
+          }
+          .signature-box {
+            width: 50%;
+            vertical-align: top;
+          }
+          .signature-line {
+            width: 180px;
+            border-bottom: 1px solid #94a3b8;
+            margin-bottom: 5px;
+          }
+          .signature-label {
+            font-size: 10px;
+            color: #64748b;
+            font-weight: 700;
+            text-transform: uppercase;
+          }
+        </style>
+      </head>
+      <body>
+        <!-- Header -->
+        <table class="header-table">
+          <tr>
+            <td>
+              <h1 class="shop-title">${settings.shopName || 'SmartShop Pro'}</h1>
+              <p class="shop-tag">${settings.onlineTagline || 'Device Repairs & Retail Solutions'}</p>
+            </td>
+            <td class="shop-details">
+              ${settings.shopAddress || 'No 120, Colombo Road,'}<br/>
+              ${settings.shopAddress ? 'Kurunegala, Sri Lanka' : ''}<br/>
+              Tel: ${settings.shopPhone || '077-1234567'}<br/>
+              Email: ${settings.shopEmail || 'info@smartshoppro.com'}
+            </td>
+          </tr>
+        </table>
+
+        <div class="divider"></div>
+
+        <!-- Doc Title -->
+        <table class="doc-title-table">
+          <tr>
+            <td>
+              <h2 class="doc-title">PRICE QUOTATION (මිල ගණන් කැඳවීම් පත්‍රය)</h2>
+            </td>
+            <td class="text-right" style="font-size: 14px; font-weight: 800; color: #1e3a8a;">
+              Ref No: ${printingQuotation.id}
+            </td>
+          </tr>
+        </table>
+
+        <!-- Metadata -->
+        <table class="meta-table">
+          <tr>
+            <td class="meta-td-left">
+              <div class="label-header">PREPARED FOR (වෙත ඉදිරිපත් කෙරේ)</div>
+              <div class="client-name">${printingQuotation.customerName}</div>
+              <div class="client-phone">Tel: ${printingQuotation.customerPhone}</div>
+              ${customerAddress ? `<div style="margin-top: 4px; color: #475569;">Address: ${customerAddress}</div>` : ''}
+            </td>
+            <td class="meta-td-right">
+              <div class="label-header">DOCUMENT DETAILS</div>
+              <div style="font-weight: 700; color: #0f172a; margin-bottom: 2px;">Date: ${new Date().toLocaleDateString()}</div>
+              <div style="font-weight: 700; color: #b45309;">Validity: ${qValidity}</div>
+            </td>
+          </tr>
+        </table>
+
+        ${qSubject ? `
+        <div style="margin-bottom: 20px; font-size: 12px; font-weight: 800; color: #0f172a; text-transform: uppercase; border-left: 3px solid #1e3a8a; padding-left: 8px;">
+          Subject: ${qSubject}
+        </div>
+        ` : ''}
+
+        <!-- Items Table -->
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th style="width: 40px;" class="text-center">#</th>
+              <th>Description / Specification (විස්තරය)</th>
+              <th class="text-center" style="width: 70px;">Qty</th>
+              <th class="text-right" style="width: 110px;">Unit Price (Rs.)</th>
+              <th class="text-right" style="width: 120px;">Amount (Rs.)</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${printingQuotation.items.map((item, idx) => `
+              <tr>
+                <td class="text-center">${idx + 1}</td>
+                <td style="font-weight: 600; color: #0f172a;">${item.description}</td>
+                <td class="text-center">${item.qty}</td>
+                <td class="text-right">${item.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                <td class="text-right" style="font-weight: 700; color: #0f172a;">${(item.price * item.qty).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <!-- Summary -->
+        <table class="summary-table">
+          <tr>
+            <td class="text-right" style="color: #64748b; font-weight: 600;">Subtotal:</td>
+            <td class="text-right" style="font-weight: 700; width: 120px;">Rs. ${subtotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          </tr>
+          ${vatRate > 0 ? `
+          <tr>
+            <td class="text-right" style="color: #64748b; font-weight: 600;">VAT (${vatRate}%):</td>
+            <td class="text-right" style="font-weight: 700;">Rs. ${vatAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          </tr>
+          ` : ''}
+          ${ssclRate > 0 ? `
+          <tr>
+            <td class="text-right" style="color: #64748b; font-weight: 600;">SSCL (${ssclRate}%):</td>
+            <td class="text-right" style="font-weight: 700;">Rs. ${ssclAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          </tr>
+          ` : ''}
+          <tr class="summary-total">
+            <td class="text-right" style="font-weight: 800;">Grand Total (Rs.):</td>
+            <td class="text-right" style="font-weight: 800; font-size: 14px;">Rs. ${grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          </tr>
+        </table>
+
+        <!-- Bank Details Section -->
+        ${includeBankDetails && qAccountNo ? `
+        <div class="bank-card">
+          <div class="bank-title">BANK ACCOUNT DETAILS FOR CHEQUES (බැංකු ගනුදෙනු විස්තර)</div>
+          <div class="bank-row">
+            <div class="bank-row-label">Bank Name:</div>
+            <div class="bank-row-val">${qBankName}</div>
+          </div>
+          <div class="bank-row">
+            <div class="bank-row-label">Account No:</div>
+            <div class="bank-row-val">${qAccountNo}</div>
+          </div>
+          <div class="bank-row">
+            <div class="bank-row-label">Account Name:</div>
+            <div class="bank-row-val">${qAccountName}</div>
+          </div>
+        </div>
+        ` : ''}
+
+        <!-- Terms and Conditions -->
+        <div class="terms-block">
+          <strong>Notes & Terms (වෙනත් තොරතුරු):</strong><br/>
+          1. This price quotation is valid for the duration specified above.<br/>
+          2. Government / Bank Cheques must be drawn in favor of <strong>"${qAccountName || settings.bankAccountName || settings.shopName}"</strong>.<br/>
+          3. Deliveries and services will be initiated upon receipt of official Purchase Orders.
+        </div>
+
+        <!-- Signature Section -->
+        <table class="signature-section">
+          <tr>
+            <td class="signature-box">
+              <div class="signature-line" style="margin-top: 30px;"></div>
+              <div class="signature-label">Prepared By (සකස් කළේ)</div>
+            </td>
+            <td class="signature-box text-right" style="padding-right: 20px;">
+              <div class="signature-line" style="margin-left: auto; margin-top: 30px;"></div>
+              <div class="signature-label">Authorized Signature / Stamp</div>
+            </td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+
+    const printFrame = document.createElement('iframe');
+    printFrame.style.position = 'fixed';
+    printFrame.style.right = '0';
+    printFrame.style.bottom = '0';
+    printFrame.style.width = '0';
+    printFrame.style.height = '0';
+    printFrame.style.border = '0';
+    document.body.appendChild(printFrame);
+    const frameDoc = printFrame.contentWindow?.document || printFrame.contentDocument;
+    if (frameDoc) {
+      frameDoc.write(printContent);
+      frameDoc.close();
+      printFrame.contentWindow?.focus();
+      setTimeout(() => {
+        printFrame.contentWindow?.print();
+        setTimeout(() => {
+          document.body.removeChild(printFrame);
+        }, 1000);
+      }, 500);
+    }
   };
 
   const getStatusStyle = (status: string) => {
@@ -652,7 +1053,13 @@ export const QuotationsRepairs: React.FC<QuotationsRepairsProps> = ({
                     </button>
                     <button
                       onClick={() => {
-                        alert(`Printing Quotation ${quote.id} for ${quote.customerName} (Total: Rs. ${quote.total.toLocaleString()})`);
+                        setPrintingQuotation(quote);
+                        setQBankName(settings.bankName || '');
+                        setQAccountNo(settings.bankAccountNo || '');
+                        setQAccountName(settings.bankAccountName || '');
+                        setQValidity('30 Days');
+                        setQSubject('');
+                        setIncludeBankDetails(true);
                       }}
                       className="bg-slate-800 hover:bg-slate-900 text-white px-3.5 py-1.5 rounded-xl text-[11px] font-bold shadow-sm transition flex items-center cursor-pointer"
                     >
@@ -1476,6 +1883,268 @@ export const QuotationsRepairs: React.FC<QuotationsRepairsProps> = ({
                 <button type="submit" className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold shadow">Save</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* PROFESSIONAL A4 QUOTATION PRINT PREVIEW MODAL */}
+      {printingQuotation && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden flex flex-col md:flex-row h-[90vh] animate-in fade-in zoom-in duration-200 text-xs font-semibold text-slate-350">
+            
+            {/* Left Column: Print Controls Panel */}
+            <div className="w-full md:w-96 bg-slate-950 p-6 flex flex-col justify-between border-r border-slate-850 overflow-y-auto shrink-0">
+              <div className="space-y-6">
+                <div>
+                  <span className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 text-[10px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider">
+                    Print Config
+                  </span>
+                  <h3 className="text-lg font-black text-white mt-2">Quotation Generator</h3>
+                  <p className="text-xs text-slate-400 mt-1">Configure layout, bank details, and remarks for official quote.</p>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Subject / Title */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Quotation Subject</label>
+                    <input
+                      type="text"
+                      value={qSubject}
+                      onChange={(e) => setQSubject(e.target.value)}
+                      placeholder="e.g. SUPPLY & INSTALLATION OF SSDs"
+                      className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  {/* Validity Period */}
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Validity Period</label>
+                    <input
+                      type="text"
+                      value={qValidity}
+                      onChange={(e) => setQValidity(e.target.value)}
+                      placeholder="e.g. 30 Days"
+                      className="w-full px-3.5 py-2.5 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs font-bold focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  {/* Toggle Bank Account Details */}
+                  <div className="flex items-center space-x-2.5 bg-slate-900/40 p-3.5 rounded-xl border border-slate-805">
+                    <input
+                      type="checkbox"
+                      id="incBankDetails"
+                      checked={includeBankDetails}
+                      onChange={(e) => setIncludeBankDetails(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-800 text-indigo-600 focus:ring-indigo-550"
+                    />
+                    <label htmlFor="incBankDetails" className="text-xs font-extrabold text-slate-200 cursor-pointer select-none">
+                      Include Bank Details
+                    </label>
+                  </div>
+
+                  {/* Bank Details Editor fields */}
+                  {includeBankDetails && (
+                    <div className="space-y-3.5 bg-slate-900/60 p-4 rounded-2xl border border-slate-850 animate-in fade-in duration-150">
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Bank Name</label>
+                        <input
+                          type="text"
+                          value={qBankName}
+                          onChange={(e) => setQBankName(e.target.value)}
+                          placeholder="e.g. Bank of Ceylon"
+                          className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-white text-xs font-semibold focus:outline-none focus:border-indigo-550"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Account Number</label>
+                        <input
+                          type="text"
+                          value={qAccountNo}
+                          onChange={(e) => setQAccountNo(e.target.value)}
+                          placeholder="Account number..."
+                          className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-white text-xs font-semibold focus:outline-none focus:border-indigo-550"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Account Name</label>
+                        <input
+                          type="text"
+                          value={qAccountName}
+                          onChange={(e) => setQAccountName(e.target.value)}
+                          placeholder="Account holder's name..."
+                          className="w-full px-3 py-2 bg-slate-900 border border-slate-800 rounded-lg text-white text-xs font-semibold focus:outline-none focus:border-indigo-550"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col space-y-2 pt-6 border-t border-slate-850">
+                <button
+                  type="button"
+                  onClick={handlePrintQuote}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold py-3 rounded-xl text-xs shadow-lg transition duration-150 flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <Printer className="h-4 w-4" /> Print Document (A4)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrintingQuotation(null)}
+                  className="w-full bg-slate-850 hover:bg-slate-805 text-slate-300 font-bold py-2.5 rounded-xl text-xs transition duration-150 cursor-pointer"
+                >
+                  Close Preview
+                </button>
+              </div>
+            </div>
+
+            {/* Right Column: Live A4 Visual Preview */}
+            <div className="flex-1 bg-slate-950 p-6 flex items-start justify-center overflow-y-auto">
+              <div className="bg-white text-slate-800 w-[210mm] min-h-[297mm] p-12 shadow-2xl rounded-sm text-left flex flex-col justify-between text-xs select-none">
+                <div>
+                  {/* Shop Details */}
+                  <div className="flex justify-between items-start border-b-2 border-slate-200 pb-5 mb-5">
+                    <div>
+                      <h1 className="text-2xl font-black text-slate-900 uppercase tracking-tight">{settings.shopName || 'SmartShop Pro'}</h1>
+                      <p className="text-[10px] text-slate-500 font-extrabold uppercase mt-1 tracking-wider">{settings.onlineTagline || 'Device Repairs & Retail Solutions'}</p>
+                    </div>
+                    <div className="text-right text-[10px] text-slate-500 leading-relaxed font-semibold">
+                      <p>{settings.shopAddress || 'No 120, Colombo Road,'}</p>
+                      {settings.shopAddress && <p>Kurunegala, Sri Lanka</p>}
+                      <p>Tel: {settings.shopPhone || '077-1234567'}</p>
+                      <p>Email: {settings.shopEmail || 'info@smartshoppro.com'}</p>
+                    </div>
+                  </div>
+
+                  {/* Document Title */}
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-base font-extrabold text-blue-900 tracking-wide uppercase">Price Quotation (මිල ගණන් කැඳවීම් පත්‍රය)</h2>
+                    <span className="text-sm font-black text-blue-905 bg-blue-50 border border-blue-100 px-3 py-1 rounded-lg">
+                      Ref No: {printingQuotation.id}
+                    </span>
+                  </div>
+
+                  {/* Meta Panel */}
+                  <div className="grid grid-cols-2 gap-8 mb-6 border-b border-slate-100 pb-6">
+                    <div>
+                      <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-2">Prepared For / වෙත ඉදිරිපත් කෙරේ</h4>
+                      <p className="font-extrabold text-slate-900 text-sm">{printingQuotation.customerName}</p>
+                      <p className="text-[11px] text-slate-500 font-bold mt-0.5">Tel: {printingQuotation.customerPhone}</p>
+                      {printingCustomerAddress && (
+                        <p className="text-[10px] text-slate-500 mt-1">{printingCustomerAddress}</p>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <h4 className="text-[9px] font-black text-slate-400 uppercase tracking-wider mb-2">Document Details</h4>
+                      <p className="font-bold text-slate-800 text-[11px]">Date: {new Date().toLocaleDateString()}</p>
+                      <p className="font-extrabold text-amber-700 text-[11px] mt-1">Validity: {qValidity}</p>
+                    </div>
+                  </div>
+
+                  {/* Subject */}
+                  {qSubject && (
+                    <div className="mb-5 text-xs font-extrabold text-slate-900 uppercase border-l-4 border-blue-900 pl-3">
+                      Subject: {qSubject}
+                    </div>
+                  )}
+
+                  {/* Items Table */}
+                  <table className="w-full border-collapse mb-6">
+                    <thead>
+                      <tr className="bg-slate-50 text-[9px] font-extrabold text-slate-500 uppercase border-y border-slate-200">
+                        <th className="py-2.5 px-3 text-center w-10">#</th>
+                        <th className="py-2.5 px-3 text-left">Description / Specification</th>
+                        <th className="py-2.5 px-3 text-center w-16">Qty</th>
+                        <th className="py-2.5 px-3 text-right w-28">Unit Price</th>
+                        <th className="py-2.5 px-3 text-right w-28">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {printingQuotation.items.map((item, idx) => (
+                        <tr key={idx} className="border-b border-slate-100 font-semibold text-slate-800">
+                          <td className="py-3 px-3 text-center text-slate-400">{idx + 1}</td>
+                          <td className="py-3 px-3 font-bold text-slate-900">{item.description}</td>
+                          <td className="py-3 px-3 text-center">{item.qty}</td>
+                          <td className="py-3 px-3 text-right">Rs. {item.price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          <td className="py-3 px-3 text-right font-bold text-slate-900">Rs. {(item.price * item.qty).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  {/* Totals Block */}
+                  <div className="flex justify-end mb-8">
+                    <table className="w-85 border-collapse text-xs font-semibold text-slate-600">
+                      <tbody>
+                        <tr>
+                          <td className="py-1.5 px-3 text-right">Subtotal:</td>
+                          <td className="py-1.5 px-3 text-right font-bold text-slate-800">Rs. {printingQuotation.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        </tr>
+                        {settings.vatRate > 0 && (
+                          <tr>
+                            <td className="py-1.5 px-3 text-right">VAT ({settings.vatRate}%):</td>
+                            <td className="py-1.5 px-3 text-right font-bold text-slate-800">Rs. {(printingQuotation.total * (settings.vatRate / 100)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          </tr>
+                        )}
+                        {settings.ssclRate > 0 && (
+                          <tr>
+                            <td className="py-1.5 px-3 text-right">SSCL ({settings.ssclRate}%):</td>
+                            <td className="py-1.5 px-3 text-right font-bold text-slate-800">Rs. {(printingQuotation.total * (settings.ssclRate / 100)).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                          </tr>
+                        )}
+                        <tr className="border-t border-slate-200 bg-slate-50 font-black text-blue-900">
+                          <td className="py-2.5 px-3 text-right text-[11px]">Grand Total (Rs.):</td>
+                          <td className="py-2.5 px-3 text-right text-sm">
+                            Rs. {(
+                              printingQuotation.total + 
+                              (printingQuotation.total * ((settings.vatRate || 0) / 100)) + 
+                              (printingQuotation.total * ((settings.ssclRate || 0) / 100))
+                            ).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Bank Account Details */}
+                  {includeBankDetails && qAccountNo && (
+                    <div className="bg-slate-50 border border-slate-205 rounded-xl p-4 mb-6 max-w-md">
+                      <h4 className="text-[9px] font-black text-blue-900 uppercase tracking-wider mb-2.5">Bank Settlement Details / බැංකු ගිණුම් විස්තරය</h4>
+                      <div className="grid grid-cols-3 gap-y-1 font-semibold text-[11px]">
+                        <span className="text-slate-400">Bank Name:</span>
+                        <span className="col-span-2 text-slate-900 font-bold">{qBankName}</span>
+                        
+                        <span className="text-slate-400">Account No:</span>
+                        <span className="col-span-2 text-slate-900 font-bold font-mono">{qAccountNo}</span>
+                        
+                        <span className="text-slate-400">Account Name:</span>
+                        <span className="col-span-2 text-slate-900 font-bold">{qAccountName}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Conditions */}
+                  <div className="text-[10px] text-slate-500 leading-relaxed max-w-xl">
+                    <p className="font-bold text-slate-600 mb-0.5">Notes & Terms:</p>
+                    <p>1. This quotation is valid only for the duration specified above.</p>
+                    <p>2. Cheques/Transfers must be issued in favor of "{qAccountName || settings.bankAccountName || settings.shopName}".</p>
+                  </div>
+                </div>
+
+                {/* Signatures */}
+                <div className="flex justify-between items-end mt-12 pt-6 border-t border-slate-100">
+                  <div>
+                    <div className="w-40 border-b border-slate-350 mb-1"></div>
+                    <span className="text-[9px] font-black text-slate-450 uppercase tracking-wider">Prepared By</span>
+                  </div>
+                  <div className="text-right">
+                    <div className="w-40 border-b border-slate-350 mb-1 ml-auto"></div>
+                    <span className="text-[9px] font-black text-slate-455 uppercase tracking-wider">Authorized Stamp & Signature</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       )}

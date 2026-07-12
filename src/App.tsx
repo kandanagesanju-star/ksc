@@ -2772,6 +2772,7 @@ function App() {
                   onDeleteRepair={handleDeleteRepair}
                   activeSubTab={adminSubTab}
                   onSubTabChange={setAdminSubTab}
+                  settings={settings}
                 />
               )}
 
