@@ -3,7 +3,7 @@ import { RepairJob, Quotation, Customer, RepairStatus, Product } from '../types'
 import { translations } from '../lib/translations';
 import { 
   Plus, Search, Wrench, Edit, Trash2, Printer, CheckCircle, 
-  Clock, Notebook, Calendar, User, Phone, FileText, ArrowRight, X, MapPin 
+  Clock, Notebook, Calendar, User, Phone, FileText, ArrowRight, X, MapPin, Camera 
 } from 'lucide-react';
 
 interface QuotationsRepairsProps {
@@ -69,6 +69,15 @@ export const QuotationsRepairs: React.FC<QuotationsRepairsProps> = ({
 
   // New Repair Form state
   const [selectedRepairCust, setSelectedRepairCust] = useState<Customer | null>(null);
+  const [rCustomerName, setRCustomerName] = useState('');
+  const [rCustomerPhone, setRCustomerPhone] = useState('');
+  const [rCustomerAddress, setRCustomerAddress] = useState('');
+  const [rImei, setRImei] = useState('');
+  const [rExpectedReturnDate, setRExpectedReturnDate] = useState('');
+  const [rPatternLock, setRPatternLock] = useState<number[]>([]);
+  const [rDeviceFrontPhoto, setRDeviceFrontPhoto] = useState<string | null>(null);
+  const [rDeviceBackPhoto, setRDeviceBackPhoto] = useState<string | null>(null);
+  const [rStatus, setRStatus] = useState<RepairStatus>('Pending');
   const [repairCustSearch, setRepairCustSearch] = useState('');
   const [rDeviceType, setRDeviceType] = useState<'Phone' | 'Computer' | 'Other'>('Phone');
   const [rDeviceName, setRDeviceName] = useState('');
@@ -136,46 +145,124 @@ export const QuotationsRepairs: React.FC<QuotationsRepairsProps> = ({
     );
   }, [customers, quoteCustSearch]);
 
+  // Helper for pattern lock dots coordinate mapping
+  const getDotCoords = (num: number) => {
+    const col = (num - 1) % 3;
+    const row = Math.floor((num - 1) / 3);
+    return {
+      x: 20 + col * 30,
+      y: 20 + row * 30
+    };
+  };
+
+  // Auto-populate customer fields when selected from dropdown
+  useEffect(() => {
+    if (selectedRepairCust) {
+      setRCustomerName(selectedRepairCust.name);
+      setRCustomerPhone(selectedRepairCust.phone);
+      setRCustomerAddress(selectedRepairCust.address || '');
+    } else {
+      setRCustomerName('');
+      setRCustomerPhone('');
+      setRCustomerAddress('');
+    }
+  }, [selectedRepairCust]);
+
   // Handle Add Repair Job
   const handleAddRepairSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedRepairCust || !rDeviceName.trim() || !rIssue.trim()) return;
+    
+    let finalCust = selectedRepairCust;
+    if (!finalCust) {
+      const nameVal = rCustomerName.trim();
+      const phoneVal = rCustomerPhone.trim();
+      if (!nameVal || !phoneVal) {
+        alert(language === 'en' ? 'Please select a customer or fill customer details!' : 'කරුණාකර පාරිභෝගිකයෙකු තෝරන්න හෝ විස්තර ඇතුළත් කරන්න!');
+        return;
+      }
+      
+      const existing = customers.find(c => c.phone === phoneVal);
+      if (existing) {
+        finalCust = existing;
+      } else {
+        finalCust = onAddCustomer({
+          id: `CUST-${Date.now()}`,
+          name: nameVal,
+          phone: phoneVal,
+          address: rCustomerAddress.trim() || undefined,
+          loyaltyPoints: 0,
+          createdAt: new Date().toISOString()
+        });
+      }
+    }
+
+    if (!rDeviceName.trim() || !rIssue.trim()) {
+      alert(language === 'en' ? 'Please fill all required fields!' : 'කරුණාකර අවශ්‍ය සියලුම ක්ෂේත්‍ර පුරවන්න!');
+      return;
+    }
 
     if (editingRepairDetails) {
       onUpdateRepair({
         ...editingRepairDetails,
-        customerId: selectedRepairCust.id,
-        customerName: selectedRepairCust.name,
-        customerPhone: selectedRepairCust.phone,
+        customerId: finalCust.id,
+        customerName: finalCust.name,
+        customerPhone: finalCust.phone,
+        customerAddress: rCustomerAddress.trim() || undefined,
         deviceType: rDeviceType,
         deviceName: rDeviceName.trim(),
         serialNo: rSerialNo.trim() || undefined,
+        imei: rImei.trim() || undefined,
         issueDescription: rIssue.trim(),
         assignedTechnician: rTech,
         estimatedCost: rEstCost,
-        notes: rNotes.trim()
+        status: rStatus,
+        notes: rNotes.trim(),
+        expectedReturnDate: rExpectedReturnDate || undefined,
+        patternLock: rPatternLock.length > 0 ? rPatternLock.join('-') : undefined,
+        deviceFrontPhoto: rDeviceFrontPhoto || undefined,
+        deviceBackPhoto: rDeviceBackPhoto || undefined
       });
       setEditingRepairDetails(null);
     } else {
       onAddRepair({
         id: `REP-${Math.floor(1000 + Math.random() * 9000)}`,
-        customerId: selectedRepairCust.id,
-        customerName: selectedRepairCust.name,
-        customerPhone: selectedRepairCust.phone,
+        customerId: finalCust.id,
+        customerName: finalCust.name,
+        customerPhone: finalCust.phone,
+        customerAddress: rCustomerAddress.trim() || undefined,
         deviceType: rDeviceType,
         deviceName: rDeviceName.trim(),
         serialNo: rSerialNo.trim() || undefined,
+        imei: rImei.trim() || undefined,
         issueDescription: rIssue.trim(),
         assignedTechnician: rTech,
         estimatedCost: rEstCost,
-        status: 'Pending',
+        status: rStatus,
         notes: rNotes.trim(),
+        expectedReturnDate: rExpectedReturnDate || undefined,
+        patternLock: rPatternLock.length > 0 ? rPatternLock.join('-') : undefined,
+        deviceFrontPhoto: rDeviceFrontPhoto || undefined,
+        deviceBackPhoto: rDeviceBackPhoto || undefined,
         createdAt: new Date().toISOString()
       });
     }
 
     setIsRepairModalOpen(false);
-    setSelectedRepairCust(null); setRDeviceName(''); setRSerialNo(''); setRIssue(''); setRNotes(''); setREstCost(0);
+    setSelectedRepairCust(null);
+    setRCustomerName('');
+    setRCustomerPhone('');
+    setRCustomerAddress('');
+    setRImei('');
+    setRExpectedReturnDate('');
+    setRPatternLock([]);
+    setRDeviceFrontPhoto(null);
+    setRDeviceBackPhoto(null);
+    setRStatus('Pending');
+    setRDeviceName('');
+    setRSerialNo('');
+    setRIssue('');
+    setRNotes('');
+    setREstCost(0);
   };
 
   // Handle Add Quotation
@@ -338,12 +425,19 @@ export const QuotationsRepairs: React.FC<QuotationsRepairsProps> = ({
                     <div>
                       <span className="bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded">ID: {rep.id}</span>
                       <h4 className="text-sm font-extrabold text-slate-800 mt-2">{rep.deviceName}</h4>
+                      {rep.serialNo && (
+                        <p className="text-[10px] text-slate-400">S/N: {rep.serialNo}</p>
+                      )}
+                      {rep.imei && (
+                        <p className="text-[10px] text-slate-400">IMEI: {rep.imei}</p>
+                      )}
                     </div>
                     <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${getStatusStyle(rep.status)}`}>
                       {rep.status}
                     </span>
                   </div>
 
+                  {/* Customer Info */}
                   <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs space-y-1">
                     <div className="font-extrabold text-slate-700 flex items-center">
                       <User className="h-3.5 w-3.5 mr-1 text-slate-400" /> {rep.customerName}
@@ -351,13 +445,51 @@ export const QuotationsRepairs: React.FC<QuotationsRepairsProps> = ({
                     <div className="text-[10px] text-slate-400 font-bold flex items-center">
                       <Phone className="h-3 w-3 mr-1" /> {rep.customerPhone}
                     </div>
+                    {rep.customerAddress && (
+                      <div className="text-[10px] text-slate-400 font-medium flex items-center">
+                        <MapPin className="h-3 w-3 mr-1 text-slate-400" /> {rep.customerAddress}
+                      </div>
+                    )}
                   </div>
 
-                  <div className="text-xs font-semibold space-y-1 text-slate-600">
+                  {/* Issue details */}
+                  <div className="text-xs font-semibold space-y-1.5 text-slate-600">
                     <div><span className="text-slate-400 font-bold">Issue: </span>{rep.issueDescription}</div>
                     <div><span className="text-slate-400 font-bold">Technician: </span>{rep.assignedTechnician}</div>
                     <div><span className="text-slate-400 font-bold">Est. Cost: </span><span className="text-blue-600 font-extrabold">Rs. {rep.estimatedCost.toLocaleString()}</span></div>
+                    {rep.expectedReturnDate && (
+                      <div className="flex items-center text-slate-500 font-bold">
+                        <Calendar className="h-3.5 w-3.5 mr-1 text-slate-400" />
+                        <span>Expected Return: {new Date(rep.expectedReturnDate).toLocaleDateString()}</span>
+                      </div>
+                    )}
                   </div>
+
+                  {/* Pattern Lock Info */}
+                  {rep.patternLock && (
+                    <div className="bg-slate-900 border border-slate-800 p-2 rounded-xl text-[10px] text-slate-300 flex items-center justify-between font-mono">
+                      <span className="font-bold text-slate-400 uppercase tracking-wider">Pattern Lock:</span>
+                      <span>{rep.patternLock.split('-').join(' → ')}</span>
+                    </div>
+                  )}
+
+                  {/* Device Photos */}
+                  {(rep.deviceFrontPhoto || rep.deviceBackPhoto) && (
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      {rep.deviceFrontPhoto && (
+                        <div className="relative h-16 rounded-lg overflow-hidden border border-slate-200 bg-slate-950">
+                          <img src={rep.deviceFrontPhoto} alt="Front" className="w-full h-full object-contain" />
+                          <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[7px] text-center font-bold py-0.5">Front</span>
+                        </div>
+                      )}
+                      {rep.deviceBackPhoto && (
+                        <div className="relative h-16 rounded-lg overflow-hidden border border-slate-200 bg-slate-950">
+                          <img src={rep.deviceBackPhoto} alt="Back" className="w-full h-full object-contain" />
+                          <span className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[7px] text-center font-bold py-0.5">Back</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {rep.notes && (
                     <div className="bg-amber-50/50 border border-amber-100 p-2.5 rounded-xl text-[10px] text-slate-600 leading-relaxed font-medium">
@@ -386,10 +518,20 @@ export const QuotationsRepairs: React.FC<QuotationsRepairsProps> = ({
                           id: rep.customerId,
                           name: rep.customerName,
                           phone: rep.customerPhone,
+                          address: rep.customerAddress,
                           loyaltyPoints: 0,
                           createdAt: new Date().toISOString()
                         };
                         setSelectedRepairCust(matchedCust);
+                        setRCustomerName(rep.customerName);
+                        setRCustomerPhone(rep.customerPhone);
+                        setRCustomerAddress(rep.customerAddress || '');
+                        setRImei(rep.imei || '');
+                        setRExpectedReturnDate(rep.expectedReturnDate || '');
+                        setRPatternLock(rep.patternLock ? rep.patternLock.split('-').map(Number) : []);
+                        setRDeviceFrontPhoto(rep.deviceFrontPhoto || null);
+                        setRDeviceBackPhoto(rep.deviceBackPhoto || null);
+                        setRStatus(rep.status);
                         setRDeviceType(rep.deviceType);
                         setRDeviceName(rep.deviceName);
                         setRSerialNo(rep.serialNo || '');
@@ -527,119 +669,504 @@ export const QuotationsRepairs: React.FC<QuotationsRepairsProps> = ({
       {/* NEW REPAIR MODAL */}
       {isRepairModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-            <div className="bg-slate-950 text-white p-4 flex justify-between items-center">
-              <h3 className="text-xs font-bold flex items-center">
-                <Wrench className="h-4 w-4 mr-1 text-blue-400" />
+          <div className="bg-white rounded-3xl shadow-xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200 border border-slate-100 flex flex-col max-h-[90vh]">
+            <div className="bg-slate-950 text-white p-5 flex justify-between items-center shrink-0">
+              <h3 className="text-sm font-black tracking-tight flex items-center">
+                <Wrench className="h-4.5 w-4.5 mr-2 text-blue-500" />
                 {editingRepairDetails ? 'Edit Repair Details' : 'Add New Repair Job'}
               </h3>
-              <button onClick={() => { setIsRepairModalOpen(false); setEditingRepairDetails(null); setSelectedRepairCust(null); setRDeviceName(''); setRSerialNo(''); setRIssue(''); setRNotes(''); setREstCost(0); }} className="text-slate-400 hover:text-white">✕</button>
+              <button 
+                onClick={() => {
+                  setIsRepairModalOpen(false);
+                  setEditingRepairDetails(null);
+                  setSelectedRepairCust(null);
+                  setRCustomerName('');
+                  setRCustomerPhone('');
+                  setRCustomerAddress('');
+                  setRImei('');
+                  setRExpectedReturnDate('');
+                  setRPatternLock([]);
+                  setRDeviceFrontPhoto(null);
+                  setRDeviceBackPhoto(null);
+                  setRStatus('Pending');
+                  setRDeviceName('');
+                  setRSerialNo('');
+                  setRIssue('');
+                  setRNotes('');
+                  setREstCost(0);
+                }} 
+                className="text-slate-400 hover:text-white cursor-pointer transition p-1 rounded-lg hover:bg-slate-800"
+              >
+                ✕
+              </button>
             </div>
 
-            <form onSubmit={handleAddRepairSubmit} className="p-6 space-y-4 text-xs font-semibold">
-              {/* Customer Select with auto-complete & quick add */}
-              <div className="space-y-1 relative">
+            <form onSubmit={handleAddRepairSubmit} className="p-6 space-y-5 overflow-y-auto flex-1 text-xs font-semibold text-slate-850">
+              {/* Section 1: Customer Details */}
+              <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-150 space-y-3">
                 <div className="flex justify-between items-center">
-                  <label className="font-bold text-slate-500">Select Customer *</label>
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center">
+                    <User className="h-3.5 w-3.5 mr-1 text-slate-400" /> Customer Information
+                  </h4>
                   <button
                     type="button"
                     onClick={() => setIsNewCustModalOpen(true)}
-                    className="text-blue-600 hover:underline flex items-center"
+                    className="text-blue-600 hover:underline flex items-center text-[10px] font-bold"
                   >
                     <Plus className="h-3 w-3 mr-0.5" /> Quick Add Customer
                   </button>
                 </div>
-
-                {selectedRepairCust ? (
-                  <div className="bg-slate-50 p-2 rounded-lg border border-slate-200 flex justify-between items-center mt-1">
-                    <div>
-                      <h4 className="font-bold text-slate-800">{selectedRepairCust.name}</h4>
-                      <p className="text-[10px] text-slate-400">{selectedRepairCust.phone}</p>
-                    </div>
-                    <button type="button" onClick={() => setSelectedRepairCust(null)} className="text-rose-500 font-bold">✕</button>
-                  </div>
-                ) : (
-                  <div>
-                    <input
-                      type="text"
-                      required
-                      value={repairCustSearch}
-                      onChange={(e) => setRepairCustSearch(e.target.value)}
-                      placeholder="Type name or phone to search..."
-                      className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-bold"
-                    />
-                    {filteredRepairCustomers.length > 0 && (
-                      <div className="absolute left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg z-20 max-h-32 overflow-y-auto">
-                        {filteredRepairCustomers.map(c => (
-                          <button
-                            key={c.id}
-                            type="button"
-                            onClick={() => {
-                              setSelectedRepairCust(c);
-                              setRepairCustSearch('');
-                            }}
-                            className="w-full text-left px-3 py-2 hover:bg-slate-50 text-xs font-semibold text-slate-700 flex justify-between"
-                          >
-                            <span>{c.name}</span>
-                            <span>{c.phone}</span>
-                          </button>
-                        ))}
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {/* Select Existing Customer */}
+                  <div className="space-y-1 relative">
+                    <label className="font-bold text-slate-500">Search / Choose Customer</label>
+                    {selectedRepairCust ? (
+                      <div className="bg-white p-2 rounded-xl border border-slate-200 flex justify-between items-center mt-0.5">
+                        <div className="truncate">
+                          <h4 className="font-bold text-slate-800 truncate">{selectedRepairCust.name}</h4>
+                          <p className="text-[10px] text-slate-400">{selectedRepairCust.phone}</p>
+                        </div>
+                        <button type="button" onClick={() => setSelectedRepairCust(null)} className="text-rose-500 font-bold p-1">✕</button>
+                      </div>
+                    ) : (
+                      <div>
+                        <input
+                          type="text"
+                          value={repairCustSearch}
+                          onChange={(e) => setRepairCustSearch(e.target.value)}
+                          placeholder="Search existing..."
+                          className="w-full px-3 py-2 border border-slate-200 rounded-xl text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        {filteredRepairCustomers.length > 0 && (
+                          <div className="absolute left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-20 max-h-32 overflow-y-auto">
+                            {filteredRepairCustomers.map(c => (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => {
+                                  setSelectedRepairCust(c);
+                                  setRepairCustSearch('');
+                                }}
+                                className="w-full text-left px-3 py-2 hover:bg-slate-50 text-xs font-semibold text-slate-700 flex justify-between"
+                              >
+                                <span>{c.name}</span>
+                                <span className="text-slate-400">{c.phone}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
-                )}
+
+                  {/* Customer Name */}
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Customer Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={rCustomerName}
+                      onChange={(e) => setRCustomerName(e.target.value)}
+                      placeholder="e.g. John Doe"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {/* Phone Number */}
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Phone Number *</label>
+                    <input
+                      type="text"
+                      required
+                      value={rCustomerPhone}
+                      onChange={(e) => setRCustomerPhone(e.target.value)}
+                      placeholder="e.g. 0771234567"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {/* Address */}
+                  <div className="space-y-1 md:col-span-3">
+                    <label className="font-bold text-slate-500">Address</label>
+                    <input
+                      type="text"
+                      value={rCustomerAddress}
+                      onChange={(e) => setRCustomerAddress(e.target.value)}
+                      placeholder="Customer address details..."
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-500">Device Type</label>
-                  <select
-                    value={rDeviceType}
-                    onChange={(e) => setRDeviceType(e.target.value as any)}
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-white"
-                  >
-                    <option value="Phone">Phone</option>
-                    <option value="Computer">Computer</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-500">Device Model *</label>
-                  <input
-                    type="text" required value={rDeviceName} onChange={(e) => setRDeviceName(e.target.value)}
-                    placeholder="e.g. iPhone 13" className="w-full px-3 py-1.5 border border-slate-200 rounded-lg"
-                  />
+              {/* Section 2: Device & Status details */}
+              <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-150 space-y-3">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center">
+                  <Wrench className="h-3.5 w-3.5 mr-1 text-slate-400" /> Device & Job Details
+                </h4>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {/* Device Type */}
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Device Type</label>
+                    <select
+                      value={rDeviceType}
+                      onChange={(e) => setRDeviceType(e.target.value as any)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-slate-800 font-bold bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="Phone">Phone</option>
+                      <option value="Computer">Computer</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  {/* Device Model */}
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Device Model *</label>
+                    <input
+                      type="text"
+                      required
+                      value={rDeviceName}
+                      onChange={(e) => setRDeviceName(e.target.value)}
+                      placeholder="e.g. iPhone 13, HP Pavilion"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {/* Initial Status */}
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Status</label>
+                    <select
+                      value={rStatus}
+                      onChange={(e) => setRStatus(e.target.value as RepairStatus)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-slate-800 font-bold bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="Pending">Received</option>
+                      <option value="In Progress">In Progress</option>
+                      <option value="Ready for Pickup">Ready for Pickup</option>
+                    </select>
+                  </div>
+
+                  {/* IMEI / Serial No */}
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">IMEI Number (Optional)</label>
+                    <input
+                      type="text"
+                      value={rImei}
+                      onChange={(e) => setRImei(e.target.value)}
+                      placeholder="Scan or enter IMEI..."
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {/* Expected Return Date */}
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Expected Return Date</label>
+                    <input
+                      type="date"
+                      value={rExpectedReturnDate}
+                      onChange={(e) => setRExpectedReturnDate(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {/* Estimated Cost */}
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Estimated Cost (LKR)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={rEstCost || ''}
+                      onChange={(e) => setREstCost(Number(e.target.value))}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-500">Serial / IMEI No</label>
-                  <input
-                    type="text" value={rSerialNo} onChange={(e) => setRSerialNo(e.target.value)}
-                    placeholder="e.g. S/N 12345" className="w-full px-3 py-1.5 border border-slate-200 rounded-lg"
-                  />
+              {/* Section 3: Issues, Notes, & Photos */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Left Column: Diagnostics & Notes */}
+                <div className="space-y-4">
+                  {/* Reported Issue */}
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Reported Issue *</label>
+                    <textarea
+                      required
+                      value={rIssue}
+                      onChange={(e) => setRIssue(e.target.value)}
+                      placeholder="Describe what is wrong with the device..."
+                      rows={2}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-slate-850 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {/* Additional Notes & Passcode */}
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Additional Notes & Passcode</label>
+                    <textarea
+                      value={rNotes}
+                      onChange={(e) => setRNotes(e.target.value)}
+                      placeholder="PIN code, accessories included..."
+                      rows={2}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-slate-855 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  {/* Technician Select */}
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">Technician</label>
+                    <select
+                      value={rTech}
+                      onChange={(e) => setRTech(e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-200 rounded-xl text-slate-800 font-bold bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="Asanka (Senior Tech)">Asanka (Senior Tech)</option>
+                      <option value="Janaka (Chip-Level Specialist)">Janaka (Chip Specialist)</option>
+                      <option value="Sameera (Junior Tech)">Sameera (Junior Tech)</option>
+                    </select>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <label className="font-bold text-slate-500">Est. Repair Cost (LKR)</label>
-                  <input
-                    type="number" value={rEstCost || ''} onChange={(e) => setREstCost(Number(e.target.value))}
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg font-bold text-blue-600"
-                  />
+
+                {/* Right Column: Pattern Lock Drawing */}
+                <div className="flex flex-col items-center justify-center p-3 bg-slate-950 rounded-2xl border border-slate-850 space-y-2">
+                  <div className="text-[10px] text-slate-400 font-black uppercase tracking-wider">Device Pattern Lock</div>
+                  <div className="relative w-36 h-36">
+                    <svg 
+                      viewBox="0 0 100 100" 
+                      className="w-full h-full touch-none select-none cursor-pointer"
+                      onTouchMove={(e) => {
+                        const touch = e.touches[0];
+                        const element = document.elementFromPoint(touch.clientX, touch.clientY);
+                        if (element && element.hasAttribute('data-dot-index')) {
+                          const idx = Number(element.getAttribute('data-dot-index'));
+                          if (!rPatternLock.includes(idx)) {
+                            setRPatternLock(prev => [...prev, idx]);
+                          }
+                        }
+                      }}
+                    >
+                      {/* Lines between connected dots */}
+                      {rPatternLock.map((dot, idx) => {
+                        if (idx === 0) return null;
+                        const prevDot = rPatternLock[idx - 1];
+                        const p1 = getDotCoords(prevDot);
+                        const p2 = getDotCoords(dot);
+                        return (
+                          <line
+                            key={idx}
+                            x1={p1.x}
+                            y1={p1.y}
+                            x2={p2.x}
+                            y2={p2.y}
+                            stroke="#3b82f6"
+                            strokeWidth="6"
+                            strokeLinecap="round"
+                            strokeOpacity="0.8"
+                          />
+                        );
+                      })}
+                      
+                      {/* 3x3 Dots Grid */}
+                      {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => {
+                        const coords = getDotCoords(num);
+                        const isSelected = rPatternLock.includes(num);
+                        return (
+                          <g key={num}>
+                            {/* Larger touch area */}
+                            <circle
+                              cx={coords.x}
+                              cy={coords.y}
+                              r="10"
+                              fill="transparent"
+                              data-dot-index={num}
+                              onMouseDown={() => setRPatternLock([num])}
+                              onMouseEnter={(e) => {
+                                if (e.buttons === 1) {
+                                  if (!rPatternLock.includes(num)) {
+                                    setRPatternLock(prev => [...prev, num]);
+                                  }
+                                }
+                              }}
+                              onTouchStart={(e) => setRPatternLock([num])}
+                              onClick={() => {
+                                if (!rPatternLock.includes(num)) {
+                                  setRPatternLock(prev => [...prev, num]);
+                                }
+                              }}
+                              className="cursor-pointer"
+                            />
+                            {/* Visual Dot */}
+                            <circle
+                              cx={coords.x}
+                              cy={coords.y}
+                              r={isSelected ? "5" : "3.5"}
+                              fill={isSelected ? "#3b82f6" : "#64748b"}
+                              className="transition-all duration-200 pointer-events-none"
+                            />
+                            {/* Selection Ring */}
+                            {isSelected && (
+                              <circle
+                                cx={coords.x}
+                                cy={coords.y}
+                                r="8"
+                                fill="transparent"
+                                stroke="#3b82f6"
+                                strokeWidth="1.5"
+                                strokeOpacity="0.5"
+                                className="animate-ping pointer-events-none"
+                              />
+                            )}
+                          </g>
+                        );
+                      })}
+                    </svg>
+                  </div>
+                  <div className="flex gap-2 w-full justify-between items-center text-[9px] px-2">
+                    <span className="text-slate-400 font-bold font-mono truncate max-w-[120px]">
+                      {rPatternLock.length > 0 ? `Lock: ${rPatternLock.join('→')}` : 'Draw lock screen pattern'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setRPatternLock([])}
+                      className="text-rose-400 hover:text-rose-500 font-bold bg-slate-900 px-2 py-0.5 rounded border border-slate-800 cursor-pointer active:scale-95 transition"
+                    >
+                      Clear Pattern
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <label className="font-bold text-slate-500">Reported Issue *</label>
-                <textarea
-                  required value={rIssue} onChange={(e) => setRIssue(e.target.value)}
-                  placeholder="Describe device fault details..." rows={2} className="w-full px-3 py-1.5 border border-slate-200 rounded-lg"
-                />
+              {/* Section 4: Device Photo Capture */}
+              <div className="bg-slate-50/50 p-4 rounded-2xl border border-slate-150 space-y-3">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center">
+                  <Camera className="h-3.5 w-3.5 mr-1 text-slate-400" /> Device Image Capture
+                </h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Front Photo */}
+                  <div className="flex flex-col space-y-1">
+                    <label className="font-bold text-slate-500">Device Front Photo</label>
+                    {rDeviceFrontPhoto ? (
+                      <div className="relative w-full h-28 rounded-2xl overflow-hidden border border-slate-200 group shadow-sm bg-slate-950">
+                        <img src={rDeviceFrontPhoto} alt="Front Preview" className="w-full h-full object-contain" />
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
+                          <button
+                            type="button"
+                            onClick={() => setRDeviceFrontPhoto(null)}
+                            className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold shadow-md cursor-pointer active:scale-95 transition"
+                          >
+                            Remove Photo
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById('front-photo-input-quote')?.click()}
+                        className="w-full h-28 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center text-slate-400 hover:bg-slate-50 hover:border-blue-400 transition cursor-pointer"
+                      >
+                        <Camera className="h-6 w-6 mb-1 text-slate-400" />
+                        <span className="font-extrabold text-[10px]">Capture Front</span>
+                      </button>
+                    )}
+                    <input
+                      id="front-photo-input-quote"
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => setRDeviceFrontPhoto(reader.result as string);
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {/* Back Photo */}
+                  <div className="flex flex-col space-y-1">
+                    <label className="font-bold text-slate-500">Device Back Photo</label>
+                    {rDeviceBackPhoto ? (
+                      <div className="relative w-full h-28 rounded-2xl overflow-hidden border border-slate-200 group shadow-sm bg-slate-950">
+                        <img src={rDeviceBackPhoto} alt="Back Preview" className="w-full h-full object-contain" />
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-all">
+                          <button
+                            type="button"
+                            onClick={() => setRDeviceBackPhoto(null)}
+                            className="bg-rose-600 hover:bg-rose-700 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold shadow-md cursor-pointer active:scale-95 transition"
+                          >
+                            Remove Photo
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => document.getElementById('back-photo-input-quote')?.click()}
+                        className="w-full h-28 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center text-slate-400 hover:bg-slate-50 hover:border-blue-400 transition cursor-pointer"
+                      >
+                        <Camera className="h-6 w-6 mb-1 text-slate-400" />
+                        <span className="font-extrabold text-[10px]">Capture Back</span>
+                      </button>
+                    )}
+                    <input
+                      id="back-photo-input-quote"
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => setRDeviceBackPhoto(reader.result as string);
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="flex space-x-2 pt-3 border-t border-slate-100">
-                <button type="button" onClick={() => { setIsRepairModalOpen(false); setEditingRepairDetails(null); setSelectedRepairCust(null); setRDeviceName(''); setRSerialNo(''); setRIssue(''); setRNotes(''); setREstCost(0); }} className="flex-1 bg-slate-100 py-2 rounded-lg font-bold">Cancel</button>
-                <button type="submit" className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold shadow">Save Repair</button>
+              {/* Modal Actions */}
+              <div className="flex space-x-3 pt-4 border-t border-slate-100 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsRepairModalOpen(false);
+                    setEditingRepairDetails(null);
+                    setSelectedRepairCust(null);
+                    setRCustomerName('');
+                    setRCustomerPhone('');
+                    setRCustomerAddress('');
+                    setRImei('');
+                    setRExpectedReturnDate('');
+                    setRPatternLock([]);
+                    setRDeviceFrontPhoto(null);
+                    setRDeviceBackPhoto(null);
+                    setRStatus('Pending');
+                    setRDeviceName('');
+                    setRSerialNo('');
+                    setRIssue('');
+                    setRNotes('');
+                    setREstCost(0);
+                  }}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-650 py-3 rounded-2xl font-black transition cursor-pointer active:scale-[0.98]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-3 rounded-2xl font-black shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30 transition cursor-pointer active:scale-[0.98]"
+                >
+                  Save Job
+                </button>
               </div>
             </form>
           </div>

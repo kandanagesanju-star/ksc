@@ -250,56 +250,97 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
 
   const handleReprintReceipt = async (sale: Sale) => {
     const qrUrl = await generateQrCodeDataUrl(`BILL:${sale.id}`);
+    const receiptPrintSize = settings.receiptWidth || '80mm';
+    const syncId = localStorage.getItem('shop_sync_id') || '';
+
+    const is58 = receiptPrintSize === '58mm';
+    const isA4 = receiptPrintSize === 'A4';
+    
+    const qtyWidth = is58 ? '30px' : isA4 ? '80px' : '45px';
+    const amtWidth = is58 ? '65px' : isA4 ? '120px' : '75px';
+    const baseFontSize = is58 ? '10px' : isA4 ? '14px' : '12px';
+    const itemFontSize = is58 ? '10px' : isA4 ? '13px' : '12px';
+    const rowFontSize = is58 ? '9px' : isA4 ? '13px' : '11px';
+    const shopNameSize = is58 ? '13px' : isA4 ? '20px' : '16px';
+    const totalFontSize = is58 ? '12px' : isA4 ? '18px' : '15px';
+    const bodyWidth = is58 ? '52mm' : isA4 ? '190mm' : '74mm';
+    const bodyPadding = is58 ? '2mm' : isA4 ? '10mm' : '4mm';
+    const qrSize = is58 ? '18mm' : isA4 ? '30mm' : '24mm';
+
     const printContent = `
       <!DOCTYPE html><html><head><title>Receipt - ${sale.id}</title>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: Arial, sans-serif; font-size: 11px; width: 80mm; padding: 8px; color: #000; }
-        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+        @media print {
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          @page { margin: 0; size: ${receiptPrintSize} auto; }
+        }
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Nirmala UI", "Inter", Roboto, Helvetica, Arial, sans-serif;
+          font-size: ${baseFontSize};
+          width: ${bodyWidth};
+          padding: ${bodyPadding};
+          color: #000000;
+          background-color: #ffffff;
+          line-height: 1.4;
+          -webkit-font-smoothing: antialiased;
+          -moz-osx-font-smoothing: grayscale;
+        }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; gap: 6px; }
         .shop-info { flex: 1; text-align: left; }
-        .shop-name { font-size: 13px; font-weight: bold; text-transform: uppercase; margin-bottom: 2px; text-align: left; }
-        .shop-detail { font-size: 9px; color: #333; line-height: 1.5; text-align: left; }
+        .shop-name { font-size: ${shopNameSize}; font-weight: 800; text-transform: uppercase; margin-bottom: 2px; text-align: left; letter-spacing: 0.3px; }
+        .shop-detail { font-size: ${is58 ? '8px' : isA4 ? '12px' : '10px'}; color: #000000; line-height: 1.5; font-weight: 500; text-align: left; }
         .qr-wrap { flex-shrink: 0; text-align: center; margin-left: 6px; }
-        .qr-wrap img { width: 80px; height: 80px; display: block; image-rendering: pixelated; }
-        .qr-label { font-size: 7px; color: #666; margin-top: 2px; text-align: center; }
-        .bold { font-weight: bold; }
-        .sep { border-top: 1px dashed #000; margin: 6px 0; }
-        .row { display: flex; justify-content: space-between; margin: 2px 0; }
-        .total-row { font-size: 13px; font-weight: bold; border-top: 1px solid #000; padding-top: 4px; margin-top: 4px; }
-        .footer { text-align: center; font-size: 9px; color: #333; margin-top: 8px; line-height: 1.3; }
+        .qr-wrap img { width: ${qrSize}; height: ${qrSize}; display: block; image-rendering: pixelated; image-rendering: crisp-edges; border: 1.5px solid #000000; padding: 1px; }
+        .qr-label { font-size: ${is58 ? '6px' : isA4 ? '9px' : '8px'}; color: #000000; margin-top: 2px; font-weight: bold; text-align: center; }
+        .bold { font-weight: 800; }
+        .sep { border-top: 1.5px dashed #000000; margin: 5px 0; }
+        .row { display: flex; justify-content: space-between; margin: 2px 0; font-size: ${rowFontSize}; font-weight: 500; }
+        .item-row { display: flex; margin: 3px 0; font-size: ${itemFontSize}; align-items: flex-start; }
+        .item-name { flex: 1; word-break: break-word; padding-right: 6px; font-weight: 600; text-align: left; }
+        .item-qty { width: ${qtyWidth}; text-align: center; font-weight: 600; flex-shrink: 0; }
+        .item-amt { width: ${amtWidth}; text-align: right; font-weight: 700; flex-shrink: 0; }
+        .total-row { font-size: ${totalFontSize}; font-weight: 800; border-top: 1.5px solid #000000; padding-top: 4px; margin-top: 4px; display: flex; justify-content: space-between; }
+        .footer { text-align: center; font-size: ${is58 ? '8px' : isA4 ? '12px' : '10px'}; color: #000000; margin-top: 8px; line-height: 1.4; font-weight: 600; }
       </style></head><body>
       <div class="header">
         <div class="shop-info">
           <div class="shop-name">${settings.shopName || 'SmartShop'}</div>
+          ${syncId ? `<div class="shop-detail" style="font-weight: 700;">Reg ID: ${syncId}</div>` : ''}
           ${settings.shopAddress ? `<div class="shop-detail">${settings.shopAddress}</div>` : ''}
           ${settings.shopPhone ? `<div class="shop-detail">Tel: ${settings.shopPhone}</div>` : ''}
           ${settings.shopEmail ? `<div class="shop-detail">${settings.shopEmail}</div>` : ''}
           ${settings.taxRegistrationNo ? `<div class="shop-detail">Tax Reg: ${settings.taxRegistrationNo}</div>` : ''}
         </div>
         <div class="qr-wrap">
-          <img src="${qrUrl}" alt="QR" />
+          ${qrUrl ? `<img src="${qrUrl}" alt="QR" />` : `<div style="width:${qrSize};height:${qrSize};border:1.5px solid #000000;font-size:7px;display:flex;align-items:center;justify-content:center;font-weight:bold;">QR Code</div>`}
           <div class="qr-label">Scan to verify</div>
         </div>
       </div>
       <div class="sep"></div>
-      <div class="row"><span>Bill #:</span><span>${sale.id}</span></div>
-      <div class="row"><span>Date:</span><span>${new Date(sale.createdAt).toLocaleString()}</span></div>
-      <div class="row"><span>Customer:</span><span>${sale.customerName || 'Walk-In'}</span></div>
-      ${sale.cashierName ? `<div class="row"><span>Cashier:</span><span>${sale.cashierName}</span></div>` : ''}
-      <div class="row"><span>Payment:</span><span>${sale.paymentMethod === 'Pending' ? 'CREDIT (Unpaid)' : sale.paymentMethod}</span></div>
+      <div class="row"><span>Bill #: <b>${sale.id}</b></span><span>${new Date(sale.createdAt).toLocaleString('en-LK')}</span></div>
+      <div class="row"><span>Customer: ${sale.customerName || 'Walk-In'}</span>${sale.cashierName ? `<span>Cashier: ${sale.cashierName}</span>` : ''}</div>
+      <div class="row"><span>Payment: <b>${sale.paymentMethod === 'Pending' ? '⚠ CREDIT (Unpaid)' : sale.paymentMethod}</b></span></div>
       <div class="sep"></div>
-      <div class="row bold"><span style="flex:2">Item</span><span>Qty</span><span>Amount</span></div>
+      <div class="item-row bold"><span class="item-name">Item</span><span class="item-qty">Qty</span><span class="item-amt">Amount</span></div>
       <div class="sep"></div>
       ${sale.items.map(item => `
-        <div class="row"><span style="flex:2">${language === 'en' ? item.productNameEn : item.productNameSi}</span>
-        <span>${item.quantity}${item.isWeighted ? 'kg' : ''}</span>
-        <span>Rs.${(item.price * item.quantity).toLocaleString(undefined, {maximumFractionDigits:2})}</span></div>`).join('')}
+        <div class="item-row"><span class="item-name">${language === 'en' ? item.productNameEn : item.productNameSi}</span>
+        <span class="item-qty">${item.quantity}${item.isWeighted ? 'kg' : ''}</span>
+        <span class="item-amt">Rs.${(item.price * item.quantity).toLocaleString(undefined, {maximumFractionDigits:2})}</span></div>`).join('')}
       <div class="sep"></div>
       <div class="row"><span>Subtotal:</span><span>Rs.${sale.subtotal.toLocaleString()}</span></div>
       ${sale.vatTotal && sale.vatTotal > 0 ? `<div class="row"><span>VAT (${settings.vatRate || 15}%):</span><span>Rs.${sale.vatTotal.toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>` : ''}
       ${sale.ssclTotal && sale.ssclTotal > 0 ? `<div class="row"><span>SSCL (${settings.ssclRate || 2.5}%):</span><span>Rs.${sale.ssclTotal.toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>` : ''}
       ${sale.discount > 0 ? `<div class="row"><span>Discount:</span><span>-Rs.${sale.discount.toLocaleString()}</span></div>` : ''}
-      <div class="total-row row"><span>TOTAL:</span><span>Rs.${sale.total.toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>
+      <div class="total-row"><span>TOTAL:</span><span>Rs.${sale.total.toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>
+      
+      ${sale.paymentMethod === 'Cash' ? `
+        <div class="sep"></div>
+        <div class="row"><span>${language === 'en' ? 'Cash Tendered:' : 'ලබාදුන් මුදල:'}</span><span>Rs.${(sale.amountPaid ?? sale.total).toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>
+        <div class="row bold" style="font-size: ${is58 ? '11px' : isA4 ? '15px' : '13px'};"><span>${language === 'en' ? 'Change Due:' : 'මාරු සල්ලි:'}</span><span>Rs.${(sale.changeDue ?? 0).toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>
+      ` : ''}
+      
       <div class="sep"></div>
       <div class="footer">${settings.receiptFooterMessage ? settings.receiptFooterMessage.replace(/\n/g, '<br/>') : 'Thank You! Come Again.<br/>ඔබට ස්තුතියි! නැවත පැමිණෙන්න.'}</div>
       </body></html>`;

@@ -67,6 +67,12 @@ export interface RepairJob {
   notes: string;
   createdAt: string;
   completedAt?: string;
+  customerAddress?: string;
+  imei?: string;
+  deviceFrontPhoto?: string;
+  deviceBackPhoto?: string;
+  expectedReturnDate?: string;
+  patternLock?: string;
 }
 
 export interface Quotation {
@@ -123,6 +129,8 @@ export interface Sale {
   createdAt: string;
   isOfflinePending?: boolean; // True if saved offline and waiting to sync
   paymentReference?: string; // Card/Bank transaction details
+  amountPaid?: number;
+  changeDue?: number;
 }
 
 export interface PurchaseOrder {

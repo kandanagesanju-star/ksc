@@ -911,6 +911,9 @@ export const POS: React.FC<POSProps> = ({
     }
 
     const saleId = `S-POS-${Math.floor(1000 + Math.random() * 9000)}`;
+    const finalAmountPaid = paymentMethod === 'Cash' ? (amountPaid || totals.total) : totals.total;
+    const finalChangeDue = paymentMethod === 'Cash' ? Math.max(0, finalAmountPaid - totals.total) : 0;
+
     const newSale: Sale = {
       id: saleId,
       customerId: selectedCustomer?.id || undefined,
@@ -933,7 +936,9 @@ export const POS: React.FC<POSProps> = ({
       loyaltyPointsEarned: Math.floor(totals.total / (settings.loyaltyPointValue || 1000)),
       loyaltyPointsRedeemed: totals.loyaltyPointsRedeemed,
       loyaltyRedemptionDiscount: totals.loyaltyRedemptionDiscount,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      amountPaid: finalAmountPaid,
+      changeDue: finalChangeDue
     };
 
     // Update stock levels
@@ -2285,6 +2290,18 @@ export const POS: React.FC<POSProps> = ({
                   <span>{t.total}:</span>
                   <span>Rs. {completedSale.total.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                 </div>
+                {completedSale.paymentMethod === 'Cash' && (
+                  <>
+                    <div className="flex justify-between text-slate-500 text-[10px] border-t border-slate-100 pt-1 font-semibold">
+                      <span>{language === 'en' ? 'Cash Tendered:' : 'ලබාදුන් මුදල:'}</span>
+                      <span>Rs. {(completedSale.amountPaid ?? completedSale.total).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                    </div>
+                    <div className="flex justify-between text-emerald-600 text-[10px] font-bold">
+                      <span>{language === 'en' ? 'Change Due:' : 'මාරු සල්ලි:'}</span>
+                      <span>Rs. {(completedSale.changeDue ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="text-center text-[9px] text-slate-400 font-bold pt-2">
@@ -2311,6 +2328,22 @@ export const POS: React.FC<POSProps> = ({
               <button
                 onClick={() => {
                   const qrUrl = completedSaleQrUrl;
+                  const syncId = localStorage.getItem('shop_sync_id') || '';
+                  
+                  const is58 = receiptPrintSize === '58mm';
+                  const isA4 = receiptPrintSize === 'A4';
+                  
+                  const qtyWidth = is58 ? '30px' : isA4 ? '80px' : '45px';
+                  const amtWidth = is58 ? '65px' : isA4 ? '120px' : '75px';
+                  const baseFontSize = is58 ? '10px' : isA4 ? '14px' : '12px';
+                  const itemFontSize = is58 ? '10px' : isA4 ? '13px' : '12px';
+                  const rowFontSize = is58 ? '9px' : isA4 ? '13px' : '11px';
+                  const shopNameSize = is58 ? '13px' : isA4 ? '20px' : '16px';
+                  const totalFontSize = is58 ? '12px' : isA4 ? '18px' : '15px';
+                  const bodyWidth = is58 ? '52mm' : isA4 ? '190mm' : '74mm';
+                  const bodyPadding = is58 ? '2mm' : isA4 ? '10mm' : '4mm';
+                  const qrSize = is58 ? '18mm' : isA4 ? '30mm' : '24mm';
+
                   const printContent = `
                     <!DOCTYPE html><html><head><title>Receipt - ${completedSale.id}</title>
                     <style>
@@ -2319,34 +2352,45 @@ export const POS: React.FC<POSProps> = ({
                         body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                         @page { margin: 0; size: ${receiptPrintSize} auto; }
                       }
-                      body { font-family: 'Courier New', Courier, monospace; font-size: 10px; width: ${receiptPrintSize === '58mm' ? '52mm' : receiptPrintSize === 'A4' ? '190mm' : '74mm'}; padding: 4mm; color: #000; }
-                      .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px; }
+                      body {
+                        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Nirmala UI", "Inter", Roboto, Helvetica, Arial, sans-serif;
+                        font-size: ${baseFontSize};
+                        width: ${bodyWidth};
+                        padding: ${bodyPadding};
+                        color: #000000;
+                        background-color: #ffffff;
+                        line-height: 1.4;
+                        -webkit-font-smoothing: antialiased;
+                        -moz-osx-font-smoothing: grayscale;
+                      }
+                      .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; gap: 6px; }
                       .shop-info { flex: 1; text-align: left; }
-                      .shop-name { font-size: 12px; font-weight: bold; text-transform: uppercase; margin-bottom: 1px; text-align: left; }
-                      .shop-detail { font-size: 8px; color: #333; line-height: 1.6; text-align: left; }
+                      .shop-name { font-size: ${shopNameSize}; font-weight: 800; text-transform: uppercase; margin-bottom: 2px; text-align: left; letter-spacing: 0.3px; }
+                      .shop-detail { font-size: ${is58 ? '8px' : isA4 ? '12px' : '10px'}; color: #000000; line-height: 1.5; font-weight: 500; text-align: left; }
                       .qr-wrap { flex-shrink: 0; text-align: center; margin-left: 6px; }
-                      .qr-wrap img { width: 22mm; height: 22mm; display: block; image-rendering: pixelated; }
-                      .qr-label { font-size: 6px; color: #666; margin-top: 1px; text-align: center; }
-                      .bold { font-weight: bold; }
-                      .sep { border-top: 1px dashed #000; margin: 4px 0; }
-                      .row { display: flex; justify-content: space-between; margin: 1.5px 0; font-size: 9px; }
-                      .item-row { display: flex; margin: 1.5px 0; font-size: 9px; }
-                      .item-name { flex: 2; word-break: break-word; }
-                      .item-qty { width: 20px; text-align: center; }
-                      .item-amt { width: 40px; text-align: right; }
-                      .total-row { font-size: 12px; font-weight: bold; border-top: 1px solid #000; padding-top: 3px; margin-top: 3px; display: flex; justify-content: space-between; }
-                      .footer { text-align: center; font-size: 8px; color: #333; margin-top: 6px; line-height: 1.4; }
+                      .qr-wrap img { width: ${qrSize}; height: ${qrSize}; display: block; image-rendering: pixelated; image-rendering: crisp-edges; border: 1.5px solid #000000; padding: 1px; }
+                      .qr-label { font-size: ${is58 ? '6px' : isA4 ? '9px' : '8px'}; color: #000000; margin-top: 2px; font-weight: bold; text-align: center; }
+                      .bold { font-weight: 800; }
+                      .sep { border-top: 1.5px dashed #000000; margin: 5px 0; }
+                      .row { display: flex; justify-content: space-between; margin: 2px 0; font-size: ${rowFontSize}; font-weight: 500; }
+                      .item-row { display: flex; margin: 3px 0; font-size: ${itemFontSize}; align-items: flex-start; }
+                      .item-name { flex: 1; word-break: break-word; padding-right: 6px; font-weight: 600; text-align: left; }
+                      .item-qty { width: ${qtyWidth}; text-align: center; font-weight: 600; flex-shrink: 0; }
+                      .item-amt { width: ${amtWidth}; text-align: right; font-weight: 700; flex-shrink: 0; }
+                      .total-row { font-size: ${totalFontSize}; font-weight: 800; border-top: 1.5px solid #000000; padding-top: 4px; margin-top: 4px; display: flex; justify-content: space-between; }
+                      .footer { text-align: center; font-size: ${is58 ? '8px' : isA4 ? '12px' : '10px'}; color: #000000; margin-top: 8px; line-height: 1.4; font-weight: 600; }
                     </style></head><body>
                     <div class="header">
                       <div class="shop-info">
                         <div class="shop-name">${settings.shopName || 'SmartShop'}</div>
+                        ${syncId ? `<div class="shop-detail" style="font-weight: 700;">Reg ID: ${syncId}</div>` : ''}
                         ${settings.shopAddress ? `<div class="shop-detail">${settings.shopAddress}</div>` : ''}
                         ${settings.shopPhone ? `<div class="shop-detail">Tel: ${settings.shopPhone}</div>` : ''}
                         ${settings.shopEmail ? `<div class="shop-detail">${settings.shopEmail}</div>` : ''}
                         ${settings.taxRegistrationNo ? `<div class="shop-detail">Tax Reg: ${settings.taxRegistrationNo}</div>` : ''}
                       </div>
                       <div class="qr-wrap">
-                        ${qrUrl ? `<img src="${qrUrl}" alt="QR" />` : '<div style="width:22mm;height:22mm;border:1px solid #000;font-size:7px;display:flex;align-items:center;justify-content:center;">QR Code</div>'}
+                        ${qrUrl ? `<img src="${qrUrl}" alt="QR" />` : `<div style="width:${qrSize};height:${qrSize};border:1.5px solid #000000;font-size:7px;display:flex;align-items:center;justify-content:center;font-weight:bold;">QR Code</div>`}
                         <div class="qr-label">Scan to verify</div>
                       </div>
                     </div>
@@ -2367,6 +2411,13 @@ export const POS: React.FC<POSProps> = ({
                     ${completedSale.ssclTotal > 0 ? `<div class="row"><span>SSCL (${ssclRate}%):</span><span>Rs.${completedSale.ssclTotal.toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>` : ''}
                     ${completedSale.discount > 0 ? `<div class="row"><span>Discount:</span><span>-Rs.${completedSale.discount.toLocaleString()}</span></div>` : ''}
                     <div class="total-row"><span>TOTAL:</span><span>Rs.${completedSale.total.toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>
+                    
+                    ${completedSale.paymentMethod === 'Cash' ? `
+                      <div class="sep"></div>
+                      <div class="row"><span>${language === 'en' ? 'Cash Tendered:' : 'ලබාදුන් මුදල:'}</span><span>Rs.${(completedSale.amountPaid ?? completedSale.total).toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>
+                      <div class="row bold" style="font-size: ${is58 ? '11px' : isA4 ? '15px' : '13px'};"><span>${language === 'en' ? 'Change Due:' : 'මාරු සල්ලි:'}</span><span>Rs.${(completedSale.changeDue ?? 0).toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>
+                    ` : ''}
+                    
                     <div class="sep"></div>
                     <div class="footer">${settings.receiptFooterMessage ? settings.receiptFooterMessage.replace(/\n/g, '<br/>') : 'Thank You! Come Again.<br/>ඔබට ස්තුතියි! නැවත පැමිණෙන්න.'}</div>
                     </body></html>`;

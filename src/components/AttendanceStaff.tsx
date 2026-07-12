@@ -515,15 +515,15 @@ export const AttendanceStaff: React.FC<AttendanceStaffProps> = ({
                 <div className="space-y-1">
                   <label className="font-bold text-slate-500">Basic Salary (LKR) *</label>
                   <input
-                    type="number" min="0" required value={eSalary || ''} onChange={(e) => setESalary(Number(e.target.value))}
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg"
+                    type="number" min="0" required value={eSalary === 0 ? 0 : (eSalary || '')} onChange={(e) => setESalary(Number(e.target.value))}
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div className="space-y-1">
                   <label className="font-bold text-slate-500">Commission Rate (%) *</label>
                   <input
-                    type="number" min="0" required value={eCommission || ''} onChange={(e) => setECommission(Number(e.target.value))}
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg"
+                    type="number" min="0" required value={eCommission === 0 ? 0 : (eCommission || '')} onChange={(e) => setECommission(Number(e.target.value))}
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-bold focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
