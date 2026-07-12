@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Customer, Supplier, SmsLog } from '../types';
 import { translations } from '../lib/translations';
+import { extractBirthdayFromNIC } from '../lib/nic';
 import { 
   Users, User, Phone, Plus, Search, Mail, MapPin, 
-  Notebook, Gift, Star, Award, Trash2, Edit, Clock, Laptop, Printer, CheckCircle
+  Notebook, Gift, Star, Award, Trash2, Edit, Clock, Laptop, Printer, CheckCircle, Calendar
 } from 'lucide-react';
 
 interface ContactsLoyaltyProps {
@@ -45,11 +46,43 @@ export const ContactsLoyalty: React.FC<ContactsLoyaltyProps> = ({
 }) => {
   const t = translations[language];
 
+  // Helper to calculate days remaining for birthdays
+  const getBirthdayStatus = (bdayStr: string) => {
+    if (!bdayStr) return null;
+    const today = new Date();
+    const bday = new Date(bdayStr);
+    
+    const bdayThisYear = new Date(today.getFullYear(), bday.getMonth(), bday.getDate());
+    
+    today.setHours(0, 0, 0, 0);
+    bdayThisYear.setHours(0, 0, 0, 0);
+    
+    let diffTime = bdayThisYear.getTime() - today.getTime();
+    let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (bday.getMonth() === today.getMonth() && bday.getDate() === today.getDate()) {
+      return { isToday: true, daysRemaining: 0, text: language === 'en' ? 'Today! 🎂' : 'අද දින! 🎂' };
+    }
+    
+    if (diffDays < 0) {
+      const bdayNextYear = new Date(today.getFullYear() + 1, bday.getMonth(), bday.getDate());
+      bdayNextYear.setHours(0, 0, 0, 0);
+      diffTime = bdayNextYear.getTime() - today.getTime();
+      diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    }
+    
+    return { 
+      isToday: false, 
+      daysRemaining: diffDays, 
+      text: language === 'en' ? `In ${diffDays} days` : `තව දින ${diffDays}කින්` 
+    };
+  };
+
   // Tabs
-  const [activeTab, setActiveTab] = useState<'customers' | 'suppliers' | 'loyalty' | 'debtors' | 'sms-gateway'>('customers');
+  const [activeTab, setActiveTab] = useState<'customers' | 'suppliers' | 'loyalty' | 'debtors' | 'sms-gateway' | 'birthdays'>('customers');
 
   useEffect(() => {
-    if (activeSubTab && (activeSubTab === 'customers' || activeSubTab === 'suppliers' || activeSubTab === 'loyalty' || activeSubTab === 'debtors' || activeSubTab === 'sms-gateway')) {
+    if (activeSubTab && (activeSubTab === 'customers' || activeSubTab === 'suppliers' || activeSubTab === 'loyalty' || activeSubTab === 'debtors' || activeSubTab === 'sms-gateway' || activeSubTab === 'birthdays')) {
       setActiveTab(activeSubTab as any);
     }
   }, [activeSubTab]);
@@ -149,6 +182,8 @@ export const ContactsLoyalty: React.FC<ContactsLoyaltyProps> = ({
   const [cEmail, setCEmail] = useState('');
   const [cAddress, setCAddress] = useState('');
   const [cNotes, setCNotes] = useState('');
+  const [cNic, setCNic] = useState('');
+  const [cBirthday, setCBirthday] = useState('');
 
   // Supplier Form Fields
   const [sName, setSName] = useState('');
@@ -157,6 +192,8 @@ export const ContactsLoyalty: React.FC<ContactsLoyaltyProps> = ({
   const [sCompany, setSCompany] = useState('');
   const [sAddress, setSAddress] = useState('');
   const [sNotes, setSNotes] = useState('');
+  const [sNic, setSNic] = useState('');
+  const [sBirthday, setSBirthday] = useState('');
 
   // Filtered lists
   const filteredCustomers = useMemo(() => {
@@ -186,7 +223,9 @@ export const ContactsLoyalty: React.FC<ContactsLoyaltyProps> = ({
         phone: cPhone.trim(),
         email: cEmail.trim() || undefined,
         address: cAddress.trim() || undefined,
-        notes: cNotes.trim() || undefined
+        notes: cNotes.trim() || undefined,
+        nic: cNic.trim() || undefined,
+        birthday: cBirthday || undefined
       });
       setEditingCustomer(null);
     } else {
@@ -197,13 +236,15 @@ export const ContactsLoyalty: React.FC<ContactsLoyaltyProps> = ({
         email: cEmail.trim() || undefined,
         address: cAddress.trim() || undefined,
         notes: cNotes.trim() || undefined,
+        nic: cNic.trim() || undefined,
+        birthday: cBirthday || undefined,
         loyaltyPoints: 0,
         createdAt: new Date().toISOString()
       });
     }
 
     setIsCustModalOpen(false);
-    setCName(''); setCPhone(''); setCEmail(''); setCAddress(''); setCNotes('');
+    setCName(''); setCPhone(''); setCEmail(''); setCAddress(''); setCNotes(''); setCNic(''); setCBirthday('');
   };
 
   // Handle Supplier Submit
@@ -219,7 +260,9 @@ export const ContactsLoyalty: React.FC<ContactsLoyaltyProps> = ({
         email: sEmail.trim() || undefined,
         companyName: sCompany.trim(),
         address: sAddress.trim() || undefined,
-        notes: sNotes.trim() || undefined
+        notes: sNotes.trim() || undefined,
+        nic: sNic.trim() || undefined,
+        birthday: sBirthday || undefined
       });
       setEditingSupplier(null);
     } else {
@@ -231,12 +274,14 @@ export const ContactsLoyalty: React.FC<ContactsLoyaltyProps> = ({
         companyName: sCompany.trim(),
         address: sAddress.trim() || undefined,
         notes: sNotes.trim() || undefined,
+        nic: sNic.trim() || undefined,
+        birthday: sBirthday || undefined,
         createdAt: new Date().toISOString()
       });
     }
 
     setIsSuppModalOpen(false);
-    setSName(''); setSPhone(''); setSEmail(''); setSCompany(''); setSAddress(''); setSNotes('');
+    setSName(''); setSPhone(''); setSEmail(''); setSCompany(''); setSAddress(''); setSNotes(''); setSNic(''); setSBirthday('');
   };
 
   return (
@@ -287,6 +332,15 @@ export const ContactsLoyalty: React.FC<ContactsLoyaltyProps> = ({
         >
           <Phone className="h-4 w-4 mr-1.5" />
           {language === 'en' ? 'SMS Gateway & SIM' : 'SMS Gateway සහ SIM'}
+        </button>
+        <button
+          onClick={() => { setActiveTab('birthdays'); if (onSubTabChange) onSubTabChange('birthdays'); }}
+          className={`px-4 py-2 rounded-lg text-xs font-bold transition flex items-center ${
+            activeTab === 'birthdays' ? 'bg-blue-600 text-white shadow' : 'text-slate-655 hover:bg-slate-100'
+          }`}
+        >
+          <Gift className="h-4 w-4 mr-1.5" />
+          {language === 'en' ? 'Birthdays & Promos' : 'උපන්දින සහ ප්‍රවර්ධන'}
         </button>
       </div>
 
@@ -363,6 +417,8 @@ export const ContactsLoyalty: React.FC<ContactsLoyaltyProps> = ({
                               setCEmail(cust.email || '');
                               setCAddress(cust.address || '');
                               setCNotes(cust.notes || '');
+                              setCNic(cust.nic || '');
+                              setCBirthday(cust.birthday || '');
                               setIsCustModalOpen(true);
                             }}
                             className="p-1 text-blue-650 hover:bg-slate-100 rounded transition cursor-pointer"
@@ -453,6 +509,8 @@ export const ContactsLoyalty: React.FC<ContactsLoyaltyProps> = ({
                               setSCompany(supp.companyName);
                               setSAddress(supp.address || '');
                               setSNotes(supp.notes || '');
+                              setSNic(supp.nic || '');
+                              setSBirthday(supp.birthday || '');
                               setIsSuppModalOpen(true);
                             }}
                             className="p-1 text-blue-655 hover:bg-slate-100 rounded transition cursor-pointer"
@@ -545,7 +603,7 @@ export const ContactsLoyalty: React.FC<ContactsLoyaltyProps> = ({
               <h3 className="text-xs font-bold flex items-center">
                 {language === 'en' ? (editingCustomer ? 'Edit Customer' : 'Add New Customer') : (editingCustomer ? 'පාරිභෝගික විස්තර වෙනස් කරන්න' : 'නව ගැනුම්කරුවෙකු ලියාපදිංචි කරන්න')}
               </h3>
-              <button onClick={() => { setIsCustModalOpen(false); setEditingCustomer(null); setCName(''); setCPhone(''); setCEmail(''); setCAddress(''); setCNotes(''); }} className="text-slate-400 hover:text-white">✕</button>
+              <button onClick={() => { setIsCustModalOpen(false); setEditingCustomer(null); setCName(''); setCPhone(''); setCEmail(''); setCAddress(''); setCNotes(''); setCNic(''); setCBirthday(''); }} className="text-slate-400 hover:text-white">✕</button>
             </div>
 
             <form onSubmit={handleCustSubmit} className="p-5 space-y-3 text-xs font-semibold">
@@ -562,6 +620,30 @@ export const ContactsLoyalty: React.FC<ContactsLoyaltyProps> = ({
                   type="tel" required value={cPhone} onChange={(e) => setCPhone(e.target.value)}
                   placeholder="e.g. 0771234567" className="w-full px-3 py-1.5 border border-slate-200 rounded-lg"
                 />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-500">NIC Number (Optional)</label>
+                  <input
+                    type="text" value={cNic} 
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCNic(val);
+                      const res = extractBirthdayFromNIC(val);
+                      if (res) {
+                        setCBirthday(res.birthday);
+                      }
+                    }}
+                    placeholder="e.g. 942341234V" className="w-full px-3 py-1.5 border border-slate-200 rounded-lg uppercase"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-500">Birthday (උපන්දිනය)</label>
+                  <input
+                    type="date" value={cBirthday} onChange={(e) => setCBirthday(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-bold bg-white"
+                  />
+                </div>
               </div>
               <div className="space-y-1">
                 <label className="font-bold text-slate-500">Email Address</label>
@@ -586,7 +668,7 @@ export const ContactsLoyalty: React.FC<ContactsLoyaltyProps> = ({
               </div>
 
               <div className="flex space-x-2 pt-2">
-                <button type="button" onClick={() => { setIsCustModalOpen(false); setEditingCustomer(null); setCName(''); setCPhone(''); setCEmail(''); setCAddress(''); setCNotes(''); }} className="flex-1 bg-slate-100 py-2 rounded-lg font-bold">Cancel</button>
+                <button type="button" onClick={() => { setIsCustModalOpen(false); setEditingCustomer(null); setCName(''); setCPhone(''); setCEmail(''); setCAddress(''); setCNotes(''); setCNic(''); setCBirthday(''); }} className="flex-1 bg-slate-100 py-2 rounded-lg font-bold">Cancel</button>
                 <button type="submit" className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold shadow">Save Customer</button>
               </div>
             </form>
@@ -858,6 +940,177 @@ export const ContactsLoyalty: React.FC<ContactsLoyaltyProps> = ({
         </div>
       )}
 
+      {/* BIRTHDAYS TAB */}
+      {activeTab === 'birthdays' && (
+        <div className="space-y-4">
+          <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+              <div>
+                <h3 className="text-base font-black text-slate-800 flex items-center">
+                  <Gift className="h-5 w-5 mr-2 text-rose-500 animate-bounce" />
+                  Birthday Registry & Campaigns (උපන්දින ප්‍රවර්ධන)
+                </h3>
+                <p className="text-xs text-slate-400 font-bold">
+                  Extract birthdays from Sri Lankan NIC numbers automatically or add them manually to run SMS marketing campaigns.
+                </p>
+              </div>
+            </div>
+
+            {/* Birthday Status Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+              <div className="bg-gradient-to-br from-rose-50 to-pink-50 p-4 rounded-2xl border border-rose-100 flex items-center space-x-4">
+                <div className="p-3 bg-rose-500 rounded-xl text-white">
+                  <Gift className="h-6 w-6" />
+                </div>
+                <div>
+                  <h4 className="text-[10px] font-black text-rose-600 uppercase tracking-wider">Birthdays Today</h4>
+                  <p className="text-2xl font-black text-slate-800">
+                    {(() => {
+                      const today = new Date();
+                      const count = [...customers, ...suppliers].filter(p => {
+                        if (!p.birthday) return false;
+                        const d = new Date(p.birthday);
+                        return d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
+                      }).length;
+                      return count;
+                    })()}
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-2xl border border-blue-100 flex items-center space-x-4">
+                <div className="p-3 bg-blue-500 rounded-xl text-white">
+                  <Calendar className="h-6 w-6" />
+                </div>
+                <div>
+                  <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-wider">Upcoming (30 Days)</h4>
+                  <p className="text-2xl font-black text-slate-800">
+                    {(() => {
+                      const today = new Date();
+                      const count = [...customers, ...suppliers].filter(p => {
+                        if (!p.birthday) return false;
+                        const d = new Date(p.birthday);
+                        const bdayThisYear = new Date(today.getFullYear(), d.getMonth(), d.getDate());
+                        let diffTime = bdayThisYear.getTime() - today.getTime();
+                        let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        if (diffDays < 0) {
+                          const bdayNextYear = new Date(today.getFullYear() + 1, d.getMonth(), d.getDate());
+                          diffTime = bdayNextYear.getTime() - today.getTime();
+                          diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                        }
+                        return diffDays >= 0 && diffDays <= 30;
+                      }).length;
+                      return count;
+                    })()}
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-gradient-to-br from-slate-50 to-slate-100 p-4 rounded-2xl border border-slate-200 flex items-center space-x-4">
+                <div className="p-3 bg-slate-600 rounded-xl text-white">
+                  <Award className="h-6 w-6" />
+                </div>
+                <div>
+                  <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-wider">Registered Birthdays</h4>
+                  <p className="text-2xl font-black text-slate-800">
+                    {[...customers, ...suppliers].filter(p => !!p.birthday).length}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Birthday Registry Table */}
+            <div className="border border-slate-150 rounded-2xl overflow-hidden shadow-sm">
+              <table className="w-full text-left text-xs font-semibold">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-100 text-slate-400 font-bold text-[9px] uppercase tracking-wider">
+                    <th className="py-3 px-6">Name (නම)</th>
+                    <th className="py-3 px-6">Type</th>
+                    <th className="py-3 px-6">Phone (දුරකථන)</th>
+                    <th className="py-3 px-6">Birthday (උපන්දිනය)</th>
+                    <th className="py-3 px-6">NIC / Age</th>
+                    <th className="py-3 px-6 text-center">Status</th>
+                    <th className="py-3 px-6 text-right">Marketing Campaigns</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50 text-slate-700 bg-white">
+                  {(() => {
+                    const list = [...customers.map(c => ({ ...c, type: 'Customer' })), ...suppliers.map(s => ({ ...s, type: 'Supplier' }))]
+                      .filter(p => !!p.birthday)
+                      .map(p => {
+                        const statusInfo = getBirthdayStatus(p.birthday!);
+                        return { ...p, statusInfo };
+                      })
+                      .sort((a, b) => (a.statusInfo?.daysRemaining || 999) - (b.statusInfo?.daysRemaining || 999));
+
+                    if (list.length === 0) {
+                      return (
+                        <tr>
+                          <td colSpan={7} className="py-12 text-center text-slate-400 font-medium">
+                            No registered birthdays found. Edit a customer/supplier to add their NIC or birthday.
+                          </td>
+                        </tr>
+                      );
+                    }
+
+                    return list.map(p => {
+                      const age = p.birthday ? new Date().getFullYear() - new Date(p.birthday).getFullYear() : '-';
+                      const defaultPromoTextSi = `සුභ උපන්දිනයක් වේවා ${p.name}! SmartShop Pro වෙතින් ඔබට විශේෂ තෑග්ගක්: ඊළඟ වතාවේ පැමිණීමේදී 10% ක වට්ටමක් ලබා ගැනීමට BDAY-10 කේතය පෙන්වන්න.`;
+                      const defaultPromoTextEn = `Happy Birthday ${p.name}! SmartShop Pro has a special gift for you: show code BDAY-10 on your next visit to get a 10% discount.`;
+                      const promoMsg = language === 'si' ? defaultPromoTextSi : defaultPromoTextEn;
+
+                      return (
+                        <tr key={p.id} className="hover:bg-slate-50/50">
+                          <td className="py-4 px-6 font-bold text-slate-800">{p.name}</td>
+                          <td className="py-4 px-6">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              p.type === 'Customer' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 'bg-purple-50 text-purple-600 border border-purple-100'
+                            }`}>
+                              {p.type}
+                            </span>
+                          </td>
+                          <td className="py-4 px-6 font-mono font-bold text-slate-500">{p.phone}</td>
+                          <td className="py-4 px-6 font-bold text-slate-600">
+                            {p.birthday ? new Date(p.birthday).toLocaleDateString() : '-'}
+                          </td>
+                          <td className="py-4 px-6 text-slate-450 font-bold">
+                            <div>{p.nic || 'Manual'}</div>
+                            {p.birthday && <div className="text-[10px] text-slate-400">Age: {age} yrs</div>}
+                          </td>
+                          <td className="py-4 px-6 text-center">
+                            {p.statusInfo?.isToday ? (
+                              <span className="bg-rose-500 text-white px-2 py-0.5 rounded-full text-[10px] font-bold animate-pulse">
+                                {p.statusInfo.text}
+                              </span>
+                            ) : (
+                              <span className="bg-slate-100 text-slate-650 px-2.5 py-0.5 rounded-full text-[10px] font-bold">
+                                {p.statusInfo?.text}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-4 px-6 text-right">
+                            <button
+                              onClick={() => {
+                                onSendSms(p.phone, promoMsg);
+                                alert(language === 'en' ? `Birthday Promo SMS sent to ${p.name}!` : `${p.name} වෙත උපන්දින වට්ටම් SMS පණිවිඩය යවන ලදී!`);
+                              }}
+                              className="px-3 py-1.5 bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white rounded-xl text-[10px] font-black shadow-md cursor-pointer transition active:scale-95 flex items-center space-x-1 ml-auto"
+                            >
+                              <Gift className="h-3 w-3 mr-0.5" />
+                              <span>Send Promo SMS</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    });
+                  })()}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* NEW SUPPLIER MODAL */}
       {isSuppModalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -867,7 +1120,7 @@ export const ContactsLoyalty: React.FC<ContactsLoyaltyProps> = ({
                 <Users className="h-4 w-4 mr-1 text-blue-400" />
                 {language === 'en' ? (editingSupplier ? 'Edit Supplier' : 'Add New Supplier') : (editingSupplier ? 'සැපයුම්කරු විස්තර වෙනස් කරන්න' : 'නව විකුණුම්කරුවෙකු ඇතුළත් කරන්න')}
               </h3>
-              <button onClick={() => { setIsSuppModalOpen(false); setEditingSupplier(null); setSName(''); setSPhone(''); setSEmail(''); setSCompany(''); setSAddress(''); setSNotes(''); }} className="text-slate-400 hover:text-white">✕</button>
+              <button onClick={() => { setIsSuppModalOpen(false); setEditingSupplier(null); setSName(''); setSPhone(''); setSEmail(''); setSCompany(''); setSAddress(''); setSNotes(''); setSNic(''); setSBirthday(''); }} className="text-slate-400 hover:text-white">✕</button>
             </div>
 
             <form onSubmit={handleSuppSubmit} className="p-5 space-y-3 text-xs font-semibold">
@@ -892,6 +1145,30 @@ export const ContactsLoyalty: React.FC<ContactsLoyaltyProps> = ({
                   placeholder="e.g. 0112233445" className="w-full px-3 py-1.5 border border-slate-200 rounded-lg"
                 />
               </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-500">NIC Number (Optional)</label>
+                  <input
+                    type="text" value={sNic} 
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSNic(val);
+                      const res = extractBirthdayFromNIC(val);
+                      if (res) {
+                        setSBirthday(res.birthday);
+                      }
+                    }}
+                    placeholder="e.g. 942341234V" className="w-full px-3 py-1.5 border border-slate-200 rounded-lg uppercase"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="font-bold text-slate-500">Birthday (උපන්දිනය)</label>
+                  <input
+                    type="date" value={sBirthday} onChange={(e) => setSBirthday(e.target.value)}
+                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-bold bg-white"
+                  />
+                </div>
+              </div>
               <div className="space-y-1">
                 <label className="font-bold text-slate-500">Email Address</label>
                 <input
@@ -915,7 +1192,7 @@ export const ContactsLoyalty: React.FC<ContactsLoyaltyProps> = ({
               </div>
 
               <div className="flex space-x-2 pt-2">
-                <button type="button" onClick={() => { setIsSuppModalOpen(false); setEditingSupplier(null); setSName(''); setSPhone(''); setSEmail(''); setSCompany(''); setSAddress(''); setSNotes(''); }} className="flex-1 bg-slate-100 py-2 rounded-lg font-bold">Cancel</button>
+                <button type="button" onClick={() => { setIsSuppModalOpen(false); setEditingSupplier(null); setSName(''); setSPhone(''); setSEmail(''); setSCompany(''); setSAddress(''); setSNotes(''); setSNic(''); setSBirthday(''); }} className="flex-1 bg-slate-100 py-2 rounded-lg font-bold">Cancel</button>
                 <button type="submit" className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold shadow">Save Supplier</button>
               </div>
             </form>

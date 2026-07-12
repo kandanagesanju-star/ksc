@@ -34,6 +34,8 @@ export interface Customer {
   notes?: string;
   loyaltyPoints: number;
   loyaltyTier?: 'Bronze' | 'Silver' | 'Gold' | 'Platinum';
+  nic?: string;
+  birthday?: string;
   createdAt: string;
 }
 
@@ -45,6 +47,8 @@ export interface Supplier {
   companyName: string;
   address?: string;
   notes?: string;
+  nic?: string;
+  birthday?: string;
   createdAt: string;
 }
 
