@@ -97,7 +97,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
     let netProfit = totalProfit - totalExpenses;
 
     let activeRepairs = repairs.filter(r => r.status !== 'Delivered' && r.status !== 'Cancelled').length;
-    let pendingSpecialOrders = specialOrders.filter(so => so.status !== 'Shipped/Delivered').length;
+    let pendingSpecialOrders = specialOrders.filter(so => so.status !== 'Dispatched').length;
     let lowStockCount = products.filter(p => p.stock !== 'Unlimited' && p.stock <= p.lowStockAlert).length;
 
     return {
@@ -468,7 +468,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </h3>
           <div className="flex justify-between items-center text-[10px] bg-slate-50 p-2 rounded-xl font-bold">
             <span className="text-slate-400">Undelivered:</span>
-            <span className="text-blue-600">{specialOrders.filter(so => so.status !== 'Shipped/Delivered').length} Pending</span>
+            <span className="text-blue-600">{specialOrders.filter(so => so.status !== 'Dispatched').length} Pending</span>
           </div>
         </div>
 

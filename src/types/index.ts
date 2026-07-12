@@ -244,7 +244,7 @@ export interface SpecialOrder {
   deliveryType: 'Store Pickup' | 'Courier';
   courierAddress?: string;
   courierTrackingNo?: string;
-  status: 'Pending' | 'Ordered from Supplier' | 'Arrived' | 'Shipped/Delivered';
+  status: 'Pending' | 'In Production' | 'Ready' | 'Dispatched';
   notes?: string;
   createdAt: string;
   orderType?: string;

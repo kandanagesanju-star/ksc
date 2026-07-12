@@ -292,7 +292,7 @@ export const initialCommissions: CommissionRecord[] = [
 
 export const initialSpecialOrders: SpecialOrder[] = [
   {
-    id: 'SPO001',
+    id: '#CO-0001',
     customerName: 'Roshan Silva',
     customerPhone: '0761122334',
     itemName: 'Logitech MX Master 3S Mouse',
@@ -300,9 +300,14 @@ export const initialSpecialOrders: SpecialOrder[] = [
     advancePaid: 5000,
     deliveryType: 'Courier',
     courierAddress: 'No 15, Circular Road, Kurunegala',
-    status: 'Ordered from Supplier',
+    status: 'In Production',
     notes: 'Customer requested grey color. Courier delivery needed.',
-    createdAt: '2025-02-19T10:00:00.000Z'
+    createdAt: '2025-02-19T10:00:00.000Z',
+    orderType: 'Other',
+    dueDate: '2026-05-16',
+    items: [
+      { id: 'item-1', name: 'Logitech MX Master 3S Mouse', size: 'N/A', qty: 1, unitPrice: 28500 }
+    ]
   }
 ];
 

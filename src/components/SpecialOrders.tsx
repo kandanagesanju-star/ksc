@@ -33,6 +33,7 @@ export const SpecialOrders: React.FC<SpecialOrdersProps> = ({
 
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState<'Pending' | 'In Production' | 'Ready' | 'Dispatched'>('Pending');
 
   // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -60,15 +61,30 @@ export const SpecialOrders: React.FC<SpecialOrdersProps> = ({
   const [editStatus, setEditStatus] = useState<SpecialOrder['status']>('Pending');
   const [editTracking, setEditTracking] = useState('');
 
-  // Filtered Orders
+  // Count helper
+  const counts = useMemo(() => {
+    return {
+      Pending: specialOrders.filter(so => so.status === 'Pending').length,
+      'In Production': specialOrders.filter(so => so.status === 'In Production').length,
+      Ready: specialOrders.filter(so => so.status === 'Ready').length,
+      Dispatched: specialOrders.filter(so => so.status === 'Dispatched').length,
+    };
+  }, [specialOrders]);
+
+  // Filtered Orders by Search and activeTab
   const filteredOrders = useMemo(() => {
-    return specialOrders.filter(so => 
-      so.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      so.customerPhone.includes(searchQuery) ||
-      so.itemName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (so.orderType && so.orderType.toLowerCase().includes(searchQuery.toLowerCase()))
-    );
-  }, [specialOrders, searchQuery]);
+    return specialOrders.filter(so => {
+      const matchesSearch = 
+        so.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        so.customerPhone.includes(searchQuery) ||
+        so.itemName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (so.orderType && so.orderType.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        so.id.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesTab = so.status === activeTab;
+      return matchesSearch && matchesTab;
+    });
+  }, [specialOrders, searchQuery, activeTab]);
 
   // Filter customers for auto-complete
   const filteredCustomers = useMemo(() => {
@@ -79,6 +95,16 @@ export const SpecialOrders: React.FC<SpecialOrdersProps> = ({
       c.phone.includes(q)
     );
   }, [customers, customerSearch]);
+
+  // Next order ID sequence generator
+  const getNextOrderId = () => {
+    const coOrders = specialOrders.filter(so => so.id.startsWith('#CO-'));
+    if (coOrders.length === 0) return '#CO-0001';
+    const numbers = coOrders.map(so => parseInt(so.id.replace('#CO-', ''), 10)).filter(n => !isNaN(n));
+    if (numbers.length === 0) return '#CO-0001';
+    const maxNum = Math.max(...numbers);
+    return `#CO-${String(maxNum + 1).padStart(4, '0')}`;
+  };
 
   // Calculate dynamic total
   const totalAmount = useMemo(() => {
@@ -164,8 +190,9 @@ export const SpecialOrders: React.FC<SpecialOrdersProps> = ({
         items: orderItems
       });
     } else {
+      const nextId = getNextOrderId();
       const newOrder: SpecialOrder = {
-        id: `SPO-${Math.floor(1000 + Math.random() * 9000)}`,
+        id: nextId,
         customerName: cleanName,
         customerPhone: cleanPhone,
         itemName: mainItemName,
@@ -203,7 +230,26 @@ export const SpecialOrders: React.FC<SpecialOrdersProps> = ({
     setIsModalOpen(true);
   };
 
-  // Handle Update Status
+  // State Transition helpers
+  const handleTransitionStatus = (order: SpecialOrder) => {
+    let nextStatus: SpecialOrder['status'] = 'Pending';
+    if (order.status === 'Pending') nextStatus = 'In Production';
+    else if (order.status === 'In Production') nextStatus = 'Ready';
+    else if (order.status === 'Ready') nextStatus = 'Dispatched';
+
+    onUpdateSpecialOrderStatus(order.id, nextStatus, order.courierTrackingNo);
+  };
+
+  // Cash Ledger collection helper
+  const handleCollectBalance = (order: SpecialOrder) => {
+    const updated = {
+      ...order,
+      advancePaid: order.estimatedCost
+    };
+    onUpdateSpecialOrder(updated);
+  };
+
+  // Handle Update Status Submit
   const handleUpdateStatusSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingOrder) return;
@@ -214,10 +260,10 @@ export const SpecialOrders: React.FC<SpecialOrdersProps> = ({
 
   const getStatusStyle = (status: string) => {
     switch (status) {
-      case 'Pending': return 'bg-amber-100 text-amber-850 border-amber-200';
-      case 'Ordered from Supplier': return 'bg-blue-100 text-blue-850 border-blue-200';
-      case 'Arrived': return 'bg-purple-100 text-purple-850 border-purple-200';
-      case 'Shipped/Delivered': return 'bg-emerald-100 text-emerald-850 border-emerald-200';
+      case 'Pending': return 'bg-amber-100 text-amber-800 border-amber-250';
+      case 'In Production': return 'bg-blue-100 text-blue-800 border-blue-250';
+      case 'Ready': return 'bg-purple-100 text-purple-850 border-purple-250';
+      case 'Dispatched': return 'bg-emerald-100 text-emerald-800 border-emerald-250';
       default: return 'bg-slate-100 text-slate-800';
     }
   };
@@ -225,85 +271,150 @@ export const SpecialOrders: React.FC<SpecialOrdersProps> = ({
   return (
     <div className="space-y-6">
       {/* Header Controls */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
-        <div className="relative flex-1 max-w-md w-full">
-          <Search className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-          <input
-            type="text"
-            placeholder={language === 'en' ? 'Search custom requests...' : 'විශේෂ ඇණවුම් සොයන්න...'}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold text-slate-800"
-          />
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+        {/* Status Tabs */}
+        <div className="flex flex-wrap gap-1.5 shrink-0">
+          {(['Pending', 'In Production', 'Ready', 'Dispatched'] as const).map((tab) => {
+            const isActive = activeTab === tab;
+            const count = counts[tab];
+            let activeColorClass = 'bg-blue-600 border-blue-600 text-white';
+            let activeBadgeClass = 'bg-blue-700 text-white';
+
+            if (tab === 'Pending') {
+              activeColorClass = 'bg-amber-500 border-amber-500 text-white';
+              activeBadgeClass = 'bg-amber-700 text-white';
+            } else if (tab === 'In Production') {
+              activeColorClass = 'bg-blue-600 border-blue-600 text-white';
+              activeBadgeClass = 'bg-blue-700 text-white';
+            } else if (tab === 'Ready') {
+              activeColorClass = 'bg-purple-600 border-purple-600 text-white';
+              activeBadgeClass = 'bg-purple-700 text-white';
+            } else if (tab === 'Dispatched') {
+              activeColorClass = 'bg-emerald-600 border-emerald-600 text-white';
+              activeBadgeClass = 'bg-emerald-700 text-white';
+            }
+
+            return (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-3 py-1.5 rounded-xl text-[11px] font-black transition flex items-center space-x-1.5 border shadow-sm cursor-pointer ${
+                  isActive 
+                    ? activeColorClass 
+                    : 'bg-white text-slate-600 hover:bg-slate-50 border-slate-200'
+                }`}
+              >
+                <span>{tab === 'Pending' ? 'Pending' : tab === 'In Production' ? 'In Production' : tab === 'Ready' ? 'Ready' : 'Dispatched'}</span>
+                <span className={`px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                  isActive ? activeBadgeClass : 'bg-slate-100 text-slate-500'
+                }`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition shadow-md flex items-center shrink-0"
-        >
-          <Plus className="h-4 w-4 mr-1.5" />
-          {language === 'en' ? 'New Custom Order' : 'නව විශේෂ ඇණවුමක්'}
-        </button>
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto flex-1 justify-end">
+          <div className="relative max-w-xs w-full">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder={language === 'en' ? 'Search custom requests...' : 'විශේෂ ඇණවුම් සොයන්න...'}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-205 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs font-bold text-slate-800"
+            />
+          </div>
+
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-750 text-white px-4 py-2 rounded-xl text-xs font-black transition shadow-md flex items-center shrink-0 cursor-pointer"
+          >
+            <Plus className="h-4 w-4 mr-1.5" />
+            {language === 'en' ? 'New Order' : 'නව විශේෂ ඇණවුමක්'}
+          </button>
+        </div>
       </div>
 
       {/* Special Orders Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
         {filteredOrders.length === 0 ? (
           <div className="col-span-full bg-white rounded-2xl shadow-sm border border-slate-100 py-12 text-center text-slate-400 font-medium">
-            No special or custom orders found.
+            No special or custom orders found in "{activeTab}" status.
           </div>
         ) : (
-          filteredOrders.map(order => (
-            <div key={order.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition flex flex-col justify-between">
-              <div className="p-5 space-y-3.5">
+          filteredOrders.map(order => {
+            const cardBalance = order.estimatedCost - order.advancePaid;
+            return (
+              <div key={order.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden hover:shadow-md transition flex flex-col justify-between p-5 space-y-4">
                 {/* Header */}
                 <div className="flex justify-between items-start">
                   <div>
-                    <span className="bg-slate-100 text-slate-500 text-[10px] font-bold px-2 py-0.5 rounded">
-                      ID: {order.id}
+                    <span className="bg-slate-100 text-slate-800 text-xs font-black px-2 py-0.5 rounded">
+                      {order.id}
                     </span>
-                    {order.orderType && (
-                      <span className="ml-1.5 bg-blue-50 text-blue-700 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-blue-100">
-                        {order.orderType}
-                      </span>
-                    )}
-                    <h4 className="text-sm font-extrabold text-slate-800 mt-2">
-                      {order.itemName}
-                    </h4>
-                    {order.dueDate && (
-                      <div className="text-[10px] font-bold text-rose-600 mt-1 flex items-center">
-                        <Clock className="h-3 w-3 mr-1" />
-                        Due: {new Date(order.dueDate).toLocaleDateString()}
-                      </div>
-                    )}
+                    <span className={`ml-2 px-2.5 py-0.5 rounded-full text-[10px] font-black border ${getStatusStyle(order.status)}`}>
+                      {order.status}
+                    </span>
                   </div>
-                  <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold border ${getStatusStyle(order.status)}`}>
-                    {order.status}
-                  </span>
+                </div>
+
+                {/* Order Type / Item details */}
+                <div>
+                  <h4 className="text-sm font-black text-slate-800 uppercase tracking-wide">
+                    {order.orderType || 'Other'}
+                  </h4>
+                  <p className="text-[11px] text-slate-550 font-bold mt-1 bg-slate-50 p-2 rounded-lg border border-slate-100">
+                    {order.itemName}
+                  </p>
                 </div>
 
                 {/* Customer Details */}
-                <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-xs space-y-1">
-                  <div className="font-extrabold text-slate-700 flex items-center">
-                    <User className="h-3.5 w-3.5 mr-1 text-slate-400" />
+                <div className="space-y-0.5">
+                  <div className="text-sm font-black text-slate-800">
                     {order.customerName}
                   </div>
-                  <div className="text-[10px] text-slate-400 font-bold flex items-center">
-                    <Phone className="h-3 w-3 mr-1" />
+                  <div className="text-xs text-slate-450 font-bold">
                     {order.customerPhone}
                   </div>
                 </div>
 
-                {/* Items & Variants Details */}
+                {/* Due Date */}
+                {order.dueDate && (
+                  <div className="text-xs font-bold text-slate-600 flex items-center">
+                    <Clock className="h-3.5 w-3.5 mr-1.5 text-slate-400" />
+                    <span>Due: {new Date(order.dueDate).toLocaleDateString()}</span>
+                  </div>
+                )}
+
+                {/* Balance Status Banner */}
+                {cardBalance > 0 ? (
+                  <div className="bg-amber-50 text-amber-900 p-2 rounded-xl border border-amber-200 flex items-center text-xs font-black">
+                    <span className="mr-1.5 text-amber-550 text-sm">⚠</span>
+                    <span>Rs. {cardBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })} Pending</span>
+                  </div>
+                ) : (
+                  <div className="bg-emerald-50 text-emerald-900 p-2 rounded-xl border border-emerald-250 flex items-center text-xs font-black">
+                    <span className="mr-1.5 text-emerald-655 text-sm">✓</span>
+                    <span>Paid in Full</span>
+                  </div>
+                )}
+
+                {/* Remarks */}
+                <div className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-100 leading-relaxed font-semibold">
+                  {order.notes || 'No description'}
+                </div>
+
+                {/* Items & Variants Details in list */}
                 {order.items && order.items.length > 0 && (
                   <div className="space-y-1 bg-slate-50/50 p-2.5 rounded-xl border border-slate-100 text-[11px] font-semibold text-slate-700">
-                    <div className="text-[10px] uppercase font-extrabold text-slate-400 mb-1">Items & Variants</div>
                     {order.items.map((item, idx) => (
                       <div key={item.id || idx} className="flex justify-between items-center border-b border-slate-100 last:border-0 pb-1 last:pb-0 pt-1 first:pt-0">
                         <span className="truncate max-w-[120px] font-bold">
-                          {item.name} <span className="text-[9px] text-slate-500 bg-slate-105 px-1 rounded font-bold">{item.size}</span>
+                          {item.name} <span className="text-[9px] text-slate-500 bg-slate-150 px-1 rounded font-bold">{item.size}</span>
                         </span>
-                        <span className="text-slate-550 font-bold">
+                        <span className="text-slate-500 font-bold">
                           {item.qty} x Rs. {item.unitPrice.toLocaleString()}
                         </span>
                       </div>
@@ -311,93 +422,79 @@ export const SpecialOrders: React.FC<SpecialOrdersProps> = ({
                   </div>
                 )}
 
-                {/* Delivery Type & Details */}
-                <div className="text-xs font-semibold space-y-1.5 text-slate-600">
-                  <div className="flex justify-between">
-                    <span>Delivery Mode:</span>
-                    <span className="text-slate-800 font-bold">{order.deliveryType}</span>
-                  </div>
-                  {order.deliveryType === 'Courier' && order.courierAddress && (
-                    <div className="bg-blue-50/50 p-2 rounded-lg text-[11px] text-slate-700 font-medium">
-                      <MapPin className="h-3 w-3 inline mr-1 text-blue-500" />
-                      {order.courierAddress}
-                    </div>
-                  )}
-                  {order.courierTrackingNo && (
-                    <div className="text-[10px] text-blue-600 font-bold">
-                      Tracking No: {order.courierTrackingNo}
-                    </div>
-                  )}
-                </div>
-
-                {/* Financial Summary */}
-                <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs space-y-1">
+                {/* Financial Table Breakdown */}
+                <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-150 text-xs space-y-1.5 font-bold">
                   <div className="flex justify-between text-slate-500">
-                    <span>Total Amount:</span>
-                    <span className="font-bold text-slate-800">Rs. {order.estimatedCost.toLocaleString()}</span>
+                    <span>Total</span>
+                    <span className="font-extrabold text-slate-800">Rs. {order.estimatedCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                   </div>
-                  <div className="flex justify-between text-emerald-600 font-bold">
-                    <span>Advance Paid:</span>
-                    <span>Rs. {order.advancePaid.toLocaleString()}</span>
+                  <div className="flex justify-between text-slate-500">
+                    <span>Advance</span>
+                    <span className="font-extrabold text-slate-800">Rs. {order.advancePaid.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                   </div>
-                  <div className="flex justify-between text-blue-600 font-extrabold border-t border-slate-200/60 pt-1.5 mt-1">
-                    <span>Balance Remaining:</span>
-                    <span>Rs. {(order.estimatedCost - order.advancePaid).toLocaleString()}</span>
+                  <div className="flex justify-between text-slate-600 font-black border-t border-slate-200/60 pt-1.5 mt-1">
+                    <span>Balance</span>
+                    <span className={cardBalance > 0 ? 'text-blue-650' : 'text-emerald-700'}>
+                      Rs. {cardBalance.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                    </span>
                   </div>
                 </div>
 
-                {/* Work Remarks */}
-                {order.notes && (
-                  <div className="bg-amber-50/50 border border-amber-100 p-2.5 rounded-xl text-[10px] text-slate-600 leading-relaxed font-medium">
-                    <Notebook className="h-3.5 w-3.5 inline mr-1 text-amber-700" />
-                    {order.notes}
+                {/* Actions Block */}
+                <div className="pt-3 border-t border-slate-100 space-y-2">
+                  <div className="flex gap-2">
+                    {cardBalance > 0 && (
+                      <button
+                        onClick={() => handleCollectBalance(order)}
+                        className="flex-1 bg-amber-600 hover:bg-amber-750 text-white py-1.5 rounded-xl text-xs font-black transition shadow-sm cursor-pointer text-center"
+                      >
+                        Collect Balance
+                      </button>
+                    )}
+                    
+                    {order.status !== 'Dispatched' && (
+                      <button
+                        onClick={() => handleTransitionStatus(order)}
+                        className="flex-1 bg-blue-600 hover:bg-blue-750 text-white py-1.5 rounded-xl text-xs font-black transition shadow-sm cursor-pointer text-center"
+                      >
+                        {order.status === 'Pending' && 'Move to In-Production'}
+                        {order.status === 'In Production' && 'Move to Ready'}
+                        {order.status === 'Ready' && 'Move to Dispatched'}
+                      </button>
+                    )}
                   </div>
-                )}
-              </div>
 
-              {/* Actions */}
-              <div className="bg-slate-50 p-3.5 border-t border-slate-100 flex flex-wrap justify-between items-center gap-2">
-                <div className="flex gap-1.5">
-                  {order.deliveryType === 'Courier' && (
+                  <div className="flex justify-between items-center gap-2">
                     <button
                       onClick={() => setPrintLabelOrder(order)}
-                      className="bg-slate-800 hover:bg-slate-900 text-white px-2.5 py-1.5 rounded-xl text-[10px] font-bold shadow-sm transition flex items-center cursor-pointer"
+                      className="bg-slate-800 hover:bg-slate-900 text-white px-3 py-1.5 rounded-xl text-[10px] font-bold shadow-sm transition flex items-center cursor-pointer"
                     >
-                      <Printer className="h-3 w-3 mr-1" />
-                      Print Label
+                      <Printer className="h-3 w-3 mr-1" /> Label
                     </button>
-                  )}
-                  <button
-                    onClick={() => {
-                      setEditingOrder(order);
-                      setEditStatus(order.status);
-                      setEditTracking(order.courierTrackingNo || '');
-                    }}
-                    className="bg-blue-650 hover:bg-blue-700 text-white px-2.5 py-1.5 rounded-xl text-[10px] font-bold shadow-sm transition flex items-center cursor-pointer"
-                  >
-                    Status
-                  </button>
-                  <button
-                    onClick={() => handleEditClick(order)}
-                    className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1.5 rounded-xl text-[10px] font-bold transition flex items-center cursor-pointer"
-                  >
-                    Edit
-                  </button>
+
+                    <div className="flex gap-1.5">
+                      <button
+                        onClick={() => handleEditClick(order)}
+                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-xl text-[10px] font-bold transition cursor-pointer"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (confirm(`Are you sure you want to delete special order ${order.id}?`)) {
+                            onDeleteSpecialOrder(order.id);
+                          }
+                        }}
+                        className="p-1 text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <button
-                  onClick={() => {
-                    if (confirm(language === 'en' ? `Are you sure you want to delete special order ${order.id}?` : `විශේෂ ඇණවුම ${order.id} මකා දැමීමට අවශ්‍ය බව ස්ථිරද?`)) {
-                      onDeleteSpecialOrder(order.id);
-                    }
-                  }}
-                  className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer"
-                  title="Delete Special Order"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -483,14 +580,21 @@ export const SpecialOrders: React.FC<SpecialOrdersProps> = ({
                     placeholder="Select or type..."
                     className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-bold bg-white"
                   />
+                  <p className="text-[9px] text-slate-400 font-semibold mt-0.5">Type any custom order type name directly if not in the list.</p>
                   <datalist id="order-types">
                     <option value="Clothing / T-Shirt" />
                     <option value="Cap / Embroidery" />
-                    <option value="Banner Printing" />
-                    <option value="Custom Mug" />
+                    <option value="Banner / Flex Printing" />
+                    <option value="Custom Mug / Cup" />
                     <option value="Sticker / Decal" />
                     <option value="Business Cards" />
-                    <option value="Gift Item" />
+                    <option value="Uniforms / Suits" />
+                    <option value="Sportswear / Jersey" />
+                    <option value="Engraving / Plaque" />
+                    <option value="Rubber Stamp" />
+                    <option value="Gift Item / Toy" />
+                    <option value="Charger Type C Original" />
+                    <option value="Screen Guard / Temper" />
                     <option value="Other" />
                   </datalist>
                 </div>
@@ -508,13 +612,13 @@ export const SpecialOrders: React.FC<SpecialOrdersProps> = ({
               </div>
 
               {/* Items & Variants */}
-              <div className="space-y-2 border border-slate-100 p-3 rounded-xl bg-slate-50">
+              <div className="space-y-2 border border-slate-100 p-3 rounded-xl bg-slate-55">
                 <div className="flex justify-between items-center pb-1.5 border-b border-slate-200">
                   <span className="font-bold text-slate-700">Order Items & Variants</span>
                   <button
                     type="button"
                     onClick={handleAddItem}
-                    className="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2.5 py-1 rounded-lg text-[10px] font-bold transition flex items-center"
+                    className="bg-blue-50 hover:bg-blue-100 text-blue-600 px-2.5 py-1 rounded-lg text-[10px] font-bold transition flex items-center cursor-pointer"
                   >
                     <Plus className="h-3.5 w-3.5 mr-1" /> Add Item
                   </button>
@@ -569,7 +673,7 @@ export const SpecialOrders: React.FC<SpecialOrdersProps> = ({
                       <button
                         type="button"
                         onClick={() => handleRemoveItem(item.id)}
-                        className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-md transition shrink-0"
+                        className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-md transition shrink-0 cursor-pointer"
                       >
                         <X className="h-3.5 w-3.5" />
                       </button>
@@ -596,7 +700,7 @@ export const SpecialOrders: React.FC<SpecialOrdersProps> = ({
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button" onClick={() => setDeliveryType('Store Pickup')}
-                    className={`py-1.5 rounded-lg border text-xs font-bold transition ${
+                    className={`py-1.5 rounded-lg border text-xs font-bold transition cursor-pointer ${
                       deliveryType === 'Store Pickup' ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-600 border-slate-200'
                     }`}
                   >
@@ -604,7 +708,7 @@ export const SpecialOrders: React.FC<SpecialOrdersProps> = ({
                   </button>
                   <button
                     type="button" onClick={() => setDeliveryType('Courier')}
-                    className={`py-1.5 rounded-lg border text-xs font-bold transition ${
+                    className={`py-1.5 rounded-lg border text-xs font-bold transition cursor-pointer ${
                       deliveryType === 'Courier' ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-600 border-slate-200'
                     }`}
                   >
@@ -654,8 +758,8 @@ export const SpecialOrders: React.FC<SpecialOrdersProps> = ({
               </div>
 
               <div className="flex space-x-2 pt-3 border-t border-slate-100 shrink-0">
-                <button type="button" onClick={handleCloseModal} className="flex-1 bg-slate-100 py-2 rounded-lg font-bold">Cancel</button>
-                <button type="submit" className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold shadow">Save Order</button>
+                <button type="button" onClick={handleCloseModal} className="flex-1 bg-slate-100 py-2 rounded-lg font-bold cursor-pointer">Cancel</button>
+                <button type="submit" className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold shadow cursor-pointer">Save Order</button>
               </div>
             </form>
           </div>
@@ -683,13 +787,13 @@ export const SpecialOrders: React.FC<SpecialOrdersProps> = ({
                   className="w-full px-3 py-1.5 border border-slate-200 rounded-lg bg-white"
                 >
                   <option value="Pending">Pending (පොරොත්තු ලේඛනයේ)</option>
-                  <option value="Ordered from Supplier">Ordered from Supplier (සැපයුම්කරුගෙන් ඇණවුම් කළ)</option>
-                  <option value="Arrived">Arrived (කඩයට ලැබුණු)</option>
-                  <option value="Shipped/Delivered">Shipped/Delivered (පාරිභෝගිකයාට ලැබුණු)</option>
+                  <option value="In Production">In Production (නිෂ්පාදනය වෙමින් පවතී)</option>
+                  <option value="Ready">Ready (නිම කර ඇත)</option>
+                  <option value="Dispatched">Dispatched (ලබා දී ඇත)</option>
                 </select>
               </div>
 
-              {editingOrder.deliveryType === 'Courier' && editStatus === 'Shipped/Delivered' && (
+              {editingOrder.deliveryType === 'Courier' && editStatus === 'Dispatched' && (
                 <div className="space-y-1 animate-in slide-in-from-top-2 duration-150">
                   <label className="font-bold text-slate-500">Courier Tracking Number</label>
                   <input
@@ -700,8 +804,8 @@ export const SpecialOrders: React.FC<SpecialOrdersProps> = ({
               )}
 
               <div className="flex space-x-2 pt-2">
-                <button type="button" onClick={() => setEditingOrder(null)} className="flex-1 bg-slate-100 py-2 rounded-lg font-bold">Cancel</button>
-                <button type="submit" className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold shadow">Save Status</button>
+                <button type="button" onClick={() => setEditingOrder(null)} className="flex-1 bg-slate-100 py-2 rounded-lg font-bold cursor-pointer">Cancel</button>
+                <button type="submit" className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold shadow cursor-pointer">Save Status</button>
               </div>
             </form>
           </div>
