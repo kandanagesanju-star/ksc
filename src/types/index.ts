@@ -126,15 +126,34 @@ export interface Sale {
   totalTax: number; // Combined VAT + SSCL
   vatTotal: number;
   ssclTotal: number;
-  paymentMethod: 'Cash' | 'Card' | 'Online Transfer' | 'Pending';
+  paymentMethod: 'Cash' | 'Card' | 'Online Transfer' | 'Pending' | 'Cheque';
   loyaltyPointsEarned: number;
   loyaltyPointsRedeemed?: number;
   loyaltyRedemptionDiscount?: number;
   createdAt: string;
   isOfflinePending?: boolean; // True if saved offline and waiting to sync
-  paymentReference?: string; // Card/Bank transaction details
+  paymentReference?: string; // Card/Bank transaction details / Cheque number
   amountPaid?: number;
   changeDue?: number;
+  chequeDetails?: {
+    chequeNumber: string;
+    bankName: string;
+    dueDate: string;
+  };
+}
+
+export interface Cheque {
+  id: string;
+  chequeNumber: string;
+  bankName: string;
+  dueDate: string;
+  amount: number;
+  type: 'Received' | 'Issued';
+  payerPayeeName: string; // Customer, Supplier or Expense Payee name
+  status: 'Pending' | 'Realized' | 'Bounced';
+  relatedId?: string; // Link to Sale id, Purchase id, or Expense id
+  notes?: string;
+  createdAt: string;
 }
 
 export interface PurchaseOrder {

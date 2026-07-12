@@ -40,7 +40,8 @@ import {
   Product, Customer, Supplier, RepairJob, Sale, Employee, 
   AttendanceRecord, CommissionRecord, SpecialOrder, Expense, 
   StockAdjustment, StockReturn, Quotation, SystemAuditLog, 
-  ShopSettings, RepairStatus, RegisterShift, SmsLog, BankTransaction, WarrantyReplacement
+  ShopSettings, RepairStatus, RegisterShift, SmsLog, BankTransaction, WarrantyReplacement,
+  Cheque
 } from './types';
 import { translations } from './lib/translations';
 import { 
@@ -120,6 +121,11 @@ function App() {
   const [auditLogs, setAuditLogs] = useState<SystemAuditLog[]>(() => {
     const saved = localStorage.getItem('shop_audit_logs');
     return saved ? JSON.parse(saved) : initialAuditLogs;
+  });
+
+  const [cheques, setCheques] = useState<Cheque[]>(() => {
+    const saved = localStorage.getItem('shop_cheques');
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [settings, setSettings] = useState<ShopSettings>(() => {
@@ -489,6 +495,7 @@ function App() {
       stockReturns,
       quotations,
       settings,
+      cheques,
       lastUpdated: parseInt(localStorage.getItem('shop_last_updated') || '0', 10)
     };
   };
@@ -549,6 +556,10 @@ function App() {
   useEffect(() => {
     localStorage.setItem('shop_audit_logs', JSON.stringify(auditLogs));
   }, [auditLogs]);
+
+  useEffect(() => {
+    localStorage.setItem('shop_cheques', JSON.stringify(cheques));
+  }, [cheques]);
 
   useEffect(() => {
     try {
@@ -1302,6 +1313,24 @@ function App() {
     saveCloudDoc('suppliers', newSupplier.id, newSupplier);
   };
 
+  const handleAddCheque = (newCheque: Cheque) => {
+    setCheques(prev => [newCheque, ...prev]);
+    addAuditLog('CHEQUE_RECORDED', `Recorded cheque ${newCheque.chequeNumber} for LKR ${newCheque.amount}`);
+    saveCloudDoc('cheques', newCheque.id, newCheque);
+  };
+
+  const handleUpdateChequeStatus = (chequeId: string, status: 'Pending' | 'Realized' | 'Bounced', notes?: string) => {
+    setCheques(prev => prev.map(ch => {
+      if (ch.id === chequeId) {
+        const updated = { ...ch, status, notes: notes !== undefined ? notes : ch.notes };
+        addAuditLog('CHEQUE_STATUS_UPDATED', `Updated cheque ${ch.chequeNumber} status to ${status}`);
+        saveCloudDoc('cheques', ch.id, updated);
+        return updated;
+      }
+      return ch;
+    }));
+  };
+
   const handleAddRepair = (newRepair: RepairJob) => {
     setRepairs(prev => [newRepair, ...prev]);
     addAuditLog('REPAIR_REGISTERED', `Registered repair job ${newRepair.id} for ${newRepair.deviceName}`);
@@ -1794,6 +1823,7 @@ function App() {
     if (data.stockReturns) setStockReturns(data.stockReturns);
     if (data.quotations) setQuotations(data.quotations);
     if (data.settings) setSettings(data.settings);
+    if (data.cheques) setCheques(data.cheques);
     
     const timestamp = data.lastUpdated ? data.lastUpdated.toString() : Date.now().toString();
     localStorage.setItem('shop_last_updated', timestamp);
@@ -1823,6 +1853,7 @@ function App() {
         bankBalance: Number(localStorage.getItem('shop_bank_balance') || '0'),
         stockAdjustments: JSON.parse(localStorage.getItem('shop_stock_adjustments') || '[]'),
         auditLogs: JSON.parse(localStorage.getItem('shop_audit_logs') || '[]'),
+        cheques: JSON.parse(localStorage.getItem('shop_cheques') || '[]'),
         version: '1.0.0',
         exportedAt: new Date().toISOString()
       };
@@ -1900,6 +1931,7 @@ function App() {
       if (data.bankBalance !== undefined) localStorage.setItem('shop_bank_balance', String(data.bankBalance));
       if (data.stockAdjustments) localStorage.setItem('shop_stock_adjustments', JSON.stringify(data.stockAdjustments));
       if (data.auditLogs) localStorage.setItem('shop_audit_logs', JSON.stringify(data.auditLogs));
+      if (data.cheques) localStorage.setItem('shop_cheques', JSON.stringify(data.cheques));
 
       addAuditLog('DATABASE_RESTORED', 'Restored complete database state from backup file.');
       alert(
@@ -2433,7 +2465,8 @@ function App() {
                         { key: 'warranty', label: language === 'en' ? 'Warranty replacements' : 'වගකීම් මාරු කිරීම්', icon: Shield },
                         { key: 'turnover', label: language === 'en' ? 'Turnover Analysis' : 'පිරිවැටුම් විශ්ලේෂණය', icon: PieChart },
                         { key: 'shifts', label: language === 'en' ? 'Register Shifts' : 'මුදල් ලාච්චු මාරු', icon: Clock },
-                        { key: 'wastage', label: language === 'en' ? 'Wastage report' : 'අපතේ යාම්', icon: AlertTriangle }
+                        { key: 'wastage', label: language === 'en' ? 'Wastage report' : 'අපතේ යාම්', icon: AlertTriangle },
+                        { key: 'cheques', label: language === 'en' ? 'Cheque Registry' : 'චෙක්පත් ලේඛනය', icon: CreditCard }
                       ].map(sub => {
                         const Icon = sub.icon;
                         const isActive = adminTab === 'reports' && adminSubTab === sub.key;
@@ -2774,6 +2807,9 @@ function App() {
                   shifts={shifts}
                   stockAdjustments={stockAdjustments}
                   settings={settings}
+                  cheques={cheques}
+                  onAddCheque={handleAddCheque}
+                  onUpdateChequeStatus={handleUpdateChequeStatus}
                   warrantyReplacements={warrantyReplacements}
                   onWarrantyReplacement={handleWarrantyReplacement}
                   onAddStockReturn={handleAddStockReturn}

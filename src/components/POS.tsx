@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { generateQrCodeDataUrl } from '../lib/qr';
-import { Product, Category, Customer, Sale, SaleItem, Employee, RegisterShift, ShopSettings } from '../types';
+import { Product, Category, Customer, Sale, SaleItem, Employee, RegisterShift, ShopSettings, Cheque } from '../types';
 import { translations } from '../lib/translations';
 import { translateToSinhala } from '../lib/translate';
 import { 
@@ -30,6 +30,7 @@ interface POSProps {
   onAddProduct?: (product: Product) => void;
   isFullScreen?: boolean;
   onToggleFullScreen?: () => void;
+  onAddCheque?: (cheque: Cheque) => void;
 }
 
 const isOutOfStock = (stock: number | 'Unlimited' | string | undefined | null) => {
@@ -59,7 +60,8 @@ export const POS: React.FC<POSProps> = ({
   onAddCategory,
   onAddProduct,
   isFullScreen = false,
-  onToggleFullScreen
+  onToggleFullScreen,
+  onAddCheque
 }) => {
   const t = translations[language];
 
@@ -86,12 +88,15 @@ export const POS: React.FC<POSProps> = ({
   const [weightUnit, setWeightUnit] = useState<'kg' | 'g'>('kg');
   
   const [priceMode, setPriceMode] = useState<'Retail' | 'Wholesale'>('Retail');
-  const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Card' | 'Online Transfer' | 'Pending'>('Cash');
+  const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Card' | 'Online Transfer' | 'Pending' | 'Cheque'>('Cash');
   const [discount, setDiscount] = useState<number>(0);
   const [redeemPoints, setRedeemPoints] = useState(false);
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   const [amountPaid, setAmountPaid] = useState<number>(0);
   const [paymentReference, setPaymentReference] = useState<string>('');
+  const [chequeNum, setChequeNum] = useState<string>('');
+  const [chequeBank, setChequeBank] = useState<string>('');
+  const [chequeDate, setChequeDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
 
   // Quick Add Product states
   const [isQuickAddModalOpen, setIsQuickAddModalOpen] = useState(false);
@@ -897,6 +902,17 @@ export const POS: React.FC<POSProps> = ({
       return;
     }
 
+    if (paymentMethod === 'Cheque') {
+      if (!chequeNum.trim() || !chequeBank.trim() || !chequeDate) {
+        alert(
+          language === 'en'
+            ? '⚠️ Cheque details (Cheque Number, Bank, Due Date) are required!'
+            : '⚠️ චෙක්පත් විස්තර (චෙක්පත් අංකය, බැංකුව, ගෙවිය යුතු දිනය) ඇතුළත් කිරීම අනිවාර්ය වේ!'
+        );
+        return;
+      }
+    }
+
     // Double check stock
     for (const item of posCart) {
       const p = item.product;
@@ -932,7 +948,12 @@ export const POS: React.FC<POSProps> = ({
       vatTotal: totals.vatTotal,
       ssclTotal: totals.ssclTotal,
       paymentMethod,
-      paymentReference: (paymentMethod === 'Card' || paymentMethod === 'Online Transfer') ? finalRef : undefined,
+      paymentReference: paymentMethod === 'Cheque' ? chequeNum.trim() : ((paymentMethod === 'Card' || paymentMethod === 'Online Transfer') ? finalRef : undefined),
+      chequeDetails: paymentMethod === 'Cheque' ? {
+        chequeNumber: chequeNum.trim(),
+        bankName: chequeBank.trim(),
+        dueDate: chequeDate
+      } : undefined,
       loyaltyPointsEarned: Math.floor(totals.total / (settings.loyaltyPointValue || 1000)),
       loyaltyPointsRedeemed: totals.loyaltyPointsRedeemed,
       loyaltyRedemptionDiscount: totals.loyaltyRedemptionDiscount,
@@ -940,6 +961,21 @@ export const POS: React.FC<POSProps> = ({
       amountPaid: finalAmountPaid,
       changeDue: finalChangeDue
     };
+
+    if (paymentMethod === 'Cheque' && onAddCheque) {
+      onAddCheque({
+        id: `CHQ-${Date.now()}`,
+        chequeNumber: chequeNum.trim(),
+        bankName: chequeBank.trim(),
+        dueDate: chequeDate,
+        amount: totals.total,
+        type: 'Received',
+        payerPayeeName: selectedCustomer?.name || (language === 'en' ? 'Walk-In Customer' : 'පැමිණි පාරිභෝගිකයා'),
+        status: 'Pending',
+        relatedId: saleId,
+        createdAt: new Date().toISOString()
+      });
+    }
 
     // Update stock levels
     posCart.forEach(item => {
@@ -960,6 +996,8 @@ export const POS: React.FC<POSProps> = ({
     setRedeemPoints(false);
     setAmountPaid(0);
     setPaymentReference('');
+    setChequeNum('');
+    setChequeBank('');
     setSelectedCustomer(null);
     setCustomerSearch('');
     setApplyVat(false);
@@ -1737,20 +1775,21 @@ export const POS: React.FC<POSProps> = ({
         <div className="border-t border-slate-200 pt-3 space-y-3">
           <div className="space-y-1">
             <label className="text-[11px] font-bold text-slate-500">{t.payMethod}:</label>
-            <div className="grid grid-cols-4 gap-1">
+            <div className="grid grid-cols-5 gap-1">
               {[
                 { key: 'Cash' as const, label: t.cash },
                 { key: 'Card' as const, label: t.card },
                 { key: 'Online Transfer' as const, label: language === 'en' ? 'Bank' : 'බැංකු' },
-                { key: 'Pending' as const, label: language === 'en' ? 'Unpaid' : 'ණය' }
+                { key: 'Pending' as const, label: language === 'en' ? 'Unpaid' : 'ණය' },
+                { key: 'Cheque' as const, label: language === 'en' ? 'Cheque' : 'චෙක්පත්' }
               ].map(pay => (
                 <button
                   key={pay.key}
                   onClick={() => setPaymentMethod(pay.key)}
-                  className={`py-1.5 rounded-lg text-[10px] font-bold border transition ${
+                  className={`py-1.5 rounded-lg text-[9px] font-black border transition ${
                     paymentMethod === pay.key
                       ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                      : 'bg-slate-50 text-slate-655 border-slate-200 hover:bg-slate-100'
                   }`}
                 >
                   {pay.label}
@@ -1875,7 +1914,47 @@ export const POS: React.FC<POSProps> = ({
             </div>
 
             {/* Amount Paid row (Cash/Pending checkout only) */}
-            {(paymentMethod === 'Cash' || paymentMethod === 'Pending') ? (
+            {paymentMethod === 'Cheque' ? (
+              <div className="px-3 py-2.5 space-y-2 bg-slate-50/50">
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-0.5">
+                    <label className="text-[9px] font-black text-slate-550 uppercase tracking-wide">
+                      {language === 'en' ? 'Cheque No *' : 'චෙක්පත් අංකය *'}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. CHQ123456"
+                      value={chequeNum}
+                      onChange={(e) => setChequeNum(e.target.value)}
+                      className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <label className="text-[9px] font-black text-slate-550 uppercase tracking-wide">
+                      {language === 'en' ? 'Bank *' : 'බැංකුව *'}
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. BOC, Sampath..."
+                      value={chequeBank}
+                      onChange={(e) => setChequeBank(e.target.value)}
+                      className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <label className="text-[9px] font-black text-slate-550 uppercase tracking-wide">
+                    {language === 'en' ? 'Due Date *' : 'ගෙවිය යුතු දිනය *'}
+                  </label>
+                  <input
+                    type="date"
+                    value={chequeDate}
+                    onChange={(e) => setChequeDate(e.target.value)}
+                    className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  />
+                </div>
+              </div>
+            ) : (paymentMethod === 'Cash' || paymentMethod === 'Pending') ? (
               <div className="px-3 py-2 space-y-1.5">
                 <div className="flex justify-between items-center">
                   <span className="text-[10px] font-bold text-slate-500">{language === 'en' ? 'Amount Paid' : 'ලබාදුන් මුදල'}</span>
@@ -1901,7 +1980,7 @@ export const POS: React.FC<POSProps> = ({
                         className={`flex-1 py-1 text-[9px] font-bold rounded-lg border transition ${
                           amountPaid === amt
                             ? 'bg-emerald-600 text-white border-emerald-600'
-                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700'
+                            : 'bg-slate-50 text-slate-655 border-slate-200 hover:bg-emerald-50 hover:border-emerald-200 hover:text-emerald-700'
                         }`}
                       >
                         {amt >= 1000 ? `${amt/1000}K` : amt}
@@ -1912,7 +1991,7 @@ export const POS: React.FC<POSProps> = ({
                       className={`flex-1 py-1 text-[9px] font-bold rounded-lg border transition ${
                         amountPaid === totals.total
                           ? 'bg-blue-600 text-white border-blue-600'
-                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700'
+                          : 'bg-slate-50 text-slate-655 border-slate-200 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700'
                       }`}
                     >
                       Exact

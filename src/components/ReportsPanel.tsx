@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { generateQrCodeDataUrl } from '../lib/qr';
-import { Sale, SaleItem, Expense, RepairJob, Customer, Product, Quotation, RegisterShift, StockAdjustment, ShopSettings, WarrantyReplacement, StockReturn } from '../types';
+import { Sale, SaleItem, Expense, RepairJob, Customer, Product, Quotation, RegisterShift, StockAdjustment, ShopSettings, WarrantyReplacement, StockReturn, Cheque } from '../types';
 import { translations } from '../lib/translations';
 import { 
   BarChart3, DollarSign, TrendingUp, AlertTriangle, Download, 
@@ -21,6 +21,9 @@ interface ReportsPanelProps {
   shifts: RegisterShift[];
   stockAdjustments: StockAdjustment[];
   settings: ShopSettings;
+  cheques?: Cheque[];
+  onAddCheque?: (cheque: Cheque) => void;
+  onUpdateChequeStatus?: (id: string, status: 'Pending' | 'Realized' | 'Bounced', notes?: string) => void;
   warrantyReplacements?: WarrantyReplacement[];
   onWarrantyReplacement?: (r: WarrantyReplacement) => void;
   onAddStockReturn?: (ret: StockReturn) => void;
@@ -43,6 +46,9 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
   shifts,
   stockAdjustments,
   settings,
+  cheques = [],
+  onAddCheque,
+  onUpdateChequeStatus,
   warrantyReplacements = [],
   onWarrantyReplacement,
   onAddStockReturn,
@@ -57,11 +63,11 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
 
   // Report type state
   const [reportType, setReportType] = useState<
-    'sales' | 'tax' | 'expenses' | 'profit-loss' | 'stock' | 'dues' | 'estimates' | 'warranty' | 'turnover' | 'shifts' | 'wastage'
+    'sales' | 'tax' | 'expenses' | 'profit-loss' | 'stock' | 'dues' | 'estimates' | 'warranty' | 'turnover' | 'shifts' | 'wastage' | 'cheques'
   >('sales');
 
   useEffect(() => {
-    if (activeSubTab && (activeSubTab === 'sales' || activeSubTab === 'tax' || activeSubTab === 'expenses' || activeSubTab === 'profit-loss' || activeSubTab === 'stock' || activeSubTab === 'dues' || activeSubTab === 'estimates' || activeSubTab === 'warranty' || activeSubTab === 'turnover' || activeSubTab === 'shifts' || activeSubTab === 'wastage')) {
+    if (activeSubTab && (activeSubTab === 'sales' || activeSubTab === 'tax' || activeSubTab === 'expenses' || activeSubTab === 'profit-loss' || activeSubTab === 'stock' || activeSubTab === 'dues' || activeSubTab === 'estimates' || activeSubTab === 'warranty' || activeSubTab === 'turnover' || activeSubTab === 'shifts' || activeSubTab === 'wastage' || activeSubTab === 'cheques')) {
       setReportType(activeSubTab as any);
     }
   }, [activeSubTab]);
@@ -86,6 +92,18 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
   const [editingSale, setEditingSale] = useState<Sale | null>(null);
 
+  // Cheque Manual Entry form states
+  const [isChqModalOpen, setIsChqModalOpen] = useState(false);
+  const [newChqNum, setNewChqNum] = useState('');
+  const [newChqBank, setNewChqBank] = useState('');
+  const [newChqDate, setNewChqDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [newChqAmount, setNewChqAmount] = useState<number>(0);
+  const [newChqType, setNewChqType] = useState<'Received' | 'Issued'>('Received');
+  const [newChqPayerPayee, setNewChqPayerPayee] = useState('');
+  const [newChqNotes, setNewChqNotes] = useState('');
+  const [chqFilterStatus, setChqFilterStatus] = useState<'all' | 'Pending' | 'Realized' | 'Bounced'>('all');
+  const [chqFilterType, setChqFilterType] = useState<'all' | 'Received' | 'Issued'>('all');
+
   // Edit Expense form states
   const [editExpCategory, setEditExpCategory] = useState<Expense['category']>('Other');
   const [editExpDescription, setEditExpDescription] = useState('');
@@ -95,7 +113,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
 
   // Edit Sale form states
   const [editSaleCustomerName, setEditSaleCustomerName] = useState('');
-  const [editSalePaymentMethod, setEditSalePaymentMethod] = useState<'Cash' | 'Card' | 'Online Transfer' | 'Pending'>('Cash');
+  const [editSalePaymentMethod, setEditSalePaymentMethod] = useState<'Cash' | 'Card' | 'Online Transfer' | 'Pending' | 'Cheque'>('Cash');
   const [editSaleCreatedAt, setEditSaleCreatedAt] = useState('');
   const [editSaleVat, setEditSaleVat] = useState<number>(0);
   const [editSaleSscl, setEditSaleSscl] = useState<number>(0);
@@ -116,6 +134,36 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
     setEditSaleCreatedAt(sale.createdAt.split('T')[0]);
     setEditSaleVat(sale.vatTotal || 0);
     setEditSaleSscl(sale.ssclTotal || 0);
+  };
+
+  const handleManualChequeSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newChqNum.trim() || !newChqBank.trim() || !newChqPayerPayee.trim() || newChqAmount <= 0) {
+      alert(language === 'en' ? 'Please fill in all required fields!' : 'කරුණාකර සියලුම අනිවාර්ය ක්ෂේත්‍ර පුරවන්න!');
+      return;
+    }
+
+    if (onAddCheque) {
+      onAddCheque({
+        id: `CHQ-M-${Date.now()}`,
+        chequeNumber: newChqNum.trim(),
+        bankName: newChqBank.trim(),
+        dueDate: newChqDate,
+        amount: newChqAmount,
+        type: newChqType,
+        payerPayeeName: newChqPayerPayee.trim(),
+        status: 'Pending',
+        notes: newChqNotes.trim() || undefined,
+        createdAt: new Date().toISOString()
+      });
+    }
+
+    setIsChqModalOpen(false);
+    setNewChqNum('');
+    setNewChqBank('');
+    setNewChqAmount(0);
+    setNewChqPayerPayee('');
+    setNewChqNotes('');
   };
 
   const handleEditExpenseSubmit = (e: React.FormEvent) => {
@@ -781,6 +829,27 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
     });
   }, [stockAdjustments, globalSearchTerm, globalStartDate, globalEndDate]);
 
+  const filteredCheques = useMemo(() => {
+    return cheques.filter(ch => {
+      if (chqFilterType !== 'all' && ch.type !== chqFilterType) return false;
+      if (chqFilterStatus !== 'all' && ch.status !== chqFilterStatus) return false;
+      if (globalSearchTerm.trim()) {
+        const query = globalSearchTerm.toLowerCase();
+        const chqNo = ch.chequeNumber.toLowerCase();
+        const bank = ch.bankName.toLowerCase();
+        const payer = ch.payerPayeeName.toLowerCase();
+        if (!chqNo.includes(query) && !bank.includes(query) && !payer.includes(query)) return false;
+      }
+      if (globalStartDate) {
+        if (ch.dueDate < globalStartDate) return false;
+      }
+      if (globalEndDate) {
+        if (ch.dueDate > globalEndDate) return false;
+      }
+      return true;
+    });
+  }, [cheques, chqFilterType, chqFilterStatus, globalSearchTerm, globalStartDate, globalEndDate]);
+
   // Sri Lankan Live Taxable Sales Filter
   const taxableSales = useMemo(() => {
     return sales.filter(s => s.totalTax > 0);
@@ -1094,6 +1163,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
     { key: 'turnover' as const,    label: 'Turnover Analysis',        labelSi: 'පිරිවැටුම් විශ්ලේෂණය', icon: PieChart,      color: 'text-indigo-600', bg: 'bg-indigo-50' },
     { key: 'shifts' as const,      label: 'Z-Reports (Shifts)',       labelSi: 'Z-වාර්තා',             icon: Clock,         color: 'text-slate-600',  bg: 'bg-slate-100' },
     { key: 'wastage' as const,     label: 'Wastage Loss Report',      labelSi: 'නාස්ති වාර්තාව',       icon: AlertTriangle, color: 'text-orange-600', bg: 'bg-orange-50' },
+    { key: 'cheques' as const,     label: 'Cheque Registry',          labelSi: 'චෙක්පත් ලේඛනය',        icon: Receipt,       color: 'text-blue-700',   bg: 'bg-blue-50' },
   ];
 
   const activeTab = reportTabs.find(t => t.key === reportType)!;
@@ -2426,6 +2496,317 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
         </div>
       )}
 
+      {/* CHEQUE REGISTRY */}
+      {reportType === 'cheques' && (
+        <div className="space-y-6 animate-in fade-in duration-200">
+          {/* Summary metrics */}
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+            <div className="bg-gradient-to-br from-amber-50 to-orange-50/60 p-4 rounded-2xl border border-amber-100 flex items-center space-x-3.5">
+              <div className="p-2.5 bg-amber-500 rounded-xl text-white shadow-sm shadow-amber-200">
+                <Receipt className="h-5 w-5" />
+              </div>
+              <div>
+                <h4 className="text-[10px] font-black text-amber-600 uppercase tracking-wider">Pending Received</h4>
+                <p className="text-xl font-black text-slate-800">
+                  Rs. {cheques.filter(c => c.type === 'Received' && c.status === 'Pending').reduce((acc, c) => acc + c.amount, 0).toLocaleString()}
+                </p>
+                <div className="text-[9px] text-slate-400 font-bold">
+                  {cheques.filter(c => c.type === 'Received' && c.status === 'Pending').length} Cheques
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-purple-50 to-indigo-50/60 p-4 rounded-2xl border border-purple-100 flex items-center space-x-3.5">
+              <div className="p-2.5 bg-purple-500 rounded-xl text-white shadow-sm shadow-purple-200">
+                <Receipt className="h-5 w-5" />
+              </div>
+              <div>
+                <h4 className="text-[10px] font-black text-purple-600 uppercase tracking-wider">Pending Issued</h4>
+                <p className="text-xl font-black text-slate-800">
+                  Rs. {cheques.filter(c => c.type === 'Issued' && c.status === 'Pending').reduce((acc, c) => acc + c.amount, 0).toLocaleString()}
+                </p>
+                <div className="text-[9px] text-slate-400 font-bold">
+                  {cheques.filter(c => c.type === 'Issued' && c.status === 'Pending').length} Cheques
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-emerald-50 to-teal-50/60 p-4 rounded-2xl border border-emerald-100 flex items-center space-x-3.5">
+              <div className="p-2.5 bg-emerald-500 rounded-xl text-white shadow-sm shadow-emerald-200">
+                <CheckCircle className="h-5 w-5" />
+              </div>
+              <div>
+                <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-wider">Realized Cheques</h4>
+                <p className="text-xl font-black text-slate-800">
+                  Rs. {cheques.filter(c => c.status === 'Realized').reduce((acc, c) => acc + c.amount, 0).toLocaleString()}
+                </p>
+                <div className="text-[9px] text-slate-400 font-bold">
+                  {cheques.filter(c => c.status === 'Realized').length} Cheques
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-rose-50 to-red-50/60 p-4 rounded-2xl border border-rose-100 flex items-center space-x-3.5">
+              <div className="p-2.5 bg-rose-500 rounded-xl text-white shadow-sm shadow-rose-200">
+                <X className="h-5 w-5" />
+              </div>
+              <div>
+                <h4 className="text-[10px] font-black text-rose-600 uppercase tracking-wider">Bounced / Returned</h4>
+                <p className="text-xl font-black text-slate-800">
+                  Rs. {cheques.filter(c => c.status === 'Bounced').reduce((acc, c) => acc + c.amount, 0).toLocaleString()}
+                </p>
+                <div className="text-[9px] text-rose-500 font-bold">
+                  {cheques.filter(c => c.status === 'Bounced').length} Cheques
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Row & Filters */}
+          <div className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4 text-xs font-semibold">
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Type Filter */}
+              <div className="flex items-center space-x-1.5">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Type:</span>
+                <div className="flex bg-slate-50 border border-slate-200 rounded-lg p-0.5">
+                  {(['all', 'Received', 'Issued'] as const).map(type => (
+                    <button
+                      key={type}
+                      onClick={() => setChqFilterType(type)}
+                      className={`px-2.5 py-1 rounded text-[10px] font-bold transition ${
+                        chqFilterType === type ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      {type === 'all' ? (language === 'en' ? 'All' : 'සියල්ල') : (type === 'Received' ? (language === 'en' ? 'Received' : 'ලැබුණු') : (language === 'en' ? 'Issued' : 'නිකුත් කළ'))}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Status Filter */}
+              <div className="flex items-center space-x-1.5">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Status:</span>
+                <div className="flex bg-slate-50 border border-slate-200 rounded-lg p-0.5">
+                  {(['all', 'Pending', 'Realized', 'Bounced'] as const).map(status => (
+                    <button
+                      key={status}
+                      onClick={() => setChqFilterStatus(status)}
+                      className={`px-2.5 py-1 rounded text-[10px] font-bold transition ${
+                        chqFilterStatus === status ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'
+                      }`}
+                    >
+                      {status === 'all' ? (language === 'en' ? 'All' : 'සියල්ල') : (status === 'Pending' ? (language === 'en' ? 'Pending' : 'මාරු කිරීමට') : (status === 'Realized' ? (language === 'en' ? 'Realized' : 'මාරු කළ') : (language === 'en' ? 'Bounced' : 'අගරු වූ')))}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsChqModalOpen(true)}
+              className="w-full sm:w-auto px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-xs font-black shadow-md cursor-pointer transition flex items-center justify-center gap-1.5 active:scale-95"
+            >
+              <Plus className="h-4 w-4" />
+              <span>{language === 'en' ? 'Record Cheque' : 'චෙක්පතක් ඇතුළත් කරන්න'}</span>
+            </button>
+          </div>
+
+          {/* Cheque List Table */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 text-slate-400 font-extrabold text-[10px] tracking-wider border-b border-slate-100 uppercase">
+                    <th className="py-4 px-6">Cheque Details</th>
+                    <th className="py-4 px-6 text-center">Type</th>
+                    <th className="py-4 px-6">Payer / Payee Name</th>
+                    <th className="py-4 px-6 text-center">Due Date</th>
+                    <th className="py-4 px-6 text-right">Amount</th>
+                    <th className="py-4 px-6 text-center">Status</th>
+                    <th className="py-4 px-6 text-right pr-6">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs font-semibold text-slate-700">
+                  {filteredCheques.length > 0 ? (
+                    filteredCheques.map(ch => (
+                      <tr key={ch.id} className="hover:bg-slate-50/50">
+                        <td className="py-4 px-6">
+                          <div className="font-bold text-slate-800">{ch.chequeNumber}</div>
+                          <div className="text-[10px] text-slate-400">{ch.bankName}</div>
+                          {ch.notes && <div className="text-[9px] text-slate-450 italic mt-0.5">{ch.notes}</div>}
+                        </td>
+                        <td className="py-4 px-6 text-center">
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            ch.type === 'Received' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-purple-50 text-purple-600 border border-purple-100'
+                          }`}>
+                            {ch.type}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6 font-bold text-slate-700">{ch.payerPayeeName}</td>
+                        <td className="py-4 px-6 text-center text-slate-500 font-medium">
+                          {new Date(ch.dueDate).toLocaleDateString()}
+                        </td>
+                        <td className="py-4 px-6 text-right font-black text-slate-850">
+                          Rs. {ch.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </td>
+                        <td className="py-4 px-6 text-center">
+                          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                            ch.status === 'Realized'
+                              ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                              : ch.status === 'Bounced'
+                              ? 'bg-rose-50 text-rose-600 border border-rose-100'
+                              : 'bg-amber-50 text-amber-600 border border-amber-100'
+                          }`}>
+                            {ch.status}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6 text-right pr-6">
+                          <div className="flex justify-end gap-1.5">
+                            {ch.status !== 'Realized' && (
+                              <button
+                                onClick={() => {
+                                  if (onUpdateChequeStatus) onUpdateChequeStatus(ch.id, 'Realized');
+                                }}
+                                className="px-2 py-1 bg-emerald-50 hover:bg-emerald-500 hover:text-white text-emerald-600 border border-emerald-200 rounded-lg text-[10px] font-black transition cursor-pointer"
+                                title="Mark Realized"
+                              >
+                                Realize
+                              </button>
+                            )}
+                            {ch.status !== 'Bounced' && (
+                              <button
+                                onClick={() => {
+                                  if (onUpdateChequeStatus) onUpdateChequeStatus(ch.id, 'Bounced');
+                                }}
+                                className="px-2 py-1 bg-rose-50 hover:bg-rose-500 hover:text-white text-rose-600 border border-rose-200 rounded-lg text-[10px] font-black transition cursor-pointer"
+                                title="Mark Bounced"
+                              >
+                                Bounce
+                              </button>
+                            )}
+                            {ch.status !== 'Pending' && (
+                              <button
+                                onClick={() => {
+                                  if (onUpdateChequeStatus) onUpdateChequeStatus(ch.id, 'Pending');
+                                }}
+                                className="p-1 text-slate-500 hover:bg-slate-100 rounded border border-slate-200 transition cursor-pointer"
+                                title="Reset to Pending"
+                              >
+                                <Clock className="h-3.5 w-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td colSpan={7} className="py-12 text-center text-slate-400 font-medium">
+                        No cheque transactions found matching the selected filters.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* MANUAL CHEQUE ADD MODAL */}
+          {isChqModalOpen && (
+            <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-3xl shadow-xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in duration-200">
+                <div className="bg-slate-950 text-white p-4 flex justify-between items-center">
+                  <h3 className="text-xs font-bold flex items-center gap-1.5">
+                    <Receipt className="h-4 w-4 text-blue-400" />
+                    {language === 'en' ? 'Record Cheque Transaction' : 'නව චෙක්පත් ගනුදෙනුවක් ඇතුළත් කරන්න'}
+                  </h3>
+                  <button onClick={() => setIsChqModalOpen(false)} className="text-slate-400 hover:text-white">✕</button>
+                </div>
+
+                <form onSubmit={handleManualChequeSubmit} className="p-5 space-y-3.5 text-xs font-semibold">
+                  <div className="grid grid-cols-2 gap-2 bg-slate-50 p-1 rounded-xl border border-slate-200">
+                    <button
+                      type="button"
+                      onClick={() => setNewChqType('Received')}
+                      className={`py-1.5 rounded-lg text-[10px] font-bold transition ${
+                        newChqType === 'Received' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500'
+                      }`}
+                    >
+                      {language === 'en' ? 'Received (Customer)' : 'ලැබුණු (පාරිභෝගික)'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNewChqType('Issued')}
+                      className={`py-1.5 rounded-lg text-[10px] font-bold transition ${
+                        newChqType === 'Issued' ? 'bg-purple-600 text-white shadow-sm' : 'text-slate-500'
+                      }`}
+                    >
+                      {language === 'en' ? 'Issued (Supplier)' : 'නිකුත් කළ (සැපයුම්)'}
+                    </button>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">{language === 'en' ? 'Cheque Number *' : 'චෙක්පත් අංකය *'}</label>
+                    <input
+                      type="text" required value={newChqNum} onChange={(e) => setNewChqNum(e.target.value)}
+                      placeholder="e.g. CHQ082736" className="w-full px-3 py-1.5 border border-slate-200 rounded-lg"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="font-bold text-slate-500">{language === 'en' ? 'Bank *' : 'බැංකුව *'}</label>
+                      <input
+                        type="text" required value={newChqBank} onChange={(e) => setNewChqBank(e.target.value)}
+                        placeholder="e.g. Sampath Bank" className="w-full px-3 py-1.5 border border-slate-200 rounded-lg"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="font-bold text-slate-500">{language === 'en' ? 'Due Date *' : 'ගෙවිය යුතු දිනය *'}</label>
+                      <input
+                        type="date" required value={newChqDate} onChange={(e) => setNewChqDate(e.target.value)}
+                        className="w-full px-3 py-1.5 border border-slate-200 rounded-lg"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">
+                      {newChqType === 'Received' ? (language === 'en' ? 'Payer / Customer Name *' : 'ගෙවන්නා / පාරිභෝගිකයාගේ නම *') : (language === 'en' ? 'Payee / Supplier Name *' : 'ලබන්නා / සැපයුම්කරුගේ නම *')}
+                    </label>
+                    <input
+                      type="text" required value={newChqPayerPayee} onChange={(e) => setNewChqPayerPayee(e.target.value)}
+                      placeholder="e.g. Nimal Perera" className="w-full px-3 py-1.5 border border-slate-200 rounded-lg"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">{language === 'en' ? 'Amount (LKR) *' : 'මුදල (LKR) *'}</label>
+                    <input
+                      type="number" min="1" required value={newChqAmount || ''} onChange={(e) => setNewChqAmount(Number(e.target.value))}
+                      placeholder="0.00" className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-bold"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-slate-500">{language === 'en' ? 'Notes' : 'සටහන්'}</label>
+                    <input
+                      type="text" value={newChqNotes} onChange={(e) => setNewChqNotes(e.target.value)}
+                      placeholder="e.g. Accounts crossed, post-dated..." className="w-full px-3 py-1.5 border border-slate-200 rounded-lg"
+                    />
+                  </div>
+
+                  <div className="flex space-x-2 pt-2">
+                    <button type="button" onClick={() => setIsChqModalOpen(false)} className="flex-1 bg-slate-100 py-2 rounded-lg font-bold">Cancel</button>
+                    <button type="submit" className="flex-1 bg-blue-600 text-white py-2 rounded-lg font-bold shadow">Save Cheque</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {viewingExpense && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
@@ -2586,7 +2967,7 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
                     onChange={(e) => setEditSalePaymentMethod(e.target.value as any)}
                     className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-bold bg-white text-xs"
                   >
-                    {['Cash', 'Card', 'Online Transfer', 'Pending'].map(method => (
+                    {['Cash', 'Card', 'Online Transfer', 'Pending', 'Cheque'].map(method => (
                       <option key={method} value={method}>{method}</option>
                     ))}
                   </select>
