@@ -2861,6 +2861,9 @@ function App() {
                   repairs={repairs}
                   settings={settings}
                   auditLogs={auditLogs}
+                  employees={employees}
+                  attendance={attendance}
+                  specialOrders={specialOrders}
                 />
               )}
 
