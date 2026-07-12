@@ -97,6 +97,7 @@ export const POS: React.FC<POSProps> = ({
   const [chequeNum, setChequeNum] = useState<string>('');
   const [chequeBank, setChequeBank] = useState<string>('');
   const [chequeDate, setChequeDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
+  const [chequeAmount, setChequeAmount] = useState<number>(0);
 
   // Quick Add Product states
   const [isQuickAddModalOpen, setIsQuickAddModalOpen] = useState(false);
@@ -534,6 +535,9 @@ export const POS: React.FC<POSProps> = ({
     if (paymentMethod === 'Card' || paymentMethod === 'Online Transfer') {
       setAmountPaid(totals.total);
     }
+    if (paymentMethod === 'Cheque') {
+      setChequeAmount(totals.total);
+    }
   }, [paymentMethod, totals.total]);
 
   // Keyboard Shortcuts Listener Hook
@@ -927,8 +931,21 @@ export const POS: React.FC<POSProps> = ({
     }
 
     const saleId = `S-POS-${Math.floor(1000 + Math.random() * 9000)}`;
-    const finalAmountPaid = paymentMethod === 'Cash' ? (amountPaid || totals.total) : totals.total;
-    const finalChangeDue = paymentMethod === 'Cash' ? Math.max(0, finalAmountPaid - totals.total) : 0;
+    let finalAmountPaid = totals.total;
+    let finalChangeDue = 0;
+
+    if (paymentMethod === 'Cash') {
+      finalAmountPaid = amountPaid || totals.total;
+      finalChangeDue = Math.max(0, finalAmountPaid - totals.total);
+    } else if (paymentMethod === 'Cheque') {
+      if (chequeAmount > totals.total) {
+        finalAmountPaid = chequeAmount;
+        finalChangeDue = chequeAmount - totals.total;
+      } else {
+        finalAmountPaid = totals.total;
+        finalChangeDue = 0;
+      }
+    }
 
     const newSale: Sale = {
       id: saleId,
@@ -968,7 +985,7 @@ export const POS: React.FC<POSProps> = ({
         chequeNumber: chequeNum.trim(),
         bankName: chequeBank.trim(),
         dueDate: chequeDate,
-        amount: totals.total,
+        amount: chequeAmount,
         type: 'Received',
         payerPayeeName: selectedCustomer?.name || (language === 'en' ? 'Walk-In Customer' : 'පැමිණි පාරිභෝගිකයා'),
         status: 'Pending',
@@ -998,6 +1015,7 @@ export const POS: React.FC<POSProps> = ({
     setPaymentReference('');
     setChequeNum('');
     setChequeBank('');
+    setChequeAmount(0);
     setSelectedCustomer(null);
     setCustomerSearch('');
     setApplyVat(false);
@@ -1942,17 +1960,45 @@ export const POS: React.FC<POSProps> = ({
                     />
                   </div>
                 </div>
-                <div className="flex flex-col gap-0.5">
-                  <label className="text-[9px] font-black text-slate-550 uppercase tracking-wide">
-                    {language === 'en' ? 'Due Date *' : 'ගෙවිය යුතු දිනය *'}
-                  </label>
-                  <input
-                    type="date"
-                    value={chequeDate}
-                    onChange={(e) => setChequeDate(e.target.value)}
-                    className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                  />
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-0.5">
+                    <label className="text-[9px] font-black text-slate-550 uppercase tracking-wide">
+                      {language === 'en' ? 'Due Date *' : 'ගෙවිය යුතු දිනය *'}
+                    </label>
+                    <input
+                      type="date"
+                      value={chequeDate}
+                      onChange={(e) => setChequeDate(e.target.value)}
+                      className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <label className="text-[9px] font-black text-slate-550 uppercase tracking-wide">
+                      {language === 'en' ? 'Cheque Amount (LKR) *' : 'චෙක්පත් මුදල (LKR) *'}
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={chequeAmount || ''}
+                      onChange={(e) => setChequeAmount(Number(e.target.value))}
+                      className="w-full px-2 py-1 bg-white border border-slate-200 rounded-lg text-[10px] font-bold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-400 text-right font-black"
+                    />
+                  </div>
                 </div>
+
+                {/* Variance warnings/info */}
+                {chequeAmount > totals.total && (
+                  <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-lg text-[9px] font-black text-emerald-800 flex justify-between items-center">
+                    <span>{language === 'en' ? 'Return Change in Cash:' : 'පාරිභෝගිකයාට දිය යුතු ඉතිරිය (සල්ලි වලින්):'}</span>
+                    <span className="text-[10px]">Rs. {(chequeAmount - totals.total).toLocaleString()}</span>
+                  </div>
+                )}
+                {chequeAmount > 0 && chequeAmount < totals.total && (
+                  <div className="p-2 bg-amber-50 border border-amber-200 rounded-lg text-[9px] font-black text-amber-800 flex justify-between items-center">
+                    <span>{language === 'en' ? 'Collect Balance in Cash/Card:' : 'අයකරගත යුතු ඉතිරි මුදල (සල්ලි/කාඩ්):'}</span>
+                    <span className="text-[10px]">Rs. {(totals.total - chequeAmount).toLocaleString()}</span>
+                  </div>
+                )}
               </div>
             ) : (paymentMethod === 'Cash' || paymentMethod === 'Pending') ? (
               <div className="px-3 py-2 space-y-1.5">
@@ -2369,16 +2415,18 @@ export const POS: React.FC<POSProps> = ({
                   <span>{t.total}:</span>
                   <span>Rs. {completedSale.total.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                 </div>
-                {completedSale.paymentMethod === 'Cash' && (
+                {(completedSale.paymentMethod === 'Cash' || completedSale.paymentMethod === 'Cheque') && (
                   <>
                     <div className="flex justify-between text-slate-500 text-[10px] border-t border-slate-100 pt-1 font-semibold">
-                      <span>{language === 'en' ? 'Cash Tendered:' : 'ලබාදුන් මුදල:'}</span>
+                      <span>{completedSale.paymentMethod === 'Cheque' ? (language === 'en' ? 'Cheque Tendered:' : 'චෙක්පත් මුදල:') : (language === 'en' ? 'Cash Tendered:' : 'ලබාදුන් මුදල:')}</span>
                       <span>Rs. {(completedSale.amountPaid ?? completedSale.total).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
                     </div>
-                    <div className="flex justify-between text-emerald-600 text-[10px] font-bold">
-                      <span>{language === 'en' ? 'Change Due:' : 'මාරු සල්ලි:'}</span>
-                      <span>Rs. {(completedSale.changeDue ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
-                    </div>
+                    {(completedSale.changeDue ?? 0) > 0 && (
+                      <div className="flex justify-between text-emerald-600 text-[10px] font-bold">
+                        <span>{language === 'en' ? 'Change Due (Cash):' : 'මාරු සල්ලි (මුදලින්):'}</span>
+                        <span>Rs. {(completedSale.changeDue ?? 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</span>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
@@ -2491,10 +2539,10 @@ export const POS: React.FC<POSProps> = ({
                     ${completedSale.discount > 0 ? `<div class="row"><span>Discount:</span><span>-Rs.${completedSale.discount.toLocaleString()}</span></div>` : ''}
                     <div class="total-row"><span>TOTAL:</span><span>Rs.${completedSale.total.toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>
                     
-                    ${completedSale.paymentMethod === 'Cash' ? `
+                    ${completedSale.paymentMethod === 'Cash' || completedSale.paymentMethod === 'Cheque' ? `
                       <div class="sep"></div>
-                      <div class="row"><span>${language === 'en' ? 'Cash Tendered:' : 'ලබාදුන් මුදල:'}</span><span>Rs.${(completedSale.amountPaid ?? completedSale.total).toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>
-                      <div class="row bold" style="font-size: ${is58 ? '11px' : isA4 ? '15px' : '13px'};"><span>${language === 'en' ? 'Change Due:' : 'මාරු සල්ලි:'}</span><span>Rs.${(completedSale.changeDue ?? 0).toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>
+                      <div class="row"><span>${completedSale.paymentMethod === 'Cheque' ? (language === 'en' ? 'Cheque Tendered:' : 'චෙක්පත් මුදල:') : (language === 'en' ? 'Cash Tendered:' : 'ලබාදුන් මුදල:')}</span><span>Rs.${(completedSale.amountPaid ?? completedSale.total).toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>
+                      ${(completedSale.changeDue ?? 0) > 0 ? `<div class="row bold" style="font-size: ${is58 ? '11px' : isA4 ? '15px' : '13px'};"><span>${language === 'en' ? 'Change Due (Cash):' : 'මාරු සල්ලි (මුදලින්):'}</span><span>Rs.${(completedSale.changeDue ?? 0).toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>` : ''}
                     ` : ''}
                     
                     <div class="sep"></div>

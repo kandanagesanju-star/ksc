@@ -383,10 +383,10 @@ export const ReportsPanel: React.FC<ReportsPanelProps> = ({
       ${sale.discount > 0 ? `<div class="row"><span>Discount:</span><span>-Rs.${sale.discount.toLocaleString()}</span></div>` : ''}
       <div class="total-row"><span>TOTAL:</span><span>Rs.${sale.total.toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>
       
-      ${sale.paymentMethod === 'Cash' ? `
+      ${sale.paymentMethod === 'Cash' || sale.paymentMethod === 'Cheque' ? `
         <div class="sep"></div>
-        <div class="row"><span>${language === 'en' ? 'Cash Tendered:' : 'ලබාදුන් මුදල:'}</span><span>Rs.${(sale.amountPaid ?? sale.total).toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>
-        <div class="row bold" style="font-size: ${is58 ? '11px' : isA4 ? '15px' : '13px'};"><span>${language === 'en' ? 'Change Due:' : 'මාරු සල්ලි:'}</span><span>Rs.${(sale.changeDue ?? 0).toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>
+        <div class="row"><span>${sale.paymentMethod === 'Cheque' ? (language === 'en' ? 'Cheque Tendered:' : 'චෙක්පත් මුදල:') : (language === 'en' ? 'Cash Tendered:' : 'ලබාදුන් මුදල:')}</span><span>Rs.${(sale.amountPaid ?? sale.total).toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>
+        ${(sale.changeDue ?? 0) > 0 ? `<div class="row bold" style="font-size: ${is58 ? '11px' : isA4 ? '15px' : '13px'};"><span>${language === 'en' ? 'Change Due (Cash):' : 'මාරු සල්ලි (මුදලින්):'}</span><span>Rs.${(sale.changeDue ?? 0).toLocaleString(undefined,{maximumFractionDigits:2})}</span></div>` : ''}
       ` : ''}
       
       <div class="sep"></div>
