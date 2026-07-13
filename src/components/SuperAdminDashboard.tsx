@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Layout, Users, ShoppingBag, Database, Search, RefreshCw, Key, ToggleLeft, ToggleRight, Check, X, AlertTriangle, Plus, ArrowLeft, Settings, Edit2, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+
+const getApiBase = () => {
+  return Capacitor.isNativePlatform() ? 'https://ksc-6ie.pages.dev' : '';
+};
 
 interface ShopTenant {
   shopId: string;
@@ -87,7 +92,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ langua
     
     try {
       // 1. Try to fetch from server API
-      const res = await fetch('/api/admin', {
+      const res = await fetch(`${getApiBase()}/api/admin`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${actualKey}`
@@ -205,7 +210,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ langua
       } else {
         // Update Cloudflare KV registry
         const token = sessionStorage.getItem('saas_admin_token') || '';
-        const res = await fetch('/api/admin', {
+        const res = await fetch(`${getApiBase()}/api/admin`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -293,7 +298,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ langua
         setNewShopPassword('');
       } else {
         const token = sessionStorage.getItem('saas_admin_token') || '';
-        const res = await fetch('/api/admin', {
+        const res = await fetch(`${getApiBase()}/api/admin`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -385,7 +390,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ langua
         setEditingShop(null);
       } else {
         const token = sessionStorage.getItem('saas_admin_token') || '';
-        const res = await fetch('/api/admin', {
+        const res = await fetch(`${getApiBase()}/api/admin`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -436,7 +441,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ langua
         setDeletingShop(null);
       } else {
         const token = sessionStorage.getItem('saas_admin_token') || '';
-        const res = await fetch('/api/admin', {
+        const res = await fetch(`${getApiBase()}/api/admin`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -500,7 +505,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ langua
         setTimeout(() => setShowPasswordModal(false), 1500);
       } else {
         // Save to Cloud KV
-        const res = await fetch('/api/admin', {
+        const res = await fetch(`${getApiBase()}/api/admin`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -555,7 +560,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ langua
           alert(language === 'en' ? '❌ Invalid Recovery Code!' : '❌ වැරදි Recovery Code එකක්!');
         }
       } else {
-        const res = await fetch('/api/admin', {
+        const res = await fetch(`${getApiBase()}/api/admin`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

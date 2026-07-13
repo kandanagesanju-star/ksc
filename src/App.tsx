@@ -17,6 +17,8 @@ import { AttendanceStaff } from './components/AttendanceStaff';
 import { ReportsPanel } from './components/ReportsPanel';
 import { SettingsPanel } from './components/SettingsPanel';
 import { getCloudSyncTimestamp, getCloudSyncState, pushLocalStateToCloud, saveCloudDoc, deleteCloudDoc } from './lib/syncService';
+import { Capacitor } from '@capacitor/core';
+import { App as CapApp } from '@capacitor/app';
 
 import { 
   initialProducts, 
@@ -632,6 +634,22 @@ function App() {
     localStorage.setItem('shop_admin_tab', adminTab);
   }, [adminTab]);
 
+  // Capacitor hardware back button handler
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      const handler = CapApp.addListener('backButton', (data) => {
+        if (!data.canGoBack) {
+          CapApp.exitApp();
+        } else {
+          window.history.back();
+        }
+      });
+      return () => {
+        handler.then((h) => h.remove());
+      };
+    }
+  }, []);
+
   // SaaS URL Routing and startup check
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -644,7 +662,7 @@ function App() {
     if (setupId) {
       const configureShop = async () => {
         try {
-          const res = await fetch(`/api/sync?shopId=${encodeURIComponent(setupId)}&setup=true`);
+          const res = await fetch(`${Capacitor.isNativePlatform() ? 'https://ksc-6ie.pages.dev' : ''}/api/sync?shopId=${encodeURIComponent(setupId)}&setup=true`);
           if (res.ok) {
             const data = await res.json();
             if (data.success) {

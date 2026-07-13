@@ -5,6 +5,12 @@
  * Generic string slicer chunking ensures any size database works on public sandbox
  */
 
+import { Capacitor } from '@capacitor/core';
+
+const getApiBase = () => {
+  return Capacitor.isNativePlatform() ? 'https://ksc-6ie.pages.dev' : '';
+};
+
 export interface SyncResponse {
   found: boolean;
   lastUpdated: number;
@@ -26,7 +32,7 @@ export const getCloudSyncTimestamp = async (shopId: string): Promise<SyncRespons
     return { found: false, lastUpdated: 0, isPrivate: false };
   }
   try {
-    const res = await fetch(`/api/sync?shopId=${encodeURIComponent(shopId)}&timestampOnly=true`, {
+    const res = await fetch(`${getApiBase()}/api/sync?shopId=${encodeURIComponent(shopId)}&timestampOnly=true`, {
       headers: {
         'X-Shop-Password': localStorage.getItem('shop_sync_password') || ''
       }
@@ -47,7 +53,7 @@ export const getCloudSyncState = async (shopId: string): Promise<any> => {
     return null;
   }
   try {
-    const res = await fetch(`/api/sync?shopId=${encodeURIComponent(shopId)}`, {
+    const res = await fetch(`${getApiBase()}/api/sync?shopId=${encodeURIComponent(shopId)}`, {
       headers: {
         'X-Shop-Password': localStorage.getItem('shop_sync_password') || ''
       }
@@ -66,7 +72,7 @@ export const getCloudSyncState = async (shopId: string): Promise<any> => {
 
       const chunkPromises = metaState.chunks.map(async (chunkId: string) => {
         try {
-          const chunkRes = await fetch(`/api/sync?shopId=${encodeURIComponent(chunkId)}`);
+          const chunkRes = await fetch(`${getApiBase()}/api/sync?shopId=${encodeURIComponent(chunkId)}`);
           if (chunkRes.ok) {
             const chunkData = await chunkRes.json();
             return chunkData.chunk || '';
@@ -104,8 +110,8 @@ export const pushLocalStateToCloud = async (shopId: string, state: any): Promise
       // Private KV supports up to 25MB per value directly. No chunking needed.
       const isNew = !shopId || shopId === 'undefined' || shopId === 'null' || shopId === 'ksc-demo';
       const url = isNew 
-        ? '/api/sync?createBin=true' 
-        : `/api/sync?shopId=${encodeURIComponent(shopId)}`;
+        ? `${getApiBase()}/api/sync?createBin=true` 
+        : `${getApiBase()}/api/sync?shopId=${encodeURIComponent(shopId)}`;
 
       const res = await fetch(url, {
         method: 'POST',
@@ -142,8 +148,8 @@ export const pushLocalStateToCloud = async (shopId: string, state: any): Promise
 
       const isChunkNew = !existingChunkId || existingChunkId === 'ksc-demo' || existingChunkId === 'undefined';
       const chunkUrl = isChunkNew 
-        ? '/api/sync?createBin=true' 
-        : `/api/sync?shopId=${encodeURIComponent(existingChunkId)}`;
+        ? `${getApiBase()}/api/sync?createBin=true` 
+        : `${getApiBase()}/api/sync?shopId=${encodeURIComponent(existingChunkId)}`;
 
       const chunkRes = await fetch(chunkUrl, {
         method: 'POST',
@@ -175,8 +181,8 @@ export const pushLocalStateToCloud = async (shopId: string, state: any): Promise
 
     const isMainNew = !shopId || shopId === 'undefined' || shopId === 'null' || shopId.startsWith('ksc-');
     const mainUrl = isMainNew 
-      ? '/api/sync?createBin=true' 
-      : `/api/sync?shopId=${encodeURIComponent(shopId)}`;
+      ? `${getApiBase()}/api/sync?createBin=true` 
+      : `${getApiBase()}/api/sync?shopId=${encodeURIComponent(shopId)}`;
 
     const mainRes = await fetch(mainUrl, {
       method: 'POST',
