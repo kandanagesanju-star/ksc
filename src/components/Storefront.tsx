@@ -20,8 +20,10 @@ interface StorefrontProps {
   customers: Customer[];
   repairs: RepairJob[];
   sales: Sale[];
+  reviews: any[];
   onAddSale: (sale: Sale) => void;
   onAddCustomer: (customer: Customer) => Customer;
+  onAddReview: (review: any) => void;
   updateProductStock: (productId: string, quantitySold: number) => void;
   settings: ShopSettings;
   categories: string[];
@@ -42,8 +44,10 @@ export const Storefront: React.FC<StorefrontProps> = ({
   customers,
   repairs,
   sales,
+  reviews: cloudReviews,
   onAddSale,
   onAddCustomer,
+  onAddReview,
   updateProductStock,
   settings,
   categories,
@@ -216,19 +220,14 @@ export const Storefront: React.FC<StorefrontProps> = ({
     }
   }, [products]);
 
-  // Reviews state loaded from localStorage, pre-populated if empty
-  const [reviews, setReviews] = useState<Review[]>(() => {
-    const saved = localStorage.getItem('store_reviews');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        console.error(e);
-      }
-    }
+  // Reviews state and useMemo system merging Cloud Reviews with Local/Seed reviews
+  const [localReviews, setLocalReviews] = useState<Review[]>([]);
+
+  const allReviews = useMemo(() => {
+    const list = [...(cloudReviews || []), ...localReviews];
     
-    // Seed default reviews for all products
-    const initialReviews: Review[] = [];
+    // Seed default reviews for any products that do not have any reviews yet
+    const seedReviews: Review[] = [];
     const names = ['Chamara', 'Saman', 'Dilshan', 'Nimal', 'Priyantha', 'Roshan', 'Kavindu', 'Nilani', 'Dilki', 'Asanka', 'Chathura', 'Kasun', 'Ruwan', 'Gayan', 'Thilina', 'Priya', 'Menaka', 'Sandeep', 'Sanduni', 'Harsha'];
     const commentsEn = [
       'Excellent quality, highly recommended!',
@@ -249,33 +248,36 @@ export const Storefront: React.FC<StorefrontProps> = ({
     ];
 
     products.forEach(p => {
-      // Create a deterministic seed based on product ID characters
-      const seed = p.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-      const reviewCount = (seed % 8) + 4; // 4 to 11 reviews per product
-      
-      for (let i = 0; i < reviewCount; i++) {
-        const rating = (seed + i) % 5 === 0 ? 4 : 5; // Mostly 4 and 5 stars
-        const isSi = (seed + i) % 2 === 0;
-        const comment = isSi ? commentsSi[(seed + i) % commentsSi.length] : commentsEn[(seed + i) % commentsEn.length];
-        const name = names[(seed + i) % names.length];
-        const phone = `07${Math.floor(10000000 + (seed * i * 3) % 90000000)}`;
+      const hasReview = list.some(r => r.productId === p.id);
+      if (!hasReview) {
+        const seed = p.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const reviewCount = (seed % 4) + 2; // 2 to 5 reviews per product seed
         
-        initialReviews.push({
-          id: `REV-${p.id}-${i}`,
-          productId: p.id,
-          customerName: name,
-          customerPhone: phone,
-          rating,
-          comment,
-          isVerified: true,
-          createdAt: new Date(Date.now() - ((i + 1) * 24 * 3600 * 1000)).toISOString()
-        });
+        for (let i = 0; i < reviewCount; i++) {
+          const rating = (seed + i) % 5 === 0 ? 4 : 5;
+          const isSi = (seed + i) % 2 === 0;
+          const comment = isSi ? commentsSi[(seed + i) % commentsSi.length] : commentsEn[(seed + i) % commentsEn.length];
+          const name = names[(seed + i) % names.length];
+          const phone = `07${Math.floor(10000000 + (seed * i * 3) % 90000000)}`;
+          
+          seedReviews.push({
+            id: `SEED-${p.id}-${i}`,
+            productId: p.id,
+            customerName: name,
+            customerPhone: phone,
+            rating,
+            comment,
+            isVerified: true,
+            createdAt: new Date(Date.now() - ((i + 1) * 24 * 3600 * 1000)).toISOString()
+          });
+        }
       }
     });
 
-    localStorage.setItem('store_reviews', JSON.stringify(initialReviews));
-    return initialReviews;
-  });
+    return [...list, ...seedReviews];
+  }, [cloudReviews, localReviews, products]);
+
+  const reviews = allReviews;
 
   // Write a Review form states
   const [reviewName, setReviewName] = useState('');
@@ -327,9 +329,10 @@ export const Storefront: React.FC<StorefrontProps> = ({
       createdAt: new Date().toISOString()
     };
 
-    const updatedReviews = [newReview, ...reviews];
-    setReviews(updatedReviews);
-    localStorage.setItem('store_reviews', JSON.stringify(updatedReviews));
+    if (onAddReview) {
+      onAddReview(newReview);
+    }
+    setLocalReviews(prev => [newReview, ...prev]);
 
     setReviewName('');
     setReviewPhone('');
@@ -1943,6 +1946,48 @@ export const Storefront: React.FC<StorefrontProps> = ({
                 {t.thankYou}
               </div>
             </div>
+
+            {/* WhatsApp Invoice Button */}
+            <div className="px-6 pb-2 pt-1">
+              <button
+                onClick={() => {
+                  const shopName = settings.onlineStoreName || settings.shopName;
+                  const orderId = completedSale.id;
+                  const customerName = completedSale.customerName;
+                  const phoneNum = customerPhone;
+                  const totalAmount = completedSale.total;
+                  const payMethod = completedSale.paymentMethod;
+                  const address = customerAddress || 'N/A';
+                  
+                  const itemsText = completedSale.items
+                    .map((item: any) => `- ${language === 'en' ? item.productNameEn : item.productNameSi} x ${item.quantity} (Rs. ${(item.price * item.quantity).toLocaleString()})`)
+                    .join('\n');
+                    
+                  const msg = `Hello ${shopName}, I just placed an order!\n\n` +
+                    `Order ID: ${orderId}\n` +
+                    `Customer: ${customerName} (${phoneNum})\n` +
+                    `Delivery Address: ${address}\n` +
+                    `---------------------------------------\n` +
+                    `${itemsText}\n` +
+                    `---------------------------------------\n` +
+                    `Total: Rs. ${totalAmount.toLocaleString()}\n` +
+                    `Payment Method: ${payMethod}\n\n` +
+                    `Please confirm my order. Thank you!`;
+                    
+                  const shopPhone = settings.shopPhone || '94777123456';
+                  const cleanedPhone = shopPhone.replace(/\D/g, '');
+                  const waUrl = `https://wa.me/${cleanedPhone}?text=${encodeURIComponent(msg)}`;
+                  window.open(waUrl, '_blank');
+                }}
+                className="w-full bg-emerald-650 hover:bg-emerald-700 active:bg-emerald-800 text-white py-3 rounded-2xl text-xs font-black transition flex items-center justify-center space-x-1.5 cursor-pointer shadow-md hover:shadow-lg active:scale-95"
+              >
+                <svg className="h-4 w-4 fill-current shrink-0" viewBox="0 0 24 24">
+                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.724-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.625 1.451 5.403.002 9.803-4.386 9.805-9.79.001-2.617-1.01-5.079-2.846-6.918C16.4 2.057 13.93 1.042 11.321 1.042c-5.408 0-9.81 4.39-9.814 9.794-.001 2.003.52 3.96 1.509 5.672L2.082 21.9l5.565-1.456c-.015-.008-.03-.016-.045-.024z"/>
+                </svg>
+                <span>{language === 'en' ? 'Confirm & Send Invoice via WhatsApp' : 'තහවුරු කර ඉන්වොයිසිය WhatsApp කරන්න'}</span>
+              </button>
+            </div>
+
             <div className="bg-slate-50 p-4 border-t border-slate-100 flex space-x-3.5">
               <button 
                 onClick={() => { const printContents = document.getElementById('printable-receipt')?.innerHTML; const originalContents = document.body.innerHTML; if (printContents) { document.body.innerHTML = printContents; window.print(); document.body.innerHTML = originalContents; window.location.reload(); } }} 

@@ -105,7 +105,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
               descriptionEn: p.descriptionEn,
               descriptionSi: p.descriptionSi
             })),
-            categories: parsed.categories || []
+            categories: parsed.categories || [],
+            reviews: parsed.reviews || []
           }), {
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
@@ -164,7 +165,8 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
               descriptionEn: p.descriptionEn,
               descriptionSi: p.descriptionSi
             })),
-            categories: parsed.categories || []
+            categories: parsed.categories || [],
+            reviews: parsed.reviews || []
           }), {
             headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
           });
@@ -234,6 +236,76 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const shopId = url.searchParams.get('shopId');
   const createBin = url.searchParams.get('createBin') === 'true';
   const placeOrder = url.searchParams.get('placeOrder') === 'true';
+  const addReview = url.searchParams.get('addReview') === 'true';
+
+  if (addReview) {
+    if (!shopId) {
+      return new Response(JSON.stringify({ error: 'Missing shopId for adding review' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    try {
+      let shopDataText: string | null = null;
+      if (env.SYNC_KV) {
+        shopDataText = await env.SYNC_KV.get(`shop_${shopId}`);
+      } else {
+        const res = await fetch(`https://extendsclass.com/api/json-storage/bin/${shopId}`);
+        if (res.ok) {
+          shopDataText = await res.text();
+        }
+      }
+
+      if (!shopDataText) {
+        return new Response(JSON.stringify({ error: 'Shop not found' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+
+      const shopData = JSON.parse(shopDataText);
+      const reviewBody = await request.text();
+      const newReview = JSON.parse(reviewBody);
+
+      if (!newReview) {
+        return new Response(JSON.stringify({ error: 'Missing review in request body' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+
+      // Add review to shop's reviews list
+      if (!shopData.reviews) shopData.reviews = [];
+      shopData.reviews.push(newReview);
+
+      shopData.lastUpdated = Date.now();
+      const updatedBody = JSON.stringify(shopData);
+
+      // Save back to storage
+      if (env.SYNC_KV) {
+        await env.SYNC_KV.put(`shop_${shopId}`, updatedBody);
+      } else {
+        const updateRes = await fetch(`https://extendsclass.com/api/json-storage/bin/${shopId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: updatedBody
+        });
+        if (!updateRes.ok) {
+          throw new Error('Failed to update ExtendsClass storage');
+        }
+      }
+
+      return new Response(JSON.stringify({ success: true, reviewId: newReview.id }), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    } catch (e: any) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+  }
 
   if (placeOrder) {
     if (!shopId) {

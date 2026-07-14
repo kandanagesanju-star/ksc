@@ -22,6 +22,7 @@ interface NavbarProps {
   loggedInCustomer: any;
   setLoggedInCustomer: (customer: any) => void;
   employees?: Employee[];
+  sales?: any[];
   activeUser?: any;
   onLoginUser?: (user: any) => void;
   onLogoutUser?: () => void;
@@ -47,12 +48,22 @@ export const Navbar: React.FC<NavbarProps> = ({
   loggedInCustomer,
   setLoggedInCustomer,
   employees = [],
+  sales = [],
   activeUser = null,
   onLoginUser,
   onLogoutUser,
   onUpdateEmployee
 }) => {
   const t = translations[language];
+  const customerSales = (sales || []).filter(s => {
+    if (loggedInCustomer && s.customerId) {
+      const matchCust = (customers || []).find(c => c.id === s.customerId);
+      if (matchCust && matchCust.phone === loggedInCustomer.phone) {
+        return true;
+      }
+    }
+    return false;
+  });
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [passcode, setPasscode] = useState('');
   const [attempts, setAttempts] = useState(0);
@@ -745,6 +756,46 @@ export const Navbar: React.FC<NavbarProps> = ({
                       {(loggedInCustomer.points || 0) > 1000 ? 'Gold VIP' : 'Silver Tier'}
                     </span>
                   </div>
+                </div>
+
+                {/* Order History */}
+                <div className="bg-slate-950/40 border border-slate-800 rounded-xl p-3 text-left space-y-3">
+                  <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">
+                    {language === 'en' ? 'My Order History' : 'මගේ ඇණවුම් ඉතිහාසය'}
+                  </span>
+                  
+                  {customerSales.length === 0 ? (
+                    <div className="text-slate-400 text-xs text-center py-4">
+                      {language === 'en' ? 'No orders placed yet.' : 'තවම කිසිදු ඇණවුමක් කර නොමැත.'}
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1 overflow-x-hidden">
+                      {customerSales.map(sale => (
+                        <div key={sale.id} className="p-2 bg-slate-950 border border-slate-850 rounded-lg space-y-1 text-[11px]">
+                          <div className="flex justify-between items-center">
+                            <span className="font-mono text-slate-400 font-bold">#{sale.id.slice(-6).toUpperCase()}</span>
+                            <span className="text-slate-500 font-semibold">{new Date(sale.createdAt).toLocaleDateString()}</span>
+                          </div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-slate-300 font-medium line-clamp-1">
+                              {sale.items.map((i: any) => `${i.product.nameEn || i.product.nameSi} (${i.quantity})`).join(', ')}
+                            </span>
+                            <span className="font-extrabold text-emerald-400 shrink-0 ml-2">Rs. {sale.total.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-[10px] text-slate-500">
+                            <span>{sale.saleType} • {sale.paymentMethod}</span>
+                            <span className={`px-1.5 py-0.5 rounded font-bold text-[9px] uppercase ${
+                              sale.paymentMethod === 'Pending' 
+                                ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' 
+                                : 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                            }`}>
+                              {sale.paymentMethod === 'Pending' ? (language === 'en' ? 'Pending' : 'හිඟ මුදල්') : (language === 'en' ? 'Completed' : 'නිමකළ')}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <button

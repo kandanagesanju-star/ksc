@@ -130,6 +130,15 @@ function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
+  const [reviews, setReviews] = useState<any[]>(() => {
+    const saved = localStorage.getItem('store_reviews');
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('store_reviews', JSON.stringify(reviews));
+  }, [reviews]);
+
   const [settings, setSettings] = useState<ShopSettings>(() => {
     const saved = localStorage.getItem('shop_settings');
     // Merge initialSettings with saved data so any NEW fields always have defaults
@@ -776,6 +785,7 @@ function App() {
               if (data.products) setProducts(data.products);
               if (data.settings) setSettings(data.settings);
               if (data.categories) setCategories(data.categories);
+              if (data.reviews) setReviews(data.reviews);
             }
           }
         } catch (e) {
@@ -850,6 +860,7 @@ function App() {
   
   const productsRef = useRef(products);
   const salesRef = useRef(sales);
+  const reviewsRef = useRef(reviews);
   
   useEffect(() => {
     productsRef.current = products;
@@ -858,6 +869,10 @@ function App() {
   useEffect(() => {
     salesRef.current = sales;
   }, [sales]);
+
+  useEffect(() => {
+    reviewsRef.current = reviews;
+  }, [reviews]);
 
   // Initialize shop_last_sync_time if not set
   useEffect(() => {
@@ -898,6 +913,7 @@ function App() {
           stockReturns,
           quotations,
           settings,
+          reviews: reviewsRef.current,
           lastUpdated: newTimestamp
         };
         
@@ -924,7 +940,8 @@ function App() {
     stockAdjustments,
     stockReturns,
     quotations,
-    settings
+    settings,
+    reviews
   ]);
 
   // Silent Real-Time Cloud Synchronizer
@@ -1379,6 +1396,26 @@ function App() {
         }
       }
     }
+  };
+
+  const handleAddReview = (newReview: any) => {
+    setReviews(prev => [...prev, newReview]);
+
+    const submitReview = async () => {
+      if (storefrontShopId) {
+        try {
+          await fetch(`${Capacitor.isNativePlatform() ? 'https://ksc-6ie.pages.dev' : ''}/api/sync?shopId=${encodeURIComponent(storefrontShopId)}&addReview=true`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(newReview)
+          });
+          console.log('Review submitted successfully!');
+        } catch (err) {
+          console.error('Failed to submit review to server:', err);
+        }
+      }
+    };
+    submitReview();
   };
 
   const handleAddCustomer = (newCustomer: Customer): Customer => {
@@ -1905,6 +1942,7 @@ function App() {
     if (data.quotations) setQuotations(data.quotations);
     if (data.settings) setSettings(data.settings);
     if (data.cheques) setCheques(data.cheques);
+    if (data.reviews) setReviews(data.reviews);
     
     const timestamp = data.lastUpdated ? data.lastUpdated.toString() : Date.now().toString();
     localStorage.setItem('shop_last_updated', timestamp);
@@ -2147,6 +2185,7 @@ function App() {
         showPasscodeModal={showPasscodeModal}
         setShowPasscodeModal={setShowPasscodeModal}
         customers={customers}
+        sales={sales}
         onAddCustomer={handleAddCustomer}
         onUpdateSettings={setSettings}
         showCustomerPortal={showCustomerPortal}
@@ -2182,8 +2221,10 @@ function App() {
             customers={customers}
             repairs={repairs}
             sales={sales}
+            reviews={reviews}
             onAddSale={handleAddSale}
             onAddCustomer={handleAddCustomer}
+            onAddReview={handleAddReview}
             updateProductStock={updateProductStock}
             settings={settings}
             categories={categories}
