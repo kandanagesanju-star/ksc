@@ -6,6 +6,7 @@
  */
 
 import { Capacitor } from '@capacitor/core';
+import { getShopItem, setShopItem } from './storage';
 
 const getApiBase = () => {
   return Capacitor.isNativePlatform() ? 'https://ksc-6ie.pages.dev' : '';
@@ -34,7 +35,7 @@ export const getCloudSyncTimestamp = async (shopId: string): Promise<SyncRespons
   try {
     const res = await fetch(`${getApiBase()}/api/sync?shopId=${encodeURIComponent(shopId)}&timestampOnly=true`, {
       headers: {
-        'X-Shop-Password': localStorage.getItem('shop_sync_password') || ''
+        'X-Shop-Password': getShopItem('shop_sync_password', shopId) || ''
       }
     });
     if (!res.ok) {
@@ -55,7 +56,7 @@ export const getCloudSyncState = async (shopId: string): Promise<any> => {
   try {
     const res = await fetch(`${getApiBase()}/api/sync?shopId=${encodeURIComponent(shopId)}`, {
       headers: {
-        'X-Shop-Password': localStorage.getItem('shop_sync_password') || ''
+        'X-Shop-Password': getShopItem('shop_sync_password', shopId) || ''
       }
     });
     if (!res.ok) {
@@ -68,7 +69,7 @@ export const getCloudSyncState = async (shopId: string): Promise<any> => {
 
     // If metadata indicates it is chunked, download all slices and assemble
     if (metaState.isChunked && metaState.chunks && Array.isArray(metaState.chunks)) {
-      localStorage.setItem('shop_sync_chunks', JSON.stringify(metaState.chunks));
+      setShopItem('shop_sync_chunks', JSON.stringify(metaState.chunks), shopId);
 
       const chunkPromises = metaState.chunks.map(async (chunkId: string) => {
         try {
@@ -104,7 +105,7 @@ export const pushLocalStateToCloud = async (shopId: string, state: any): Promise
     const jsonString = JSON.stringify(cleanState);
 
     // Check if we are using Private Cloud (Cloudflare KV)
-    const isPrivate = localStorage.getItem('shop_sync_private') === 'true';
+    const isPrivate = getShopItem('shop_sync_private', shopId) === 'true';
 
     if (isPrivate) {
       // Private KV supports up to 25MB per value directly. No chunking needed.
@@ -117,7 +118,7 @@ export const pushLocalStateToCloud = async (shopId: string, state: any): Promise
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Shop-Password': localStorage.getItem('shop_sync_password') || ''
+          'X-Shop-Password': getShopItem('shop_sync_password', shopId) || ''
         },
         body: jsonString
       });
@@ -129,13 +130,13 @@ export const pushLocalStateToCloud = async (shopId: string, state: any): Promise
 
       const result = await res.json();
       if (result.updatedPassword) {
-        localStorage.setItem('shop_sync_password', result.updatedPassword);
+        setShopItem('shop_sync_password', result.updatedPassword, shopId);
       }
       return result;
     }
 
     // --- PUBLIC SANDBOX CHUNKING (ExtendsClass String Slicing) ---
-    const savedChunksStr = localStorage.getItem('shop_sync_chunks');
+    const savedChunksStr = getShopItem('shop_sync_chunks', shopId);
     const chunkIds: string[] = savedChunksStr ? JSON.parse(savedChunksStr) : [];
 
     const numChunks = Math.ceil(jsonString.length / CHUNK_CHAR_LIMIT);
@@ -167,7 +168,7 @@ export const pushLocalStateToCloud = async (shopId: string, state: any): Promise
     }
 
     // Save chunk bin IDs locally
-    localStorage.setItem('shop_sync_chunks', JSON.stringify(newChunkIds));
+    setShopItem('shop_sync_chunks', JSON.stringify(newChunkIds), shopId);
 
     // Upload metadata bin referencing all slices
     const metaData = {

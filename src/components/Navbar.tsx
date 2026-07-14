@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { translations } from '../lib/translations';
 import { ShopSettings, Customer, Employee } from '../types';
+import { getShopItem, setShopItem, removeShopItem } from '../lib/storage';
 import { ShoppingBag, ShieldAlert, Laptop, Languages, Layers, Wifi, WifiOff, Key, Lock, User, Award, X, LogOut, ChevronDown, RefreshCw, Eye, EyeOff } from 'lucide-react';
 
 interface NavbarProps {
@@ -187,10 +188,10 @@ export const Navbar: React.FC<NavbarProps> = ({
       }
       
       // Also update local storage settings
-      const savedSettings = localStorage.getItem('shop_settings');
+      const savedSettings = getShopItem('shop_settings');
       if (savedSettings) {
         const parsed = JSON.parse(savedSettings);
-        localStorage.setItem('shop_settings', JSON.stringify({ ...parsed, adminPin: changePinNew }));
+        setShopItem('shop_settings', JSON.stringify({ ...parsed, adminPin: changePinNew }));
       }
 
       setChangePinSuccess(language === 'en' ? 'Admin PIN changed successfully!' : 'කළමනාකරු පින් අංකය සාර්ථකව වෙනස් කරන ලදී!');
@@ -297,8 +298,8 @@ export const Navbar: React.FC<NavbarProps> = ({
       if (onUpdateSettings) {
         onUpdateSettings(updatedSettings);
       }
-      localStorage.setItem('shop_settings', JSON.stringify(updatedSettings));
-      localStorage.setItem('shop_sync_password', '8892');
+      setShopItem('shop_settings', JSON.stringify(updatedSettings));
+      setShopItem('shop_sync_password', '8892');
       
       alert(language === 'en' 
         ? '✅ Passcode PIN reset successfully! Please set a new secure PIN in Settings.'
@@ -801,7 +802,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    localStorage.removeItem('logged_in_customer');
+                    removeShopItem('logged_in_customer');
                     setLoggedInCustomer(null);
                   }}
                   className="w-full py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-bold transition active:scale-95 cursor-pointer"
@@ -910,7 +911,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                         phone: newCust.phone,
                         points: newCust.loyaltyPoints
                       };
-                      localStorage.setItem('logged_in_customer', JSON.stringify(userSession));
+                      setShopItem('logged_in_customer', JSON.stringify(userSession));
                       setLoggedInCustomer(userSession);
                       setShowCustomerPortal(false);
                       setCustomerName('');
@@ -927,7 +928,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           phone: match.phone,
                           points: match.loyaltyPoints || 0
                         };
-                        localStorage.setItem('logged_in_customer', JSON.stringify(userSession));
+                        setShopItem('logged_in_customer', JSON.stringify(userSession));
                         setLoggedInCustomer(userSession);
                         setShowCustomerPortal(false);
                         setCustomerMobile('');
@@ -939,7 +940,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                           phone: cleanPhone,
                           points: 50
                         };
-                        localStorage.setItem('logged_in_customer', JSON.stringify(userSession));
+                        setShopItem('logged_in_customer', JSON.stringify(userSession));
                         setLoggedInCustomer(userSession);
                         setShowCustomerPortal(false);
                         setCustomerMobile('');

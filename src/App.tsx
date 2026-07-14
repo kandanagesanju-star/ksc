@@ -19,6 +19,7 @@ import { SettingsPanel } from './components/SettingsPanel';
 import { getCloudSyncTimestamp, getCloudSyncState, pushLocalStateToCloud, saveCloudDoc, deleteCloudDoc } from './lib/syncService';
 import { Capacitor } from '@capacitor/core';
 import { App as CapApp } from '@capacitor/app';
+import { getShopItem, setShopItem, removeShopItem } from './lib/storage';
 
 import { 
   initialProducts, 
@@ -56,91 +57,91 @@ import {
 function App() {
   // 1. Core States
   const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('shop_products');
+    const saved = getShopItem('shop_products');
     return saved ? JSON.parse(saved) : initialProducts;
   });
 
   const [customers, setCustomers] = useState<Customer[]>(() => {
-    const saved = localStorage.getItem('shop_customers');
+    const saved = getShopItem('shop_customers');
     return saved ? JSON.parse(saved) : initialCustomers;
   });
 
   const [suppliers, setSuppliers] = useState<Supplier[]>(() => {
-    const saved = localStorage.getItem('shop_suppliers');
+    const saved = getShopItem('shop_suppliers');
     return saved ? JSON.parse(saved) : initialSuppliers;
   });
 
   const [repairs, setRepairs] = useState<RepairJob[]>(() => {
-    const saved = localStorage.getItem('shop_repairs');
+    const saved = getShopItem('shop_repairs');
     return saved ? JSON.parse(saved) : initialRepairs;
   });
 
   const [sales, setSales] = useState<Sale[]>(() => {
-    const saved = localStorage.getItem('shop_sales');
+    const saved = getShopItem('shop_sales');
     return saved ? JSON.parse(saved) : initialSales;
   });
 
   const [employees, setEmployees] = useState<Employee[]>(() => {
-    const saved = localStorage.getItem('shop_employees');
+    const saved = getShopItem('shop_employees');
     return saved ? JSON.parse(saved) : initialEmployees;
   });
 
   const [attendance, setAttendance] = useState<AttendanceRecord[]>(() => {
-    const saved = localStorage.getItem('shop_attendance');
+    const saved = getShopItem('shop_attendance');
     return saved ? JSON.parse(saved) : initialAttendance;
   });
 
   const [commissions, setCommissions] = useState<CommissionRecord[]>(() => {
-    const saved = localStorage.getItem('shop_commissions');
+    const saved = getShopItem('shop_commissions');
     return saved ? JSON.parse(saved) : initialCommissions;
   });
 
   const [specialOrders, setSpecialOrders] = useState<SpecialOrder[]>(() => {
-    const saved = localStorage.getItem('shop_special_orders');
+    const saved = getShopItem('shop_special_orders');
     return saved ? JSON.parse(saved) : initialSpecialOrders;
   });
 
   const [expenses, setExpenses] = useState<Expense[]>(() => {
-    const saved = localStorage.getItem('shop_expenses');
+    const saved = getShopItem('shop_expenses');
     return saved ? JSON.parse(saved) : initialExpenses;
   });
 
   const [stockAdjustments, setStockAdjustments] = useState<StockAdjustment[]>(() => {
-    const saved = localStorage.getItem('shop_stock_adjustments');
+    const saved = getShopItem('shop_stock_adjustments');
     return saved ? JSON.parse(saved) : initialStockAdjustments;
   });
 
   const [stockReturns, setStockReturns] = useState<StockReturn[]>(() => {
-    const saved = localStorage.getItem('shop_stock_returns');
+    const saved = getShopItem('shop_stock_returns');
     return saved ? JSON.parse(saved) : initialStockReturns;
   });
 
   const [quotations, setQuotations] = useState<Quotation[]>(() => {
-    const saved = localStorage.getItem('shop_quotations');
+    const saved = getShopItem('shop_quotations');
     return saved ? JSON.parse(saved) : initialQuotations;
   });
 
   const [auditLogs, setAuditLogs] = useState<SystemAuditLog[]>(() => {
-    const saved = localStorage.getItem('shop_audit_logs');
+    const saved = getShopItem('shop_audit_logs');
     return saved ? JSON.parse(saved) : initialAuditLogs;
   });
 
   const [cheques, setCheques] = useState<Cheque[]>(() => {
-    const saved = localStorage.getItem('shop_cheques');
+    const saved = getShopItem('shop_cheques');
     return saved ? JSON.parse(saved) : [];
   });
 
   const [reviews, setReviews] = useState<any[]>(() => {
-    const saved = localStorage.getItem('store_reviews');
+    const saved = getShopItem('store_reviews');
     return saved ? JSON.parse(saved) : [];
   });
 
   useEffect(() => {
-    localStorage.setItem('store_reviews', JSON.stringify(reviews));
+    setShopItem('store_reviews', JSON.stringify(reviews));
   }, [reviews]);
 
   const [settings, setSettings] = useState<ShopSettings>(() => {
-    const saved = localStorage.getItem('shop_settings');
+    const saved = getShopItem('shop_settings');
     // Merge initialSettings with saved data so any NEW fields always have defaults
     // (prevents missing-field issues when old localStorage data lacks new settings keys)
     const loaded = saved ? { ...initialSettings, ...JSON.parse(saved) } : initialSettings;
@@ -151,17 +152,17 @@ function App() {
   });
 
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>(() => {
-    const saved = localStorage.getItem('shop_purchase_orders');
+    const saved = getShopItem('shop_purchase_orders');
     return saved ? JSON.parse(saved) : [];
   });
 
   const [warrantyReplacements, setWarrantyReplacements] = useState<WarrantyReplacement[]>(() => {
-    const saved = localStorage.getItem('shop_warranty_replacements');
+    const saved = getShopItem('shop_warranty_replacements');
     return saved ? JSON.parse(saved) : [];
   });
 
   const [categories, setCategories] = useState<string[]>(() => {
-    const saved = localStorage.getItem('shop_categories');
+    const saved = getShopItem('shop_categories');
     return saved ? JSON.parse(saved) : [
       'Phone Accessories',
       'Computer Parts',
@@ -176,7 +177,7 @@ function App() {
   });
 
   useEffect(() => {
-    localStorage.setItem('shop_categories', JSON.stringify(categories));
+    setShopItem('shop_categories', JSON.stringify(categories));
   }, [categories]);
 
   const handleAddCategory = (newCat: string) => {
@@ -190,7 +191,7 @@ function App() {
 
   // DATABASE SNAPSHOT HISTORY STATE (Database Engineer)
   const [dbSnapshots, setDbSnapshots] = useState<any[]>(() => {
-    const saved = localStorage.getItem('shop_db_snapshots');
+    const saved = getShopItem('shop_db_snapshots');
     return saved ? JSON.parse(saved) : [];
   });
 
@@ -201,42 +202,42 @@ function App() {
 
   // Shifts state
   const [shifts, setShifts] = useState<RegisterShift[]>(() => {
-    const saved = localStorage.getItem('shop_shifts');
+    const saved = getShopItem('shop_shifts');
     return saved ? JSON.parse(saved) : [];
   });
 
   // SMS Logs state
   const [smsLogs, setSmsLogs] = useState<SmsLog[]>(() => {
-    const saved = localStorage.getItem('shop_sms_logs');
+    const saved = getShopItem('shop_sms_logs');
     return saved ? JSON.parse(saved) : [];
   });
 
   // Bank transactions & balance state
   const [bankTransactions, setBankTransactions] = useState<BankTransaction[]>(() => {
-    const saved = localStorage.getItem('shop_bank_transactions');
+    const saved = getShopItem('shop_bank_transactions');
     return saved ? JSON.parse(saved) : [];
   });
 
   const [bankBalance, setBankBalance] = useState<number>(() => {
-    const saved = localStorage.getItem('shop_bank_balance');
+    const saved = getShopItem('shop_bank_balance');
     return saved ? Number(saved) : 125000;
   });
 
   // ONLINE/OFFLINE NETWORK SIMULATOR
   const [isOnline, setIsOnline] = useState<boolean>(true);
   const [pendingSyncSales, setPendingSyncSales] = useState<Sale[]>(() => {
-    const saved = localStorage.getItem('shop_pending_sync');
+    const saved = getShopItem('shop_pending_sync');
     return saved ? JSON.parse(saved) : [];
   });
 
   // Language & View State
   const [language, setLanguage] = useState<'en' | 'si'>(() => {
-    const saved = localStorage.getItem('shop_lang');
+    const saved = getShopItem('shop_lang');
     return (saved === 'en' || saved === 'si') ? saved : 'en';
   });
 
   const [viewMode, setViewMode] = useState<'storefront' | 'admin' | 'super-admin'>(() => {
-    const saved = localStorage.getItem('shop_view_mode');
+    const saved = getShopItem('shop_view_mode');
     return (saved === 'storefront' || saved === 'admin' || saved === 'super-admin') ? saved : 'storefront';
   });
 
@@ -256,21 +257,21 @@ function App() {
   const [subscriptionExpiry, setSubscriptionExpiry] = useState<{ daysRemaining: number; expiryDate: number } | null>(null);
 
   const [activeUser, setActiveUser] = useState<any>(() => {
-    const saved = localStorage.getItem('active_user');
+    const saved = getShopItem('active_user');
     return saved ? JSON.parse(saved) : null;
   });
 
   const [adminTab, setAdminTab] = useState<'dashboard' | 'pos' | 'inventory' | 'sales-history' | 'contacts' | 'purchases' | 'special-orders' | 'quotations' | 'attendance' | 'reports' | 'settings' | 'insights' | 'backup'>(() => {
-    const saved = localStorage.getItem('shop_admin_tab');
+    const saved = getShopItem('shop_admin_tab');
     return saved ? (saved as any) : 'dashboard';
   });
 
   const [adminSubTab, setAdminSubTab] = useState<string>(() => {
-    return localStorage.getItem('shop_admin_sub_tab') || '';
+    return getShopItem('shop_admin_sub_tab') || '';
   });
 
   const [expandedMenus, setExpandedMenus] = useState<Record<string, boolean>>(() => {
-    const saved = localStorage.getItem('shop_expanded_menus');
+    const saved = getShopItem('shop_expanded_menus');
     return saved ? JSON.parse(saved) : {
       contacts: false,
       purchases: false,
@@ -282,11 +283,11 @@ function App() {
   });
 
   useEffect(() => {
-    localStorage.setItem('shop_admin_sub_tab', adminSubTab);
+    setShopItem('shop_admin_sub_tab', adminSubTab);
   }, [adminSubTab]);
 
   useEffect(() => {
-    localStorage.setItem('shop_expanded_menus', JSON.stringify(expandedMenus));
+    setShopItem('shop_expanded_menus', JSON.stringify(expandedMenus));
   }, [expandedMenus]);
 
   const toggleMenu = (menuKey: string) => {
@@ -404,7 +405,7 @@ function App() {
   const [showPasscodeModal, setShowPasscodeModal] = useState(false);
   const [showCustomerPortal, setShowCustomerPortal] = useState(false);
   const [loggedInCustomer, setLoggedInCustomer] = useState<any>(() => {
-    const saved = localStorage.getItem('logged_in_customer');
+    const saved = getShopItem('logged_in_customer');
     return saved ? JSON.parse(saved) : null;
   });
 
@@ -518,74 +519,74 @@ function App() {
       quotations,
       settings,
       cheques,
-      lastUpdated: parseInt(localStorage.getItem('shop_last_updated') || '0', 10)
+      lastUpdated: parseInt(getShopItem('shop_last_updated') || '0', 10)
     };
   };
 
   // Save states to LocalStorage
   useEffect(() => {
-    localStorage.setItem('shop_products', JSON.stringify(products));
+    setShopItem('shop_products', JSON.stringify(products));
   }, [products]);
 
   useEffect(() => {
-    localStorage.setItem('shop_customers', JSON.stringify(customers));
+    setShopItem('shop_customers', JSON.stringify(customers));
   }, [customers]);
 
   useEffect(() => {
-    localStorage.setItem('shop_suppliers', JSON.stringify(suppliers));
+    setShopItem('shop_suppliers', JSON.stringify(suppliers));
   }, [suppliers]);
 
   useEffect(() => {
-    localStorage.setItem('shop_repairs', JSON.stringify(repairs));
+    setShopItem('shop_repairs', JSON.stringify(repairs));
   }, [repairs]);
 
   useEffect(() => {
-    localStorage.setItem('shop_sales', JSON.stringify(sales));
+    setShopItem('shop_sales', JSON.stringify(sales));
   }, [sales]);
 
   useEffect(() => {
-    localStorage.setItem('shop_employees', JSON.stringify(employees));
+    setShopItem('shop_employees', JSON.stringify(employees));
   }, [employees]);
 
   useEffect(() => {
-    localStorage.setItem('shop_attendance', JSON.stringify(attendance));
+    setShopItem('shop_attendance', JSON.stringify(attendance));
   }, [attendance]);
 
   useEffect(() => {
-    localStorage.setItem('shop_commissions', JSON.stringify(commissions));
+    setShopItem('shop_commissions', JSON.stringify(commissions));
   }, [commissions]);
 
   useEffect(() => {
-    localStorage.setItem('shop_special_orders', JSON.stringify(specialOrders));
+    setShopItem('shop_special_orders', JSON.stringify(specialOrders));
   }, [specialOrders]);
 
   useEffect(() => {
-    localStorage.setItem('shop_expenses', JSON.stringify(expenses));
+    setShopItem('shop_expenses', JSON.stringify(expenses));
   }, [expenses]);
 
   useEffect(() => {
-    localStorage.setItem('shop_stock_adjustments', JSON.stringify(stockAdjustments));
+    setShopItem('shop_stock_adjustments', JSON.stringify(stockAdjustments));
   }, [stockAdjustments]);
 
   useEffect(() => {
-    localStorage.setItem('shop_stock_returns', JSON.stringify(stockReturns));
+    setShopItem('shop_stock_returns', JSON.stringify(stockReturns));
   }, [stockReturns]);
 
   useEffect(() => {
-    localStorage.setItem('shop_quotations', JSON.stringify(quotations));
+    setShopItem('shop_quotations', JSON.stringify(quotations));
   }, [quotations]);
 
   useEffect(() => {
-    localStorage.setItem('shop_audit_logs', JSON.stringify(auditLogs));
+    setShopItem('shop_audit_logs', JSON.stringify(auditLogs));
   }, [auditLogs]);
 
   useEffect(() => {
-    localStorage.setItem('shop_cheques', JSON.stringify(cheques));
+    setShopItem('shop_cheques', JSON.stringify(cheques));
   }, [cheques]);
 
   useEffect(() => {
     try {
-      localStorage.setItem('shop_settings', JSON.stringify(settings));
+      setShopItem('shop_settings', JSON.stringify(settings));
     } catch {
       // Storage quota hit — strip heavy base64 image data and retry silently
       try {
@@ -596,7 +597,7 @@ function App() {
           heroBannerUrls: (settings.heroBannerUrls || []).filter((u: string) => u.startsWith('http')),
           onlineHeroBannerUrl: settings.onlineHeroBannerUrl?.startsWith('http') ? settings.onlineHeroBannerUrl : '',
         };
-        localStorage.setItem('shop_settings', JSON.stringify(stripped));
+        setShopItem('shop_settings', JSON.stringify(stripped));
         setSettings(stripped);
       } catch (e2) {
         console.error('Could not save settings even after stripping images.', e2);
@@ -607,51 +608,51 @@ function App() {
 
 
   useEffect(() => {
-    localStorage.setItem('shop_purchase_orders', JSON.stringify(purchaseOrders));
+    setShopItem('shop_purchase_orders', JSON.stringify(purchaseOrders));
   }, [purchaseOrders]);
 
   useEffect(() => {
-    localStorage.setItem('shop_warranty_replacements', JSON.stringify(warrantyReplacements));
+    setShopItem('shop_warranty_replacements', JSON.stringify(warrantyReplacements));
   }, [warrantyReplacements]);
 
   useEffect(() => {
-    localStorage.setItem('shop_pending_sync', JSON.stringify(pendingSyncSales));
+    setShopItem('shop_pending_sync', JSON.stringify(pendingSyncSales));
   }, [pendingSyncSales]);
 
   useEffect(() => {
-    localStorage.setItem('shop_shifts', JSON.stringify(shifts));
+    setShopItem('shop_shifts', JSON.stringify(shifts));
   }, [shifts]);
 
   useEffect(() => {
-    localStorage.setItem('shop_sms_logs', JSON.stringify(smsLogs));
+    setShopItem('shop_sms_logs', JSON.stringify(smsLogs));
   }, [smsLogs]);
 
   useEffect(() => {
-    localStorage.setItem('shop_bank_transactions', JSON.stringify(bankTransactions));
+    setShopItem('shop_bank_transactions', JSON.stringify(bankTransactions));
   }, [bankTransactions]);
 
   useEffect(() => {
-    localStorage.setItem('shop_bank_balance', bankBalance.toString());
+    setShopItem('shop_bank_balance', bankBalance.toString());
   }, [bankBalance]);
 
   useEffect(() => {
-    localStorage.setItem('shop_lang', language);
+    setShopItem('shop_lang', language);
   }, [language]);
 
   useEffect(() => {
-    localStorage.setItem('shop_view_mode', viewMode);
+    setShopItem('shop_view_mode', viewMode);
   }, [viewMode]);
 
   useEffect(() => {
     if (activeUser) {
-      localStorage.setItem('active_user', JSON.stringify(activeUser));
+      setShopItem('active_user', JSON.stringify(activeUser));
     } else {
-      localStorage.removeItem('active_user');
+      removeShopItem('active_user');
     }
   }, [activeUser]);
 
   useEffect(() => {
-    localStorage.setItem('shop_admin_tab', adminTab);
+    setShopItem('shop_admin_tab', adminTab);
   }, [adminTab]);
 
   // Capacitor hardware back button handler
@@ -689,7 +690,7 @@ function App() {
               localStorage.setItem('shop_sync_id', setupId);
               localStorage.setItem('shop_sync_enabled', 'true');
               localStorage.setItem('shop_sync_private', 'true');
-              localStorage.setItem('shop_sync_password', data.password || '8892');
+              setShopItem('shop_sync_password', data.password || '8892', setupId);
               localStorage.setItem('shop_view_mode', 'storefront'); // Reset super-admin view lock!
 
               if (data.expiryDate) {
@@ -697,14 +698,14 @@ function App() {
               }
 
               // Update settings
-              const savedSettings = localStorage.getItem('shop_settings');
+              const savedSettings = getShopItem('shop_settings', setupId);
               const currentSettings = savedSettings ? JSON.parse(savedSettings) : settings;
               const updated = {
                 ...currentSettings,
                 shopName: data.shopName || 'Connected Shop',
                 adminPin: data.password || '8892'
               };
-              localStorage.setItem('shop_settings', JSON.stringify(updated));
+              setShopItem('shop_settings', JSON.stringify(updated), setupId);
               
               alert(language === 'en' 
                 ? `✅ System configured successfully!\nConnected Shop ID: ${setupId}` 
@@ -738,18 +739,18 @@ function App() {
       localStorage.setItem('shop_sync_private', 'true');
       localStorage.setItem('shop_view_mode', 'storefront'); // Reset super-admin view lock!
       if (setupPassword) {
-        localStorage.setItem('shop_sync_password', setupPassword);
+        setShopItem('shop_sync_password', setupPassword, setupSyncId);
       }
       
       // Update shop name settings dynamically
-      const savedSettings = localStorage.getItem('shop_settings');
+      const savedSettings = getShopItem('shop_settings', setupSyncId);
       const currentSettings = savedSettings ? JSON.parse(savedSettings) : settings;
       const updated = {
         ...currentSettings,
         shopName: setupShopName ? decodeURIComponent(setupShopName) : currentSettings.shopName || 'Connected Shop',
         adminPin: setupPassword || '8892'
       };
-      localStorage.setItem('shop_settings', JSON.stringify(updated));
+      setShopItem('shop_settings', JSON.stringify(updated), setupSyncId);
       setSettings(updated);
 
       alert(language === 'en' 
@@ -876,10 +877,10 @@ function App() {
 
   // Initialize shop_last_sync_time if not set
   useEffect(() => {
-    const lastSyncTimeStr = localStorage.getItem('shop_last_sync_time');
+    const lastSyncTimeStr = getShopItem('shop_last_sync_time');
     if (!lastSyncTimeStr) {
-      const currentUpdated = localStorage.getItem('shop_last_updated') || '0';
-      localStorage.setItem('shop_last_sync_time', currentUpdated);
+      const currentUpdated = getShopItem('shop_last_updated') || '0';
+      setShopItem('shop_last_sync_time', currentUpdated);
     }
   }, []);  // Debounced Silent Cloud Push & State Monitor
   useEffect(() => {
@@ -890,7 +891,7 @@ function App() {
     if (isPullingRef.current) return;
 
     const newTimestamp = Date.now();
-    localStorage.setItem('shop_last_updated', newTimestamp.toString());
+    setShopItem('shop_last_updated', newTimestamp.toString());
 
     const isSyncEnabled = localStorage.getItem('shop_sync_enabled') === 'true';
     const syncId = localStorage.getItem('shop_sync_id');
@@ -918,7 +919,7 @@ function App() {
         };
         
         await pushLocalStateToCloud(syncId, state);
-        localStorage.setItem('shop_last_sync_time', newTimestamp.toString());
+        setShopItem('shop_last_sync_time', newTimestamp.toString());
         console.log('Silent sync push successful at:', new Date(newTimestamp).toLocaleTimeString());
       } catch (err) {
         console.error('Silent sync push failed:', err);
@@ -959,9 +960,9 @@ function App() {
 
       try {
         const forcePull = localStorage.getItem('shop_sync_force_pull') === 'true';
-        const localTimeStr = localStorage.getItem('shop_last_updated') || '0';
+        const localTimeStr = getShopItem('shop_last_updated') || '0';
         const localTime = parseInt(localTimeStr, 10);
-        const lastSyncTimeStr = localStorage.getItem('shop_last_sync_time') || '0';
+        const lastSyncTimeStr = getShopItem('shop_last_sync_time') || '0';
         const lastSyncTime = parseInt(lastSyncTimeStr, 10);
 
         // 1. Fetch cloud metadata timestamp
@@ -977,7 +978,7 @@ function App() {
         }
         
         // Save private cloud flag
-        localStorage.setItem('shop_sync_private', cloudMeta.isPrivate ? 'true' : 'false');
+        setShopItem('shop_sync_private', cloudMeta.isPrivate ? 'true' : 'false');
 
         if (forcePull) {
           // Force download requested (connected to new sync ID)
@@ -998,8 +999,8 @@ function App() {
             if (res.shopId && res.shopId !== syncId) {
               localStorage.setItem('shop_sync_id', res.shopId);
             }
-            localStorage.setItem('shop_last_updated', newTime.toString());
-            localStorage.setItem('shop_last_sync_time', newTime.toString());
+            setShopItem('shop_last_updated', newTime.toString());
+            setShopItem('shop_last_sync_time', newTime.toString());
           }
         } else if (cloudMeta.lastUpdated > lastSyncTime) {
           // Cloud is newer than what we last synced.
@@ -1009,15 +1010,15 @@ function App() {
             const completeState: any = getCompleteDatabaseState();
             completeState.lastUpdated = localTime;
             await pushLocalStateToCloud(syncId, completeState);
-            localStorage.setItem('shop_last_sync_time', localTime.toString());
+            setShopItem('shop_last_sync_time', localTime.toString());
             console.log('Silent push performed to resolve conflict (LWW).');
           } else {
             // Cloud has a newer update than our local database. Silently pull and apply.
             const cloudState = await getCloudSyncState(syncId);
             if (cloudState) {
               handleSyncPullUpdate(cloudState);
-              localStorage.setItem('shop_last_sync_time', cloudMeta.lastUpdated.toString());
-              localStorage.setItem('shop_last_updated', cloudMeta.lastUpdated.toString());
+              setShopItem('shop_last_sync_time', cloudMeta.lastUpdated.toString());
+              setShopItem('shop_last_updated', cloudMeta.lastUpdated.toString());
               console.log('Silent pull performed to update local database (LWW).');
             }
           }
@@ -1052,8 +1053,8 @@ function App() {
         if (res.shopId && res.shopId !== syncId) {
           localStorage.setItem('shop_sync_id', res.shopId);
         }
-        localStorage.setItem('shop_last_updated', newTimestamp.toString());
-        localStorage.setItem('shop_last_sync_time', newTimestamp.toString());
+        setShopItem('shop_last_updated', newTimestamp.toString());
+        setShopItem('shop_last_sync_time', newTimestamp.toString());
         
         alert(language === 'en' ? 'Successfully uploaded database to cloud!' : 'දත්ත සමුදාය සාර්ථකව Cloud එකට අප්ලෝඩ් කරන ලදී!');
       } catch (err: any) {
@@ -1870,7 +1871,7 @@ function App() {
 
   const handleUpdateSettings = (newSettings: ShopSettings) => {
     if (newSettings.adminPin && newSettings.adminPin !== settings.adminPin) {
-      localStorage.setItem('shop_sync_password', newSettings.adminPin);
+      setShopItem('shop_sync_password', newSettings.adminPin);
     }
     setSettings(newSettings);
   };
@@ -1889,7 +1890,7 @@ function App() {
     };
     const updated = [newSnapshot, ...dbSnapshots].slice(0, 5);
     setDbSnapshots(updated);
-    localStorage.setItem('shop_db_snapshots', JSON.stringify(updated));
+    setShopItem('shop_db_snapshots', JSON.stringify(updated));
     addAuditLog('DB_SNAPSHOT_CREATED', `Database snapshot "${label}" created.`);
   };
 
@@ -1908,7 +1909,7 @@ function App() {
   const handleDeleteSnapshot = (snapshotId: string) => {
     const updated = dbSnapshots.filter(s => s.id !== snapshotId);
     setDbSnapshots(updated);
-    localStorage.setItem('shop_db_snapshots', JSON.stringify(updated));
+    setShopItem('shop_db_snapshots', JSON.stringify(updated));
     addAuditLog('DB_SNAPSHOT_DELETED', `Deleted database snapshot.`);
   };
 
@@ -1945,8 +1946,8 @@ function App() {
     if (data.reviews) setReviews(data.reviews);
     
     const timestamp = data.lastUpdated ? data.lastUpdated.toString() : Date.now().toString();
-    localStorage.setItem('shop_last_updated', timestamp);
-    localStorage.setItem('shop_last_sync_time', timestamp);
+    setShopItem('shop_last_updated', timestamp);
+    setShopItem('shop_last_sync_time', timestamp);
     
     setTimeout(() => {
       isPullingRef.current = false;
@@ -1956,23 +1957,23 @@ function App() {
   const handleExportBackup = () => {
     try {
       const backupData = {
-        products: JSON.parse(localStorage.getItem('shop_products') || '[]'),
-        sales: JSON.parse(localStorage.getItem('shop_sales') || '[]'),
-        customers: JSON.parse(localStorage.getItem('shop_customers') || '[]'),
-        suppliers: JSON.parse(localStorage.getItem('shop_suppliers') || '[]'),
-        employees: JSON.parse(localStorage.getItem('shop_employees') || '[]'),
-        settings: JSON.parse(localStorage.getItem('shop_settings') || '{}'),
-        repairs: JSON.parse(localStorage.getItem('shop_repairs') || '[]'),
-        specialOrders: JSON.parse(localStorage.getItem('shop_special_orders') || '[]'),
-        quotations: JSON.parse(localStorage.getItem('shop_quotations') || '[]'),
-        expenses: JSON.parse(localStorage.getItem('shop_expenses') || '[]'),
-        shifts: JSON.parse(localStorage.getItem('shop_shifts') || '[]'),
-        purchaseOrders: JSON.parse(localStorage.getItem('shop_purchase_orders') || '[]'),
-        bankTransactions: JSON.parse(localStorage.getItem('shop_bank_transactions') || '[]'),
-        bankBalance: Number(localStorage.getItem('shop_bank_balance') || '0'),
-        stockAdjustments: JSON.parse(localStorage.getItem('shop_stock_adjustments') || '[]'),
-        auditLogs: JSON.parse(localStorage.getItem('shop_audit_logs') || '[]'),
-        cheques: JSON.parse(localStorage.getItem('shop_cheques') || '[]'),
+        products: JSON.parse(getShopItem('shop_products') || '[]'),
+        sales: JSON.parse(getShopItem('shop_sales') || '[]'),
+        customers: JSON.parse(getShopItem('shop_customers') || '[]'),
+        suppliers: JSON.parse(getShopItem('shop_suppliers') || '[]'),
+        employees: JSON.parse(getShopItem('shop_employees') || '[]'),
+        settings: JSON.parse(getShopItem('shop_settings') || '{}'),
+        repairs: JSON.parse(getShopItem('shop_repairs') || '[]'),
+        specialOrders: JSON.parse(getShopItem('shop_special_orders') || '[]'),
+        quotations: JSON.parse(getShopItem('shop_quotations') || '[]'),
+        expenses: JSON.parse(getShopItem('shop_expenses') || '[]'),
+        shifts: JSON.parse(getShopItem('shop_shifts') || '[]'),
+        purchaseOrders: JSON.parse(getShopItem('shop_purchase_orders') || '[]'),
+        bankTransactions: JSON.parse(getShopItem('shop_bank_transactions') || '[]'),
+        bankBalance: Number(getShopItem('shop_bank_balance') || '0'),
+        stockAdjustments: JSON.parse(getShopItem('shop_stock_adjustments') || '[]'),
+        auditLogs: JSON.parse(getShopItem('shop_audit_logs') || '[]'),
+        cheques: JSON.parse(getShopItem('shop_cheques') || '[]'),
         version: '1.0.0',
         exportedAt: new Date().toISOString()
       };
@@ -2034,23 +2035,23 @@ function App() {
     const data = pendingRestoreData;
 
     try {
-      if (data.products) localStorage.setItem('shop_products', JSON.stringify(data.products));
-      if (data.sales) localStorage.setItem('shop_sales', JSON.stringify(data.sales));
-      if (data.customers) localStorage.setItem('shop_customers', JSON.stringify(data.customers));
-      if (data.suppliers) localStorage.setItem('shop_suppliers', JSON.stringify(data.suppliers));
-      if (data.employees) localStorage.setItem('shop_employees', JSON.stringify(data.employees));
-      if (data.settings) localStorage.setItem('shop_settings', JSON.stringify(data.settings));
-      if (data.repairs) localStorage.setItem('shop_repairs', JSON.stringify(data.repairs));
-      if (data.specialOrders) localStorage.setItem('shop_special_orders', JSON.stringify(data.specialOrders));
-      if (data.quotations) localStorage.setItem('shop_quotations', JSON.stringify(data.quotations));
-      if (data.expenses) localStorage.setItem('shop_expenses', JSON.stringify(data.expenses));
-      if (data.shifts) localStorage.setItem('shop_shifts', JSON.stringify(data.shifts));
-      if (data.purchaseOrders) localStorage.setItem('shop_purchase_orders', JSON.stringify(data.purchaseOrders));
-      if (data.bankTransactions) localStorage.setItem('shop_bank_transactions', JSON.stringify(data.bankTransactions));
-      if (data.bankBalance !== undefined) localStorage.setItem('shop_bank_balance', String(data.bankBalance));
-      if (data.stockAdjustments) localStorage.setItem('shop_stock_adjustments', JSON.stringify(data.stockAdjustments));
-      if (data.auditLogs) localStorage.setItem('shop_audit_logs', JSON.stringify(data.auditLogs));
-      if (data.cheques) localStorage.setItem('shop_cheques', JSON.stringify(data.cheques));
+      if (data.products) setShopItem('shop_products', JSON.stringify(data.products));
+      if (data.sales) setShopItem('shop_sales', JSON.stringify(data.sales));
+      if (data.customers) setShopItem('shop_customers', JSON.stringify(data.customers));
+      if (data.suppliers) setShopItem('shop_suppliers', JSON.stringify(data.suppliers));
+      if (data.employees) setShopItem('shop_employees', JSON.stringify(data.employees));
+      if (data.settings) setShopItem('shop_settings', JSON.stringify(data.settings));
+      if (data.repairs) setShopItem('shop_repairs', JSON.stringify(data.repairs));
+      if (data.specialOrders) setShopItem('shop_special_orders', JSON.stringify(data.specialOrders));
+      if (data.quotations) setShopItem('shop_quotations', JSON.stringify(data.quotations));
+      if (data.expenses) setShopItem('shop_expenses', JSON.stringify(data.expenses));
+      if (data.shifts) setShopItem('shop_shifts', JSON.stringify(data.shifts));
+      if (data.purchaseOrders) setShopItem('shop_purchase_orders', JSON.stringify(data.purchaseOrders));
+      if (data.bankTransactions) setShopItem('shop_bank_transactions', JSON.stringify(data.bankTransactions));
+      if (data.bankBalance !== undefined) setShopItem('shop_bank_balance', String(data.bankBalance));
+      if (data.stockAdjustments) setShopItem('shop_stock_adjustments', JSON.stringify(data.stockAdjustments));
+      if (data.auditLogs) setShopItem('shop_audit_logs', JSON.stringify(data.auditLogs));
+      if (data.cheques) setShopItem('shop_cheques', JSON.stringify(data.cheques));
 
       addAuditLog('DATABASE_RESTORED', 'Restored complete database state from backup file.');
       alert(

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { ShopSettings, SystemAuditLog, Product, Customer, RepairJob, Sale, BankTransaction } from '../types';
 import { translations } from '../lib/translations';
+import { getShopItem, setShopItem, removeShopItem } from '../lib/storage';
 import { 
   Settings, User, Key, Printer, Database, Award, Languages,
   CreditCard, Activity, Save, RefreshCw, AlertCircle, Layout, Eye, EyeOff, ShieldAlert, ShieldCheck, Check, History, Trash, Download, Upload, Lock, Unlock, Image, X, MessageSquare, ChevronLeft, ChevronRight
@@ -266,7 +267,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   });
 
   const [isPrivateCloud, setIsPrivateCloud] = useState(() => {
-    return localStorage.getItem('shop_sync_private') === 'true';
+    return getShopItem('shop_sync_private') === 'true';
   });
 
   const [bulkUploadMsg, setBulkUploadMsg] = useState('');
@@ -277,7 +278,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     if (isSyncEnabled && syncId) {
       getCloudSyncTimestamp(syncId).then(res => {
         setIsPrivateCloud(res.isPrivate);
-        localStorage.setItem('shop_sync_private', res.isPrivate ? 'true' : 'false');
+        setShopItem('shop_sync_private', res.isPrivate ? 'true' : 'false');
       }).catch(console.error);
     }
   }, [isSyncEnabled, syncId]);
@@ -328,10 +329,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         localStorage.setItem('shop_sync_id', res.shopId);
       }
       setIsPrivateCloud(res.isPrivate);
-      localStorage.setItem('shop_sync_private', res.isPrivate ? 'true' : 'false');
+      setShopItem('shop_sync_private', res.isPrivate ? 'true' : 'false');
       
-      localStorage.setItem('shop_last_updated', newTimestamp.toString());
-      localStorage.setItem('shop_last_sync_time', newTimestamp.toString());
+      setShopItem('shop_last_updated', newTimestamp.toString());
+      setShopItem('shop_last_sync_time', newTimestamp.toString());
       
       setBulkUploadStatus('success');
       setBulkUploadMsg(language === 'en' ? 'All products and settings uploaded successfully!' : 'සියලුම භාණ්ඩ සහ සැකසුම් සාර්ථකව අප්ලෝඩ් කරන ලදී!');
