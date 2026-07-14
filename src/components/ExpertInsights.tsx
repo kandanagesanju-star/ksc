@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Product, Customer, Sale, RepairJob, ShopSettings, SystemAuditLog, SpecialOrder, Employee, AttendanceRecord } from '../types';
 import { translations } from '../lib/translations';
+import { getShopItem } from '../lib/storage';
 
 interface ExpertInsightsProps {
   language: 'en' | 'si';
@@ -315,7 +316,7 @@ export const ExpertInsights: React.FC<ExpertInsightsProps> = ({
 
     if (role === 'architect') {
       const isSyncEnabled = localStorage.getItem('shop_sync_enabled') === 'true';
-      const isPrivate = localStorage.getItem('shop_sync_private') === 'true';
+      const isPrivate = getShopItem('shop_sync_private') === 'true';
       if (isSyncEnabled) {
         list.push({
           type: 'success',

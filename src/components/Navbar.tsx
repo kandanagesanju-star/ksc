@@ -104,7 +104,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [syncEnabled, setSyncEnabled] = useState(() => localStorage.getItem('shop_sync_enabled') === 'true');
   const [syncId, setSyncId] = useState(() => localStorage.getItem('shop_sync_id') || '');
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isPrivate, setIsPrivate] = useState(() => localStorage.getItem('shop_sync_private') === 'true');
+  const [isPrivate, setIsPrivate] = useState(() => getShopItem('shop_sync_private') === 'true');
   const [showSyncPopover, setShowSyncPopover] = useState(false);
 
   React.useEffect(() => {
@@ -113,7 +113,7 @@ export const Navbar: React.FC<NavbarProps> = ({
       setIsSyncing(false);
       setSyncEnabled(localStorage.getItem('shop_sync_enabled') === 'true');
       setSyncId(localStorage.getItem('shop_sync_id') || '');
-      setIsPrivate(localStorage.getItem('shop_sync_private') === 'true');
+      setIsPrivate(getShopItem('shop_sync_private') === 'true');
     };
 
     window.addEventListener('shop-sync-start', handleStart);

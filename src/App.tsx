@@ -689,7 +689,7 @@ function App() {
             if (data.success) {
               localStorage.setItem('shop_sync_id', setupId);
               localStorage.setItem('shop_sync_enabled', 'true');
-              localStorage.setItem('shop_sync_private', 'true');
+              setShopItem('shop_sync_private', 'true', setupId);
               setShopItem('shop_sync_password', data.password || '8892', setupId);
               localStorage.setItem('shop_view_mode', 'storefront'); // Reset super-admin view lock!
 
@@ -736,7 +736,7 @@ function App() {
     if (setupSyncId) {
       localStorage.setItem('shop_sync_id', setupSyncId);
       localStorage.setItem('shop_sync_enabled', 'true');
-      localStorage.setItem('shop_sync_private', 'true');
+      setShopItem('shop_sync_private', 'true', setupSyncId);
       localStorage.setItem('shop_view_mode', 'storefront'); // Reset super-admin view lock!
       if (setupPassword) {
         setShopItem('shop_sync_password', setupPassword, setupSyncId);
