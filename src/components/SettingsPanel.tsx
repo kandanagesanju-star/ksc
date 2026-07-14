@@ -185,12 +185,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [pointRedeemValue, setPointRedeemValue] = useState(settings.pointRedemptionValue ?? 10);
 
   // POS Shortcuts
-  const [shortcutComplete, setShortcutComplete] = useState(settings.posShortcuts.completeSale || 'F8');
-  const [shortcutClear, setShortcutClear] = useState(settings.posShortcuts.clearCart || 'F9');
-  const [shortcutSearch, setShortcutSearch] = useState(settings.posShortcuts.focusSearch || 'F1');
-  const [shortcutCash, setShortcutCash] = useState(settings.posShortcuts.cashCheckout || 'F2');
-  const [shortcutCard, setShortcutCard] = useState(settings.posShortcuts.cardCheckout || 'F4');
-  const [shortcutBank, setShortcutBank] = useState(settings.posShortcuts.bankCheckout || 'F6');
+  const [shortcutComplete, setShortcutComplete] = useState(settings.posShortcuts?.completeSale || 'F8');
+  const [shortcutClear, setShortcutClear] = useState(settings.posShortcuts?.clearCart || 'F9');
+  const [shortcutSearch, setShortcutSearch] = useState(settings.posShortcuts?.focusSearch || 'F1');
+  const [shortcutCash, setShortcutCash] = useState(settings.posShortcuts?.cashCheckout || 'F2');
+  const [shortcutCard, setShortcutCard] = useState(settings.posShortcuts?.cardCheckout || 'F4');
+  const [shortcutBank, setShortcutBank] = useState(settings.posShortcuts?.bankCheckout || 'F6');
   const [receiptWidth, setReceiptWidth] = useState(settings.receiptWidth);
   const [fontSize, setFontSize] = useState(settings.fontSize || 'base');
 
@@ -358,12 +358,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     setSsclRate(settings.ssclRate ?? 2.5);
     setLoyaltyValue(settings.loyaltyPointValue ?? 100);
     setPointRedeemValue(settings.pointRedemptionValue ?? 10);
-    setShortcutComplete(settings.posShortcuts.completeSale || 'F8');
-    setShortcutClear(settings.posShortcuts.clearCart || 'F9');
-    setShortcutSearch(settings.posShortcuts.focusSearch || 'F1');
-    setShortcutCash(settings.posShortcuts.cashCheckout || 'F2');
-    setShortcutCard(settings.posShortcuts.cardCheckout || 'F4');
-    setShortcutBank(settings.posShortcuts.bankCheckout || 'F6');
+    setShortcutComplete(settings.posShortcuts?.completeSale || 'F8');
+    setShortcutClear(settings.posShortcuts?.clearCart || 'F9');
+    setShortcutSearch(settings.posShortcuts?.focusSearch || 'F1');
+    setShortcutCash(settings.posShortcuts?.cashCheckout || 'F2');
+    setShortcutCard(settings.posShortcuts?.cardCheckout || 'F4');
+    setShortcutBank(settings.posShortcuts?.bankCheckout || 'F6');
     setReceiptWidth(settings.receiptWidth || '80mm');
     setBankName(settings.bankName || '');
     setAccNo(settings.bankAccountNo || '');
@@ -654,7 +654,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         cashCheckout: shortcutCash,
         cardCheckout: shortcutCard,
         bankCheckout: shortcutBank,
-        addCustomer: settings.posShortcuts.addCustomer
+        addCustomer: settings.posShortcuts?.addCustomer || 'F7'
       },
       receiptWidth,
       bankName: bankName.trim(),

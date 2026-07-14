@@ -560,11 +560,11 @@ export const ContactsLoyalty: React.FC<ContactsLoyaltyProps> = ({
             <div className="bg-white/5 border border-white/10 p-4 rounded-xl space-y-2 text-xs">
               <div className="flex justify-between">
                 <span className="text-slate-400">{language === 'en' ? 'Earning Rule' : 'ලැබෙන ක්‍රමය'}:</span>
-                <span className="font-bold text-indigo-300">Rs. {loyaltyPointValue.toLocaleString()} = 1 Point</span>
+                <span className="font-bold text-indigo-300">Rs. {(loyaltyPointValue || 1).toLocaleString()} = 1 Point</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">{language === 'en' ? 'Point Value' : 'පොයින්ට් එකක වටිනාකම'}:</span>
-                <span className="font-bold text-emerald-400">1 Point = Rs. {pointRedemptionValue.toFixed(2)}</span>
+                <span className="font-bold text-emerald-400">1 Point = Rs. {(pointRedemptionValue || 10).toFixed(2)}</span>
               </div>
             </div>
           </div>
