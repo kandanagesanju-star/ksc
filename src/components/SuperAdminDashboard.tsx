@@ -39,6 +39,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ langua
   const [isLocalSimulation, setIsLocalSimulation] = useState<boolean>(() => {
     return localStorage.getItem('saas_is_local_sim') === 'true';
   });
+  const [isServerKvBound, setIsServerKvBound] = useState<boolean>(true);
   
   // Create shop states
   const [newShopName, setNewShopName] = useState<string>('');
@@ -112,6 +113,7 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ langua
 
       const data = await res.json();
       setShops(data.registry || []);
+      setIsServerKvBound(data.isPrivate !== false);
       setIsAuthenticated(true);
       setIsLocalSimulation(false);
       localStorage.setItem('saas_is_local_sim', 'false');
@@ -747,6 +749,15 @@ export const SuperAdminDashboard: React.FC<SuperAdminDashboardProps> = ({ langua
             <AlertTriangle className="text-amber-500 shrink-0 mt-0.5" size={18} />
             <div className="text-xs text-slate-300 leading-relaxed font-medium">
               <strong>Local Development Mode Active:</strong> Cloudflare Workers KV API was not detected. The Super Admin interface has automatically fallbacked to your local browser storage (localStorage) so you can test SaaS operations (shop creation, login key changes, active/deactive status) directly on localhost. Deactivating a shop locally will block syncing on this browser.
+            </div>
+          </div>
+        )}
+
+        {!isServerKvBound && !isLocalSimulation && (
+          <div className="bg-rose-500/10 border border-rose-500/20 rounded-2xl p-4 flex items-start gap-3">
+            <AlertTriangle className="text-rose-500 shrink-0 mt-0.5" size={18} />
+            <div className="text-xs text-slate-350 leading-relaxed font-medium">
+              <strong>Cloudflare KV Binding Missing:</strong> The server API is running, but no Cloudflare KV namespace is bound to this project. Newly registered shops will not persist. Please bind a KV namespace named <code className="bg-slate-900/80 px-1.5 py-0.5 rounded text-rose-400 font-bold font-mono">SYNC_KV</code> in your Cloudflare Pages dashboard.
             </div>
           </div>
         )}

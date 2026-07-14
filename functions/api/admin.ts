@@ -108,6 +108,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       });
     }
 
+    if (!env.SYNC_KV) {
+      return new Response(JSON.stringify({ error: 'Cloudflare KV Namespace is not bound! Please bind a KV namespace named SYNC_KV to your Cloudflare Pages project to enable live shop registry operations.' }), {
+        status: 503,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
     if (action === 'toggle_status') {
       const { shopId, status } = payload;
       if (!shopId || !status || !['active', 'deactivated'].includes(status)) {

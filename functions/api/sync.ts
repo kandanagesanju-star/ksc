@@ -72,6 +72,45 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const password = request.headers.get('X-Shop-Password') || '';
     const expectedPassword = await env.SYNC_KV.get(`password_${shopId}`);
     if (expectedPassword && password !== expectedPassword) {
+      // Return public storefront subset of the database instead of blocking GET completely
+      data = await env.SYNC_KV.get(`shop_${shopId}`);
+      if (data) {
+        try {
+          const parsed = JSON.parse(data);
+          return new Response(JSON.stringify({
+            found: true,
+            isPrivate,
+            isPublicOnly: true,
+            settings: {
+              shopName: parsed.settings?.shopName || "Unnamed Shop",
+              shopAddress: parsed.settings?.shopAddress || "",
+              shopPhone: parsed.settings?.shopPhone || "",
+              shopEmail: parsed.settings?.shopEmail || "",
+              onlineStoreName: parsed.settings?.onlineStoreName || "",
+              onlineStoreLogoUrl: parsed.settings?.onlineStoreLogoUrl || "",
+              onlineHeaderBgColor: parsed.settings?.onlineHeaderBgColor || "",
+              onlineHeroBannerUrl: parsed.settings?.onlineHeroBannerUrl || "",
+              onlinePrimaryThemeColor: parsed.settings?.onlinePrimaryThemeColor || "",
+              uiTheme: parsed.settings?.uiTheme || "slate",
+              onlineAnnouncementMessage: parsed.settings?.onlineAnnouncementMessage || ""
+            },
+            products: (parsed.products || []).filter((p: any) => !p.isHiddenOnline).map((p: any) => ({
+              id: p.id,
+              nameEn: p.nameEn,
+              nameSi: p.nameSi,
+              retailPrice: p.retailPrice,
+              stock: p.stock,
+              category: p.category,
+              image: p.image,
+              descriptionEn: p.descriptionEn,
+              descriptionSi: p.descriptionSi
+            })),
+            categories: parsed.categories || []
+          }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        } catch (e) {}
+      }
       return new Response(JSON.stringify({ error: 'Invalid Shop Password', authorized: false, isPrivate }), {
         status: 401,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -92,6 +131,44 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
       const res = await fetch(`https://extendsclass.com/api/json-storage/bin/${shopId}`);
       if (res.ok) {
         data = await res.text();
+        
+        // ExtendsClass local fallback password check:
+        const parsed = JSON.parse(data);
+        const expectedExtendsPassword = parsed.settings?.adminPin || '';
+        if (expectedExtendsPassword && password !== expectedExtendsPassword) {
+          return new Response(JSON.stringify({
+            found: true,
+            isPrivate: false,
+            isPublicOnly: true,
+            settings: {
+              shopName: parsed.settings?.shopName || "Unnamed Shop",
+              shopAddress: parsed.settings?.shopAddress || "",
+              shopPhone: parsed.settings?.shopPhone || "",
+              shopEmail: parsed.settings?.shopEmail || "",
+              onlineStoreName: parsed.settings?.onlineStoreName || "",
+              onlineStoreLogoUrl: parsed.settings?.onlineStoreLogoUrl || "",
+              onlineHeaderBgColor: parsed.settings?.onlineHeaderBgColor || "",
+              onlineHeroBannerUrl: parsed.settings?.onlineHeroBannerUrl || "",
+              onlinePrimaryThemeColor: parsed.settings?.onlinePrimaryThemeColor || "",
+              uiTheme: parsed.settings?.uiTheme || "slate",
+              onlineAnnouncementMessage: parsed.settings?.onlineAnnouncementMessage || ""
+            },
+            products: (parsed.products || []).filter((p: any) => !p.isHiddenOnline).map((p: any) => ({
+              id: p.id,
+              nameEn: p.nameEn,
+              nameSi: p.nameSi,
+              retailPrice: p.retailPrice,
+              stock: p.stock,
+              category: p.category,
+              image: p.image,
+              descriptionEn: p.descriptionEn,
+              descriptionSi: p.descriptionSi
+            })),
+            categories: parsed.categories || []
+          }), {
+            headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+          });
+        }
       }
     } catch (err) {
       console.error('ExtendsClass GET error:', err);
@@ -156,6 +233,114 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   const url = new URL(request.url);
   const shopId = url.searchParams.get('shopId');
   const createBin = url.searchParams.get('createBin') === 'true';
+  const placeOrder = url.searchParams.get('placeOrder') === 'true';
+
+  if (placeOrder) {
+    if (!shopId) {
+      return new Response(JSON.stringify({ error: 'Missing shopId for placing order' }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+
+    try {
+      let shopDataText: string | null = null;
+      if (env.SYNC_KV) {
+        shopDataText = await env.SYNC_KV.get(`shop_${shopId}`);
+      } else {
+        const res = await fetch(`https://extendsclass.com/api/json-storage/bin/${shopId}`);
+        if (res.ok) {
+          shopDataText = await res.text();
+        }
+      }
+
+      if (!shopDataText) {
+        return new Response(JSON.stringify({ error: 'Shop not found' }), {
+          status: 404,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+
+      const shopData = JSON.parse(shopDataText);
+      const orderBody = await request.text();
+      const { sale, customer } = JSON.parse(orderBody);
+
+      if (!sale) {
+        return new Response(JSON.stringify({ error: 'Missing sale in request body' }), {
+          status: 400,
+          headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+        });
+      }
+
+      // Update product stock
+      if (sale.items && Array.isArray(sale.items)) {
+        for (const item of sale.items) {
+          const pIdx = (shopData.products || []).findIndex((p: any) => p.id === item.product.id);
+          if (pIdx > -1) {
+            const p = shopData.products[pIdx];
+            if (p.stock !== 'Unlimited' && typeof p.stock === 'number') {
+              p.stock = Math.max(0, p.stock - item.quantity);
+            }
+          }
+        }
+      }
+
+      // Add or update customer loyalty points
+      if (customer) {
+        if (!shopData.customers) shopData.customers = [];
+        const cIdx = shopData.customers.findIndex((c: any) => c.phone === customer.phone);
+        if (cIdx > -1) {
+          shopData.customers[cIdx].loyaltyPoints = (shopData.customers[cIdx].loyaltyPoints || 0) + (sale.loyaltyPointsEarned || 0);
+        } else {
+          shopData.customers.push({
+            ...customer,
+            loyaltyPoints: sale.loyaltyPointsEarned || 0
+          });
+        }
+      }
+
+      // Add sale to shop's sales list
+      if (!shopData.sales) shopData.sales = [];
+      shopData.sales.unshift(sale);
+
+      shopData.lastUpdated = Date.now();
+      const updatedBody = JSON.stringify(shopData);
+
+      // Save back to storage
+      if (env.SYNC_KV) {
+        await env.SYNC_KV.put(`shop_${shopId}`, updatedBody);
+
+        // Update central registry counts
+        const registryData = await env.SYNC_KV.get('saas_shops_registry');
+        let registry: any[] = registryData ? JSON.parse(registryData) : [];
+        const rIdx = registry.findIndex((item: any) => item.shopId === shopId);
+        if (rIdx > -1) {
+          registry[rIdx].salesCount = shopData.sales.length;
+          registry[rIdx].productsCount = shopData.products.length;
+          registry[rIdx].lastSynced = Date.now();
+          await env.SYNC_KV.put('saas_shops_registry', JSON.stringify(registry));
+        }
+      } else {
+        const updateRes = await fetch(`https://extendsclass.com/api/json-storage/bin/${shopId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: updatedBody
+        });
+        if (!updateRes.ok) {
+          throw new Error('Failed to update ExtendsClass storage');
+        }
+      }
+
+      return new Response(JSON.stringify({ success: true, saleId: sale.id }), {
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    } catch (e: any) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+      });
+    }
+  }
 
   try {
     const body = await request.text();

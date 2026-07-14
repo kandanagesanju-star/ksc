@@ -231,6 +231,17 @@ function App() {
     return (saved === 'storefront' || saved === 'admin' || saved === 'super-admin') ? saved : 'storefront';
   });
 
+  const [storefrontShopId, setStorefrontShopId] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlId = params.get('shopId') || params.get('shop');
+    if (urlId) return urlId;
+    
+    const ownerSyncId = localStorage.getItem('shop_sync_id');
+    if (ownerSyncId) return ownerSyncId;
+
+    return localStorage.getItem('shop_storefront_id') || null;
+  });
+
   const [isSuspended, setIsSuspended] = useState<boolean>(false);
   const [suspensionReason, setSuspensionReason] = useState<'Suspended' | 'Expired'>('Suspended');
   const [subscriptionExpiry, setSubscriptionExpiry] = useState<{ daysRemaining: number; expiryDate: number } | null>(null);
@@ -751,6 +762,30 @@ function App() {
     }
   }, []);
 
+  // Load storefront shop data if storefrontShopId is active
+  useEffect(() => {
+    if (storefrontShopId) {
+      localStorage.setItem('shop_storefront_id', storefrontShopId);
+
+      const fetchStorefrontData = async () => {
+        try {
+          const res = await fetch(`${Capacitor.isNativePlatform() ? 'https://ksc-6ie.pages.dev' : ''}/api/sync?shopId=${encodeURIComponent(storefrontShopId)}`);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.found) {
+              if (data.products) setProducts(data.products);
+              if (data.settings) setSettings(data.settings);
+              if (data.categories) setCategories(data.categories);
+            }
+          }
+        } catch (e) {
+          console.error('Error fetching storefront data:', e);
+        }
+      };
+      fetchStorefrontData();
+    }
+  }, [storefrontShopId]);
+
   // Subscription Active Check on startup
   useEffect(() => {
     const checkSubscription = async () => {
@@ -1224,6 +1259,34 @@ function App() {
   };
 
   const handleAddSale = (newSale: Sale) => {
+    const isCustomerStorefrontOrder = viewMode === 'storefront' && storefrontShopId;
+
+    if (isCustomerStorefrontOrder) {
+      // Submit order directly to the Cloud backend
+      const submitOrder = async () => {
+        try {
+          const matchedCust = customers.find(c => c.id === newSale.customerId);
+          const res = await fetch(`${Capacitor.isNativePlatform() ? 'https://ksc-6ie.pages.dev' : ''}/api/sync?shopId=${encodeURIComponent(storefrontShopId)}&placeOrder=true`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sale: newSale, customer: matchedCust })
+          });
+          if (!res.ok) {
+            throw new Error('Order submission failed');
+          }
+          console.log('Online storefront order submitted successfully!');
+        } catch (err) {
+          console.error('Failed to submit online order to KV:', err);
+        }
+      };
+      submitOrder();
+
+      // Update local state (reduces stock, shows success modal, etc.)
+      setSales(prev => [newSale, ...prev]);
+      addAuditLog('ONLINE_SALE_CREATED', `Online storefront order ${newSale.id} submitted for Rs. ${newSale.total}`);
+      return;
+    }
+
     if (!isOnline) {
       // Offline billing mode
       const offlineSale = { ...newSale, isOfflinePending: true };
