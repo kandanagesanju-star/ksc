@@ -3,7 +3,7 @@ import { SpecialOrder, Product, Customer, SpecialOrderItem } from '../types';
 import { translations } from '../lib/translations';
 import { 
   Plus, Search, ShoppingBag, Truck, CheckCircle, Clock, 
-  MapPin, User, Phone, DollarSign, Notebook, ArrowRight, X, Edit, Printer, Trash2 
+  MapPin, User, Phone, DollarSign, Notebook, ArrowRight, X, Edit, Printer, Trash2, ChevronDown 
 } from 'lucide-react';
 
 interface SpecialOrdersProps {
@@ -47,7 +47,7 @@ export const SpecialOrders: React.FC<SpecialOrdersProps> = ({
   const [custPhone, setCustPhone] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
   
-  const [orderType, setOrderType] = useState('Clothing / T-Shirt');
+  const [orderType, setOrderType] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [orderItems, setOrderItems] = useState<SpecialOrderItem[]>([
     { id: `item-${Date.now()}`, name: '', size: 'N/A', qty: 1, unitPrice: 0 }
@@ -143,7 +143,7 @@ export const SpecialOrders: React.FC<SpecialOrdersProps> = ({
     setCustName('');
     setCustPhone('');
     setCustomerSearch('');
-    setOrderType('Clothing / T-Shirt');
+    setOrderType('');
     setDueDate('');
     setOrderItems([{ id: `item-${Date.now()}`, name: '', size: 'N/A', qty: 1, unitPrice: 0 }]);
     setAdvancePaid(0);
@@ -218,7 +218,7 @@ export const SpecialOrders: React.FC<SpecialOrdersProps> = ({
     setEditingOrderDetails(order);
     setCustName(order.customerName);
     setCustPhone(order.customerPhone);
-    setOrderType(order.orderType || 'Clothing / T-Shirt');
+    setOrderType(order.orderType || '');
     setDueDate(order.dueDate || '');
     setOrderItems(order.items && order.items.length > 0 ? [...order.items] : [
       { id: `item-${Date.now()}`, name: order.itemName, size: 'N/A', qty: 1, unitPrice: order.estimatedCost }
@@ -570,17 +570,22 @@ export const SpecialOrders: React.FC<SpecialOrdersProps> = ({
               {/* Order Type & Due Date */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="font-bold text-slate-500">Order Type *</label>
-                  <input
-                    type="text"
-                    required
-                    list="order-types"
-                    value={orderType}
-                    onChange={(e) => setOrderType(e.target.value)}
-                    placeholder="Select or type..."
-                    className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-bold bg-white"
-                  />
-                  <p className="text-[9px] text-slate-400 font-semibold mt-0.5">Type any custom order type name directly if not in the list.</p>
+                  <label className="font-bold text-slate-500">{language === 'en' ? 'Order Type *' : 'ඇණවුම් වර්ගය *'}</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      required
+                      list="order-types"
+                      value={orderType}
+                      onChange={(e) => setOrderType(e.target.value)}
+                      placeholder={language === 'en' ? 'Select or type...' : 'තෝරන්න හෝ ටයිප් කරන්න...'}
+                      className="w-full pr-8 px-3 py-1.5 border border-slate-200 rounded-lg text-slate-800 font-bold bg-white focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none text-slate-400">
+                      <ChevronDown className="h-4 w-4" />
+                    </div>
+                  </div>
+                  <p className="text-[9px] text-slate-400 font-semibold mt-0.5">{language === 'en' ? 'Type any custom order type name directly if not in the list.' : 'ලැයිස්තුවේ නැති වෙනත් ඕනෑම වර්ගයක් කෙලින්ම ටයිප් කළ හැකිය.'}</p>
                   <datalist id="order-types">
                     <option value="Clothing / T-Shirt" />
                     <option value="Cap / Embroidery" />
