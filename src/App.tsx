@@ -1037,8 +1037,84 @@ function App() {
     // Poll every 4 seconds for real-time responsiveness
     const interval = setInterval(performSync, 4000);
 
-    const handleManualSync = () => {
-      performSync();
+    const handleManualSync = async () => {
+      if (isSyncing) return;
+      isSyncing = true;
+      window.dispatchEvent(new Event('shop-sync-start'));
+
+      try {
+        const localTimeStr = getShopItem('shop_last_updated') || '0';
+        const localTime = parseInt(localTimeStr, 10);
+        const lastSyncTimeStr = getShopItem('shop_last_sync_time') || '0';
+        const lastSyncTime = parseInt(lastSyncTimeStr, 10);
+
+        if (!syncId) throw new Error('No Sync ID configured.');
+
+        // Fetch cloud metadata timestamp
+        const cloudMeta = await getCloudSyncTimestamp(syncId);
+
+        if (cloudMeta.suspended) {
+          setIsSuspended(true);
+          throw new Error(language === 'en' ? 'Shop is suspended.' : 'වෙළඳසැල අත්හිටුවා ඇත.');
+        } else {
+          setIsSuspended(false);
+        }
+
+        // Save private cloud flag
+        setShopItem('shop_sync_private', cloudMeta.isPrivate ? 'true' : 'false');
+
+        if (!cloudMeta.found) {
+          // Cloud has no data yet: upload local state
+          const completeState: any = getCompleteDatabaseState();
+          const newTime = Date.now();
+          completeState.lastUpdated = newTime;
+          const res = await pushLocalStateToCloud(syncId, completeState);
+          if (res.shopId && res.shopId !== syncId) {
+            localStorage.setItem('shop_sync_id', res.shopId);
+          }
+          setShopItem('shop_last_updated', newTime.toString());
+          setShopItem('shop_last_sync_time', newTime.toString());
+        } else {
+          // Compare lastUpdated
+          if (cloudMeta.lastUpdated > lastSyncTime) {
+            if (localTime > cloudMeta.lastUpdated) {
+              // Local is even newer! Upload local state.
+              const completeState: any = getCompleteDatabaseState();
+              completeState.lastUpdated = localTime;
+              await pushLocalStateToCloud(syncId, completeState);
+              setShopItem('shop_last_sync_time', localTime.toString());
+            } else {
+              // Cloud is newer: download cloud state.
+              const cloudState = await getCloudSyncState(syncId);
+              if (cloudState) {
+                handleSyncPullUpdate(cloudState);
+                setShopItem('shop_last_sync_time', cloudMeta.lastUpdated.toString());
+                setShopItem('shop_last_updated', cloudMeta.lastUpdated.toString());
+              }
+            }
+          } else {
+            // Cloud is older or same. If local has unsynced changes (localTime > lastSyncTime), push them.
+            if (localTime > lastSyncTime) {
+              const completeState: any = getCompleteDatabaseState();
+              completeState.lastUpdated = localTime;
+              await pushLocalStateToCloud(syncId, completeState);
+              setShopItem('shop_last_sync_time', localTime.toString());
+            }
+          }
+        }
+
+        alert(language === 'en' 
+          ? '✅ Live Sync Successful!\nAll device and cloud data is fully updated.' 
+          : '✅ සජීවී සමමුහුර්තකරණය සාර්ථකයි!\nසියලුම උපකරණ සහ Cloud දත්ත සම්පූර්ණයෙන්ම යාවත්කාලීනයි.');
+      } catch (err: any) {
+        console.error('Manual Cloud Sync error:', err);
+        alert(language === 'en' 
+          ? `❌ Sync Failed: ${err.message}` 
+          : `❌ සමමුහුර්තකරණය අසාර්ථකයි: ${err.message}`);
+      } finally {
+        isSyncing = false;
+        window.dispatchEvent(new Event('shop-sync-end'));
+      }
     };
 
     const handleManualUploadToCloud = async () => {

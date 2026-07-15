@@ -4,10 +4,11 @@ import { translations } from '../lib/translations';
 import { getShopItem, setShopItem, removeShopItem } from '../lib/storage';
 import { 
   Settings, User, Key, Printer, Database, Award, Languages,
-  CreditCard, Activity, Save, RefreshCw, AlertCircle, Layout, Eye, EyeOff, ShieldAlert, ShieldCheck, Check, History, Trash, Download, Upload, Lock, Unlock, Image, X, MessageSquare, ChevronLeft, ChevronRight
+  CreditCard, Activity, Save, RefreshCw, AlertCircle, Layout, Eye, EyeOff, ShieldAlert, ShieldCheck, Check, History, Trash, Download, Upload, Lock, Unlock, Image, X, MessageSquare, ChevronLeft, ChevronRight, Copy
 } from 'lucide-react';
 
 import { pushLocalStateToCloud, getCloudSyncTimestamp } from '../lib/syncService';
+import { generateQrCodeDataUrl } from '../lib/qr';
 
 interface SettingsPanelProps {
   language: 'en' | 'si';
@@ -272,6 +273,31 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
   const [bulkUploadMsg, setBulkUploadMsg] = useState('');
   const [bulkUploadStatus, setBulkUploadStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+
+  const [onboardingQrDataUrl, setOnboardingQrDataUrl] = useState<string>('');
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  const onboardingUrl = useMemo(() => {
+    if (!syncId) return '';
+    const pass = getShopItem('shop_sync_password') || settings.adminPin || '8892';
+    const origin = window.location.origin;
+    const path = window.location.pathname;
+    return `${origin}${path}?setupSyncId=${encodeURIComponent(syncId)}&setupPassword=${encodeURIComponent(pass)}&setupShopName=${encodeURIComponent(shopName)}`;
+  }, [syncId, settings.adminPin, shopName]);
+
+  useEffect(() => {
+    if (onboardingUrl) {
+      generateQrCodeDataUrl(onboardingUrl)
+        .then(setOnboardingQrDataUrl)
+        .catch(console.error);
+    }
+  }, [onboardingUrl]);
+
+  const handleCopyOnboardingLink = () => {
+    navigator.clipboard.writeText(onboardingUrl);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
 
   // Load sync metadata on start
   React.useEffect(() => {
@@ -2067,6 +2093,71 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 }`}>
                   {bulkUploadStatus === 'success' ? '🛡️ ' : bulkUploadStatus === 'error' ? '❌ ' : '⏳ '}
                   {bulkUploadMsg}
+                </div>
+              )}
+
+              {/* Easy Device Link (QR Onboarding) */}
+              {isSyncEnabled && syncId && (
+                <div className="bg-slate-50 border border-slate-200/60 p-4 rounded-2xl space-y-3.5 text-slate-800 animate-in fade-in slide-in-from-top-2 duration-150">
+                  <div className="flex justify-between items-center pb-2 border-b border-slate-200/40">
+                    <div className="flex items-center space-x-1.5">
+                      <div className="p-1 bg-indigo-50 text-indigo-650 rounded-lg">
+                        <Database className="h-4 w-4" />
+                      </div>
+                      <div className="text-left">
+                        <h4 className="font-extrabold text-[11px] uppercase tracking-wider text-slate-700">
+                          {language === 'en' ? 'Quick Device Sync' : 'උපකරණ එසැණින් සම්බන්ධ කිරීම'}
+                        </h4>
+                        <p className="text-[8.5px] text-slate-400 font-bold leading-none mt-0.5">
+                          {language === 'en' ? 'Scan to instantly pull this shop catalog' : 'Password රහිතව මෙම සාප්පුව සම්බන්ධ කරන්න'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row items-center gap-4">
+                    {onboardingQrDataUrl ? (
+                      <div className="bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-inner flex-shrink-0">
+                        <img 
+                          src={onboardingQrDataUrl} 
+                          alt="Onboarding QR" 
+                          className="h-28 w-28 object-contain"
+                        />
+                      </div>
+                    ) : (
+                      <div className="h-28 w-28 bg-slate-100 rounded-xl border border-dashed border-slate-300 animate-pulse flex items-center justify-center text-[10px] text-slate-400">
+                        Loading QR...
+                      </div>
+                    )}
+
+                    <div className="flex-1 space-y-2.5 w-full text-left">
+                      <p className="text-[10px] leading-relaxed text-slate-600 font-bold">
+                        {language === 'en'
+                          ? "Scan this QR code with your phone's camera, or copy the onboarding link below to open this shop instantly on another device."
+                          : 'මෙම QR කේතය ඔබගේ දුරකථනයේ කැමරාවෙන් ස්කෑන් කරන්න, නැතහොත් පහත ඇති Onboarding Link එක කොපි කර වෙනත් දුරකථනයකින් ඕපන් කරන්න.'}
+                      </p>
+
+                      <div className="space-y-1.5">
+                        <button
+                          type="button"
+                          onClick={handleCopyOnboardingLink}
+                          className="w-full flex items-center justify-center gap-1.5 bg-white border border-slate-200 hover:bg-slate-550/5 text-slate-750 font-bold py-1.5 px-3 rounded-lg text-[10px] transition shadow-sm active:scale-98 cursor-pointer"
+                        >
+                          {copiedLink ? (
+                            <>
+                              <Check className="h-3.5 w-3.5 text-emerald-500" />
+                              <span className="text-emerald-600 font-extrabold">{language === 'en' ? 'Link Copied!' : 'Link එක කොපි කරන ලදී!'}</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="h-3.5 w-3.5 text-slate-500" />
+                              <span>{language === 'en' ? 'Copy Onboarding Link' : 'Onboarding Link එක කොපි කරන්න'}</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
